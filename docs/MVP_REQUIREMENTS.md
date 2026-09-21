@@ -258,6 +258,27 @@ so that I can evaluate business outcomes.
 
 ---
 
+## Epic 11 — Dispute Management
+
+### US-011 — Identify and Escalate a Dispute
+
+As a Customer,
+I want to indicate that I dispute an overdue amount or collection claim
+so that the case can be routed for human investigation rather than continuing normal collection treatment.
+
+### Acceptance Criteria
+
+- AI can identify DISPUTE intent.
+- Capture a structured dispute category and customer-provided reason.
+- The LLM must not determine whether the dispute is valid.
+- Pause automated collection recommendations for the disputed item where the demo business rule requires it.
+- Route the case to a Collections Officer / human review queue.
+- Preserve conversation and supporting context.
+- Human reviewer records the outcome and reason.
+- All status transitions and decisions are audited.
+
+---
+
 # Product Guardrails
 
 CollectAI must follow these principles:
