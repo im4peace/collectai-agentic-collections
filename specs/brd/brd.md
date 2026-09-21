@@ -1,6 +1,6 @@
 # CollectAI - Business Requirements Document (BRD)
 
-Status: APPROVED (rev 2, content approved by the product owner on 2026-09-21). Source documents aligned to this BRD (section 18.2).
+Status: APPROVED. Rev 2 content approved by the product owner on 2026-09-21; rev 3 amends it only to record post-BRD decisions D-030 to D-042 made during specification review (section 16). Source documents aligned to this BRD (section 18.2).
 Date: 2026-09-21
 Source of truth: `docs/PRODUCT_VISION.md`, `docs/MVP_REQUIREMENTS.md` (US-001..US-010; US-011 committed at `7d7f784` on branch `docs/add-us-011-dispute-escalation`, not yet merged to `main`), `CLAUDE.md`. Alignment actions between this BRD and those documents are listed in section 18.2.
 
@@ -50,9 +50,9 @@ Cost of not solving it (for the portfolio): without a working product there is o
 | COLLECTIONS_OFFICER | Primary | See which delinquent accounts need attention first and why; understand a customer's full collection situation quickly; get a consistent next-best-action with rationale; review and decide on escalated cases with clear context; keep every decision defensible |
 | CUSTOMER | Secondary | Understand what is owed in plain language; resolve the overdue amount in a way that fits their situation (pay now, promise a date, or an arrangement); be treated respectfully; reach a human at any time; have hardship or disputes handled by a person, not argued with a bot |
 | COLLECTIONS_MANAGER | Secondary | Monitor portfolio health, recovery, escalation workload and AI performance; see whether AI quality is measured (LIVE) or only regression-tested (MOCK); read-only |
-| COMPLIANCE_RISK | Secondary | Reconstruct any AI-assisted decision end to end (input, AI interpretation, tool/proposal, rule validation, human decision, final state); verify controls and safety metrics; read-only, cannot mutate |
+| COMPLIANCE_RISK | Secondary | Reconstruct any AI-assisted decision end to end (input, AI interpretation, tool/proposal, rule validation, human decision, final state); verify controls and safety metrics; read-only for normal customer, account and collections state, with one narrow capability to record a compliance review decision on cases routed to COMPLIANCE_REVIEW (D-031) |
 
-Personas are switchable in the demo (no real authentication), but permissions are enforced server-side for the active persona (D-019).
+Personas are switchable in the demo (no real authentication), but permissions are enforced server-side for the active persona (D-019). The CUSTOMER persona is bound server-side to one seeded customer and can access only that customer's own resources (D-032).
 
 ## 4. Success Metrics
 
@@ -206,9 +206,16 @@ Reviewer actions:
 | REJECT | Decline a proposal or exception | Reason mandatory |
 | MODIFY | Change the proposal | Only within explicitly permitted deterministic boundaries (for example choose another eligible option); reason mandatory |
 | REQUEST_MORE_INFORMATION | Ask for more customer or case information | Note stating what is needed |
-| ESCALATE | Refer to a higher-authority human review | Reason mandatory; target role defined at `/spec` (section 18.1) |
+| ESCALATE | Refer to a higher-authority human review | Reason mandatory; the reviewer supplies a whitelisted escalation reason and the routing service selects the destination (5.8) |
 
 A reason is required for every material human decision (approve, reject, modify, escalate). All reviewer actions and status transitions are audited. The AI never acts as reviewer.
+
+### 5.8 Escalation routing and compliance review (D-030, D-031, D-034)
+- The LLM may propose only an approved escalation reason (an enumerated `EscalationReason`). It never selects a destination queue or reviewer role.
+- A deterministic routing service, using the active versioned PolicyRuleSet, maps each reason to a review queue, reviewer role and priority. An unrecognized or missing reason fails closed to COLLECTIONS_REVIEW (reviewer role COLLECTIONS_OFFICER). COMPLIANCE_RISK is not a universal destination; only POLICY_EXCEPTION and HIGH_RISK_COMPLIANCE reasons route to the COMPLIANCE_REVIEW queue.
+- The routing decision, reason and PolicyRuleSet version are audited. The routing table and reason enumeration are defined in `specs/policy-ruleset-contract.md`.
+- COMPLIANCE_RISK is read-only for normal customer, account and collections state. Its one narrow capability is to record a compliance review decision (outcome, reason, reviewer persona, timestamp, case reference) on a case routed to COMPLIANCE_REVIEW, updating only that case's state according to its state machine. It cannot directly modify balances, PaymentEvents, PTPs, payment arrangements, hardship facts, dispute facts or customer or account financial state. Every compliance decision is audited.
+- Vulnerable-customer signals are a separate advisory safety signal on the structured AI interpretation, not an intent. Requests for settlement or a policy exception are a separate structured `special_request` signal (NONE, SETTLEMENT, POLICY_EXCEPTION), also not an intent. The LLM may detect and propose these signals; deterministic orchestration and PolicyRuleSet routing decide the action and destination. Detecting SETTLEMENT only results in human escalation, and settlement remains deferred from the MVP.
 
 ## 6. End-to-End Journeys
 
@@ -328,7 +335,7 @@ API, Domain, Rules Engine, AI Orchestration, LLM Provider, Persistence, Audit, E
 LLM -> structured output (Pydantic) -> schema validation -> authorization/policy validation -> deterministic domain service -> permitted state transition -> append-only audit event. Any invalid or unauthorized AI output fails closed: a safe response or human escalation, with no state change.
 
 ### 10.4 Tool model
-READ tools: `get_account_context`, `get_eligible_options`. PROPOSE tools: `propose_ptp`, `flag_hardship`, `flag_dispute`, `escalate_to_human`. The LLM has no direct financial-state mutation tools; PROPOSE tools create validated proposals only, and authorization and state transitions remain with deterministic domain services (D-011).
+READ tools: `get_account_context`, `get_eligible_options`. PROPOSE tools: `propose_ptp`, `flag_hardship`, `flag_dispute`, `escalate_to_human`. The LLM has no direct financial-state mutation tools; PROPOSE tools create validated proposals only, and authorization and state transitions remain with deterministic domain services (D-011). `escalate_to_human` accepts only an approved escalation reason (D-030). The per-turn tool-call cap defaults to 5 and is configurable (D-035).
 
 ### 10.5 Key business rules
 - Customer-facing figures, dates and options come only from deterministic services.
@@ -380,12 +387,12 @@ All business-critical failures fail closed and are audited. Sensitive or ambiguo
 | 11 | Disputed accounts | Automated recommendations pause for the disputed item; next-best-action human review only; no PTP/arrangement on the item without human action |
 | 12 | Financial hardship and vulnerable-customer scenarios | Hardship: structured indicators, no autonomous restructuring. Vulnerable signals: stop collection dialogue, supportive message, priority escalation; evaluated as a separate safety set (4.4) |
 | 13 | Human escalation failures | Escalation creation is transactional with its audit event; on failure the customer is told the handoff was not completed with a safe next step; no further automated collection action on the account; unassigned/aging cases surfaced |
-| 14 | Unauthorized persona/role access | Server-side role checks on every endpoint; 403 plus audit event; role x endpoint authorization test matrix |
+| 14 | Unauthorized persona/role access | Server-side role checks on every endpoint; CUSTOMER bound to one customer and limited to that customer's own resources, with cross-customer requests answered like a nonexistent resource; COMPLIANCE_RISK read-only except the narrow compliance review decision capability; 403 plus audit event; role x endpoint and resource-ownership test matrices |
 | 15 | Audit logging failure | Transition and audit event succeed or fail together; audit failure prevents the transition |
 | 16 | Sensitive-data leakage into prompts or logs | Prompt allow-list; redaction before logging/audit; CI scans of prompts, logs and seed data for prohibited patterns |
 | 17 | Repeated/replayed tool calls | Idempotent handling returns the original result; per-turn tool-call cap; breach escalates |
 | 18 | Model output conflicts with deterministic rules | Rules engine authoritative; model output overridden/rejected; policy-conflict event logged; response replaced by templated text from service output |
-| 19 | Ambiguous or UNKNOWN intent | Clarify up to 2 turns, then offer human handoff |
+| 19 | Ambiguous or UNKNOWN intent | First UNKNOWN: clarification question. Second UNKNOWN: one final clarification. Still unresolved after two clarification turns: UNRESOLVED_UNKNOWN escalation, automated treatment for that topic stops, and human follow-up is offered or confirmed. REQUEST_HUMAN always escalates immediately |
 | 20 | Multiple or conflicting intents | Safety precedence rule (10.5) |
 | 21 | Customer requests a human | Always honoured; creates an EscalationCase; AI must not discourage |
 | 22 | Concurrent actions (double submit, two officers on one escalation, status changed during review) | Optimistic version checks; stale decision rejected with message |
@@ -466,7 +473,7 @@ Neutral, professional enterprise-banking look; no real bank branding, logos or p
 
 ## 16. Product Decision Log (P4 seed)
 
-All entries dated 2026-09-21 (interview session).
+D-001 to D-029 were made in the BRD interview session; D-030 onward record material post-BRD decisions made during specification review. All entries are dated 2026-09-21.
 
 | ID | Status | Decision | Alternatives considered | Rationale |
 |---|---|---|---|---|
@@ -499,6 +506,19 @@ All entries dated 2026-09-21 (interview session).
 | D-027 | Accepted | KPI tree limited to metrics derivable from MVP data; right-party contact, handling time and cost per collected account deferred | Include all vision KPIs | Avoid unmeasurable metrics |
 | D-028 | Accepted | AI audit metadata includes prompt/template version | Model version only | Reproducible AI behaviour traceability |
 | D-029 | Accepted | WCAG 2.1 AA target; conformance claimed only after axe, keyboard and manual review | Claim on axe alone | Avoid overstated accessibility |
+| D-030 | Accepted | Deterministic reason-based escalation routing: the LLM proposes only an approved escalation reason, a routing service using the active PolicyRuleSet selects queue, reviewer role and priority, unrecognized reasons fail closed to COLLECTIONS_REVIEW, and reviewer ESCALATE uses a whitelisted reason. Resolves the former open question 18.1 item 4 | COMPLIANCE_RISK as the universal ESCALATE destination; LLM-selected destination | Prevents the AI choosing authority; avoids inventing organization structure |
+| D-031 | Accepted | COMPLIANCE_RISK stays read-only for normal state and gains one narrow capability: record a compliance review decision on COMPLIANCE_REVIEW cases, audited, with no ability to change financial or collections facts. Amends the earlier "cannot mutate" wording | Fully read-only compliance with officers deciding compliance cases; broad compliance mutation rights | Lets policy-exception and high-risk compliance cases be decided by the right persona without weakening state protection |
+| D-032 | Accepted | CUSTOMER persona is bound server-side to one customer_id and every customer-facing request validates resource ownership; cross-customer access is answered like a nonexistent resource | Role-only checks | Prevents cross-customer data access, including via prompt injection |
+| D-033 | Accepted | Vulnerability is a separate advisory safety signal (boolean, optional category, rationale), not an intent; deterministic orchestration creates the mandatory escalation and suppresses treatment; a separate LIVE safety set is evaluated and no numeric vulnerable-customer claim is published without an explicitly defined metric and at least 30 labelled LIVE cases | Vulnerable customer as an intent label | Vulnerability can co-occur with any intent |
+| D-034 | Accepted | `special_request` (NONE, SETTLEMENT, POLICY_EXCEPTION) is a separate structured signal, not an intent; detecting SETTLEMENT only causes human escalation and settlement stays deferred | Add SETTLEMENT and POLICY_EXCEPTION as intents; ignore settlement requests | Detect the request for escalation without adding a settlement workflow |
+| D-035 | Accepted | Per-turn AI tool-call cap defaults to 5 and is configurable through validated application configuration; at the cap no further tool executes, no unexecuted request can mutate state, the event is audited, and the assistant responds safely or escalates. Resolves the former open question 18.1 item 3 | Hard-coded cap; no cap | Bounds runaway tool loops while staying tunable |
+| D-036 | Accepted | The PolicyRuleSet has a full parameter contract (`specs/policy-ruleset-contract.md`); versions are immutable, exactly one is active, older versions referenced by audit events stay resolvable, missing or invalid required configuration fails closed, and seeded numeric values are a `/design` decision | Loose "present and non-null" checks; in-place edits | Auditability of which rules produced a decision |
+| D-037 | Accepted | Idempotency and replay protection for consequential creation and decision operations (PTP, simulated payment, arrangement, hardship case, dispute, escalation, reviewer and compliance decisions): the same valid key returns the original result and creates no duplicate state | Rely on client behaviour | Prevents duplicate financial or case state |
+| D-038 | Accepted | A simulated payment below the promised amount does not mark a PTP KEPT: qualifying successful payments accumulate deterministically until the promised amount is met by the promised date, otherwise the PTP stays PENDING and then becomes BROKEN | First payment marks KEPT | Realistic and deterministic PTP lifecycle |
+| D-039 | Accepted | UNKNOWN handling: first and second UNKNOWN each get a clarification, then an UNRESOLVED_UNKNOWN escalation stops automated treatment for the topic and human follow-up is offered or confirmed; REQUEST_HUMAN escalates immediately | Offer a handoff without a case | Removes an ambiguity in the original failure table |
+| D-040 | Accepted | Manual officer PTP recording (US-005) is a deterministic fallback that uses the same authorization, validation, freshness, PolicyRuleSet, idempotency, audit and state-transition rules as the AI journey and does not bypass guardrails | No manual path; AI-only recording | Officers keep permitted work available when AI is unavailable |
+| D-041 | Accepted | Customer confirmation of a PTP, simulated payment or arrangement is an explicit application action, not an LLM tool decision, and the domain service revalidates authorization, policy, freshness and proposal validity before any state change | Treat an LLM proposal as confirmation | Keeps consent and state changes deterministic |
+| D-042 | Accepted | Explicit quality requirements: end-to-end tests for each journey, automated and manual accessibility verification, and reproducible local setup with basic CI in MOCK mode | Ad hoc verification | Makes the portfolio claims verifiable |
 
 ## 17. Specification Inputs / Constraints (deferred to `/spec`)
 
@@ -513,21 +533,22 @@ These implementation details are inputs to `/spec` and not BRD-level requirement
 - Endpoint role x permission matrix; rate-limit values; boundary-test catalogues (zero, negative, over-balance, past date, far future, over-precision).
 - Detailed module dependency graph including how AI Orchestration invokes Domain services.
 - Component library selection; axe and manual accessibility procedures; performance test harness.
+- PolicyRuleSet parameter contract, escalation reason enumeration and default routing table (`specs/policy-ruleset-contract.md`); seeded numeric values are chosen at `/design`.
 
 ## 18. Open Questions and Alignment Actions
 
 ### 18.1 Non-blocking open questions (settle at `/spec`)
 1. Exact seeded PolicyRuleSet values: contact-frequency thresholds, PTP policy window, freshness threshold, priority weights and band cut-offs, exception-authority limits.
 2. Exact accessible React component library.
-3. Exact per-turn AI tool-call cap.
-4. Target of the reviewer ESCALATE action within demo RBAC (for example a senior-review flag versus referral to COMPLIANCE_RISK).
+3. RESOLVED (D-035): the per-turn AI tool-call cap defaults to 5 and is configurable; only its allowed range is a `/design` detail.
+4. RESOLVED (D-030): the LLM proposes only an approved escalation reason, a deterministic routing service using the active versioned PolicyRuleSet selects the destination queue, and unrecognized reasons fail closed to COLLECTIONS_REVIEW. COMPLIANCE_RISK is not a universal destination.
 
 ### 18.2 Requirements alignment actions
 `CLAUDE.md` makes `docs/PRODUCT_VISION.md` and `docs/MVP_REQUIREMENTS.md` the source of truth. Status:
-- US-011 (commit `7d7f784`) is in history on branch `docs/add-us-011-dispute-escalation`; merging to `main` remains a separate step.
+- DONE: US-011 (commit `7d7f784`) is in `docs/MVP_REQUIREMENTS.md` and is part of the merged history.
 - DONE: simulated PAY_NOW / PaymentEvent, the deterministic Collections Priority model, the exceptional-arrangement definition, mandatory human actions, Settlement deferral and the sensitive-category recall rule are reflected in `docs/MVP_REQUIREMENTS.md` and `docs/PRODUCT_VISION.md`.
 - DONE: deferral of right-party contact rate, average handling time and cost per collected account (D-027) is recorded in both documents.
 
 ---
 
-Approved by the product owner. Next step: `/spec` (not yet run).
+Approved by the product owner (rev 2). The specification has been generated and corrected; this revision records post-BRD decisions D-030 to D-042. Next step: `/design` (not yet run).

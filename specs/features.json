@@ -1,0 +1,4702 @@
+[
+  {
+    "id": "F001",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Money is represented with Python Decimal; float input is rejected and API serialization emits strings such as \"1250.50\".",
+    "steps": [
+      "Construct Money from Decimal('1250.50') and serialize to JSON",
+      "Assert JSON value is the string '1250.50'",
+      "Assert constructing Money from float 12.5 raises a validation error"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F002",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Money rejects negative values and more than 2 decimal places with distinct reason codes NEGATIVE_AMOUNT and OVER_PRECISION.",
+    "steps": [
+      "Validate Decimal('-1') and Decimal('10.005') as payment amounts",
+      "Assert reason codes are NEGATIVE_AMOUNT and OVER_PRECISION respectively"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F003",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Clock interface has a system implementation and a settable test/simulated implementation whose now() returns exactly the value set and advances by advance(days=n).",
+    "steps": [
+      "Set TestClock to 2026-10-01",
+      "Call advance(days=3)",
+      "Assert now() equals 2026-10-04"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F004",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Account.type accepts only CARD or PERSONAL_LOAN, and enums PTP status (PENDING, KEPT, BROKEN, CANCELLED) and intent labels (PAY_NOW, PROMISE_TO_PAY, PAYMENT_PLAN, FINANCIAL_HARDSHIP, DISPUTE, REQUEST_HUMAN, UNKNOWN) reject any other value.",
+    "steps": [
+      "Instantiate Account with type 'MORTGAGE'",
+      "Assert validation error",
+      "Assert each listed enum value round-trips"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F174",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "EscalationReason accepts exactly REQUEST_HUMAN, UNRESOLVED_UNKNOWN, AI_FAILURE_FALLBACK, EXCEPTIONAL_ARRANGEMENT, FINANCIAL_HARDSHIP, DISPUTE, SETTLEMENT_REQUEST, AMBIGUOUS_VALIDATION, VULNERABLE_CUSTOMER, POLICY_EXCEPTION and HIGH_RISK_COMPLIANCE, the review queue and reviewer role enums reject any other value, and VULNERABLE_CUSTOMER is not an accepted intent label.",
+    "steps": [
+      "Construct EscalationReason from each of the 11 valid values",
+      "Assert an unknown value such as SETTLEMENT_OFFER raises a validation error",
+      "Assert IntentLabel('VULNERABLE_CUSTOMER') raises a validation error"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F005",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Loading the seeded rule set returns a version string (for example 'policy-v1') and every required parameter defined in specs/policy-ruleset-contract.md is present with the type, unit and range the contract specifies.",
+    "steps": [
+      "Load the seeded rule set",
+      "Assert the version string is present",
+      "Assert every contract parameter exists and satisfies its type and range constraint"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F006",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Rule set validation rejects a config with a missing required parameter, a wrong-typed or out-of-range value, negative weights or unordered band cut-offs, and the application fails to start with a named error identifying the parameter.",
+    "steps": [
+      "Remove priority.band_cutoffs from a copy of the rule set and attempt startup",
+      "Assert startup fails with an error naming priority.band_cutoffs",
+      "Repeat with a negative weight and with cut-offs in descending order"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F175",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "With no valid active rule set at runtime every rules service returns POLICY_UNAVAILABLE and grants no eligibility, options or priority (fail closed).",
+    "steps": [
+      "Deactivate the rule set in a test",
+      "Call the priority, PTP, arrangement and contact services",
+      "Assert each returns POLICY_UNAVAILABLE with no eligibility, options or score"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F176",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Rule sets are immutable per version: changing any parameter creates a new version, exactly one version is active, and an earlier version referenced by an audit event can still be loaded read-only with its original values.",
+    "steps": [
+      "Activate policy-v2 with a changed ptp.window_days",
+      "Assert policy-v1 still loads with its original ptp.window_days",
+      "Assert an attempt to update a parameter in place is rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F177",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "The routing table maps every EscalationReason to exactly one queue and reviewer role as defined in the contract, and a table missing a reason or naming an unknown queue or role fails validation.",
+    "steps": [
+      "Validate the seeded routing table against all 11 reasons",
+      "Remove DISPUTE from a copy and assert validation fails",
+      "Set an unknown queue name and assert validation fails"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F007",
+    "category": "security",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Configuration reads the model name from ANTHROPIC_MODEL and LIVE or MOCK mode from an environment variable, and no model id or secret is hard-coded in source.",
+    "steps": [
+      "Grep source for 'claude-' literals and API key patterns outside tests and .env.example",
+      "Assert zero matches",
+      "Start with ANTHROPIC_MODEL=x and assert config.model == 'x'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F178",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Validated application configuration keys (tool call cap per turn, retry bound, maximum clarification turns, chat rate limit) are checked at startup against the contract ranges, the tool call cap defaults to 5, and a value of 0 or 21 fails startup with a named error.",
+    "steps": [
+      "Start with no cap configured and assert the effective cap is 5",
+      "Start with cap 0 and assert a named startup error",
+      "Start with cap 21 and assert a named startup error"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F008",
+    "category": "security",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "A .env file is git-ignored and .env.example lists required variables with placeholder values only.",
+    "steps": [
+      "Run git check-ignore .env",
+      "Assert exit code 0",
+      "Assert .env.example contains no value matching an API key pattern"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F009",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "Seed script loads between 200 and 1,000 synthetic accounts including both CARD and PERSONAL_LOAN types and is idempotent when run twice.",
+    "steps": [
+      "Run seed script",
+      "Assert account count between 200 and 1000 and both types present",
+      "Run seed again and assert count unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F010",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "Money columns are PostgreSQL NUMERIC and a round-trip of Decimal('0.10') through the repository returns Decimal('0.10') exactly.",
+    "steps": [
+      "Inspect schema column types for NUMERIC",
+      "Save and reload an amount of 0.10",
+      "Assert equality with no float drift"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F011",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "Seed validation rejects inconsistent records (DPD not matching bucket, negative balance) and flags them with a reason instead of loading silently.",
+    "steps": [
+      "Feed a record with DPD 95 and bucket 1-30",
+      "Assert it is rejected or flagged INCONSISTENT with reason",
+      "Assert negative balance record is rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F012",
+    "category": "security",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "Prohibited-pattern scan over seed data finds zero real-looking PII: emails only on example.com, phones only in the fictional range, no 13-19 digit card numbers, CVV, PIN or government ID patterns.",
+    "steps": [
+      "Run the prohibited-pattern scanner on seed output",
+      "Assert exit code 0",
+      "Inject a 16-digit card number into a fixture and assert the scanner fails"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F179",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "The schema is created by versioned migrations that apply cleanly to an empty database and can be re-run without error.",
+    "steps": [
+      "Run migrations on an empty PostgreSQL database",
+      "Assert all tables exist",
+      "Run migrations again and assert no error and no change"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F180",
+    "category": "security",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "Every customer-owned record (account, conversation, PTP, PaymentEvent, arrangement, hardship case, dispute, escalation case) carries an owning customer_id foreign key, and a repository query by customer_id returns only that customer's records.",
+    "steps": [
+      "Seed two customers with records of each type",
+      "Query each repository by the first customer_id",
+      "Assert none of the second customer's records are returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F181",
+    "category": "functional",
+    "story": "E1-S3",
+    "group": "B",
+    "description": "DelinquencyRecord stores an as_of timestamp and a monotonically increasing version, and every update increments the version.",
+    "steps": [
+      "Create a DelinquencyRecord and read version 1",
+      "Update the overdue amount",
+      "Assert version is 2 and as_of is advanced by the Clock"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F013",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "C",
+    "description": "An AuditEvent contains timestamp from the injected Clock, account reference, capability, provider, model id, prompt version, PolicyRuleSet version, correlation id, provider latency, tool-call duration, end-to-end interaction duration, token usage where available, redacted input reference, AI output, tool calls, rule results, human override and final action fields.",
+    "steps": [
+      "Write an audit event from a MOCK interaction with scripted latency 120 ms and 300 tokens",
+      "Read it back",
+      "Assert every listed field is present and the latency and token values match"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F014",
+    "category": "security",
+    "story": "E1-S4",
+    "group": "C",
+    "description": "The application database role cannot UPDATE or DELETE audit rows: attempted UPDATE and DELETE raise a permission error.",
+    "steps": [
+      "Connect as the app role",
+      "Execute UPDATE and DELETE on audit_events",
+      "Assert both fail with permission denied"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F015",
+    "category": "integration",
+    "story": "E1-S4",
+    "group": "C",
+    "description": "When the audit insert fails, the accompanying state transition is rolled back and no transition row persists.",
+    "steps": [
+      "Force the audit insert to raise inside a transition",
+      "Assert the transition raises",
+      "Assert the entity state is unchanged in the database"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F016",
+    "category": "security",
+    "story": "E1-S4",
+    "group": "C",
+    "description": "Secrets and prohibited identifiers are redacted before an audit event is stored: an input containing an API key pattern is stored as [REDACTED].",
+    "steps": [
+      "Write an event whose input includes 'sk-ant-abc123'",
+      "Read stored event",
+      "Assert stored text has [REDACTED] and not the key"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F182",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "C",
+    "description": "When audit persistence fails for a non-state-changing activity the audit service raises AuditUnavailable, callers cannot report the activity as audited, and an operational failure log entry without customer data is written where possible.",
+    "steps": [
+      "Force the audit insert to fail during a recommendation",
+      "Assert AuditUnavailable is raised to the caller",
+      "Assert an operational failure log line exists and contains no customer data"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F183",
+    "category": "integration",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "A README documents local startup and one documented command starts PostgreSQL, the API and the web app with Docker Compose from a clean checkout.",
+    "steps": [
+      "Follow the README on a clean checkout",
+      "Run the documented start command",
+      "Assert the API health endpoint and the web app respond"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F184",
+    "category": "integration",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "A documented command applies migrations and loads the synthetic seed data, and the API reports ready afterwards.",
+    "steps": [
+      "Run the migrate-and-seed command",
+      "Assert the account count is between 200 and 1,000",
+      "Assert the readiness endpoint returns ready"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F185",
+    "category": "functional",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "MOCK mode is the default and the full backend and frontend test suites run locally with no ANTHROPIC_API_KEY set and no network calls to the provider.",
+    "steps": [
+      "Unset ANTHROPIC_API_KEY and start the test suites",
+      "Assert all suites run to completion",
+      "Assert a socket-blocking guard records zero outbound provider calls"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F186",
+    "category": "integration",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "A basic CI workflow runs backend, frontend and MOCK evaluation tests on every push, fails on any test failure, and excludes LIVE evaluation.",
+    "steps": [
+      "Inspect the CI workflow file",
+      "Assert it runs backend, frontend and MOCK eval jobs",
+      "Assert LIVE evaluation is not executed and a failing test fails the workflow"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F187",
+    "category": "functional",
+    "story": "E1-S5",
+    "group": "C",
+    "description": "No production deployment configuration is included: only local Compose files and the CI workflow exist.",
+    "steps": [
+      "List deployment-related files in the repository",
+      "Assert there is no production manifest, cloud template or release pipeline"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F017",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Given fixed inputs and policy-v1 the service returns the same score, band and ordered factor list on 100 repeated calls.",
+    "steps": [
+      "Call priority service 100 times with fixed input",
+      "Assert all results are identical"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F018",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Each returned factor names the input attribute, its value and its weighted contribution, and the contributions sum to the score.",
+    "steps": [
+      "Compute priority for a sample account",
+      "Assert factors list has one entry per contributing input",
+      "Assert sum of contributions equals score"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F019",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Band thresholds from the rule set map scores at each boundary (just below and at cut-off) to the expected band.",
+    "steps": [
+      "Compute scores at cut-off-0.01 and cut-off for each threshold",
+      "Assert bands are LOW/MEDIUM/HIGH/CRITICAL as configured"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F020",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Accounts with an active dispute, active hardship case or open escalation return human_treatment=true and automated_treatment_suppressed=true.",
+    "steps": [
+      "Compute priority for accounts with each condition",
+      "Assert both flags true",
+      "Assert flags false for a clean account"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F021",
+    "category": "security",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "The rules engine package imports nothing from AI orchestration or LLM provider modules (checked by an architecture test).",
+    "steps": [
+      "Run import-graph test on rules_engine",
+      "Assert no dependency on ai_orchestration or llm_provider"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F188",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Priority parameters are read from the active PolicyRuleSet, and a missing or invalid parameter returns POLICY_UNAVAILABLE with no score produced.",
+    "steps": [
+      "Provide a rule set with priority.weights.dpd missing",
+      "Call the priority service",
+      "Assert POLICY_UNAVAILABLE is returned and no score or band is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F022",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "Amounts of zero, negative, over the overdue balance and with more than 2 decimals are rejected with reason codes ZERO_AMOUNT, NEGATIVE_AMOUNT, OVER_BALANCE and OVER_PRECISION.",
+    "steps": [
+      "Validate each of 0, -5, balance+0.01, 10.001",
+      "Assert corresponding reason code and no exception thrown"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F023",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "Dates in the past, and dates beyond the policy window (ptp_window_days from Clock now), are rejected with PAST_DATE and OUTSIDE_WINDOW; a date on the last permitted day is accepted.",
+    "steps": [
+      "Set TestClock",
+      "Validate yesterday, last permitted day, last permitted day + 1",
+      "Assert PAST_DATE, accepted, OUTSIDE_WINDOW"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F024",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "A rejection response includes at least one valid alternative amount or date range computed by the service.",
+    "steps": [
+      "Validate an over-balance amount",
+      "Assert alternatives contains the maximum permitted amount as a Decimal string"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F025",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "The payable-amounts function returns the overdue amount and the full outstanding balance as Decimal strings for an account and returns none for an account under suppression.",
+    "steps": [
+      "Call payable options for a normal account",
+      "Assert two options with expected values",
+      "Call for a suppressed account and assert an empty list with reason SUPPRESSED"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F189",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "The PTP satisfaction rule sums only successful simulated PaymentEvents at or above the qualifying minimum that occur on or before the due date and returns KEPT when the cumulative total is at least the promised amount, PENDING before the deadline otherwise, and BROKEN after the deadline.",
+    "steps": [
+      "Create a PTP for 300.00 due 2026-10-10 and payments totalling 300.00 on 2026-10-08",
+      "Assert the rule returns KEPT",
+      "Evaluate the same PTP with 100.00 paid and Clock at 2026-10-11 and assert BROKEN"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F190",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "A single qualifying payment below the promised amount returns PENDING with cumulative_paid and remaining amounts as Decimal strings, and a second payment that brings the total to the promised amount returns KEPT.",
+    "steps": [
+      "Apply a payment of 100.00 to a 300.00 PTP",
+      "Assert PENDING with cumulative_paid '100.00' and remaining '200.00'",
+      "Apply a second payment of 200.00 and assert KEPT"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F191",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "B",
+    "description": "FAILED PaymentEvents, payments below the qualifying minimum and payments dated after the due date are excluded from the cumulative total.",
+    "steps": [
+      "Add a FAILED payment, a payment below ptp.qualifying_payment_min_amount and a late payment",
+      "Evaluate the PTP",
+      "Assert cumulative_paid excludes all three"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F026",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "B",
+    "description": "For a fixed account and policy-v1 the service returns a stable list of options whose installments sum exactly to the arranged amount (no rounding loss).",
+    "steps": [
+      "Request options for a 1000.00 overdue account",
+      "Assert each option's installments sum to the arranged total with Decimal equality"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F027",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "B",
+    "description": "An account that fails eligibility (for example already has an active arrangement or DPD beyond the limit) returns an empty option list with a reason code.",
+    "steps": [
+      "Request options for an ineligible account",
+      "Assert options == [] and reason code present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F028",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "B",
+    "description": "A requested term or date outside permitted ranges is classified EXCEPTIONAL and one inside is classified ELIGIBLE.",
+    "steps": [
+      "Classify a request with term max+1",
+      "Assert EXCEPTIONAL",
+      "Classify a request within range and assert ELIGIBLE"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F029",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "B",
+    "description": "A conflicting active PTP or arrangement blocks a new arrangement with reason CONFLICTING_ACTIVE_ITEM and lists amend or cancel as the permitted path.",
+    "steps": [
+      "Create active PTP fixture",
+      "Request options",
+      "Assert blocked with CONFLICTING_ACTIVE_ITEM"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F030",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "B",
+    "description": "If the rules engine raises an internal error the service returns a failure result (no options, no guess) and records the rule-set version.",
+    "steps": [
+      "Inject a rule loader failure",
+      "Assert result status is RULES_ERROR with no options",
+      "Assert rule-set version present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F031",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "B",
+    "description": "Contact is denied with reason MAX_ATTEMPTS when attempts in the period reach the configured maximum and allowed when one below.",
+    "steps": [
+      "Set attempts to max-1 and call can_contact",
+      "Assert allowed",
+      "Set attempts to max and assert denied MAX_ATTEMPTS"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F032",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "B",
+    "description": "Contact is denied with reason MIN_INTERVAL when the last attempt is within the configured interval under the TestClock and allowed after it.",
+    "steps": [
+      "Record an attempt",
+      "Advance clock to interval-1h and assert denied",
+      "Advance to interval and assert allowed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F033",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "B",
+    "description": "An active dispute on an item suppresses automated recommendations for that item only, while other items on the account remain eligible.",
+    "steps": [
+      "Create account with two items and a dispute on one",
+      "Assert item A suppressed and item B not"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F034",
+    "category": "functional",
+    "story": "E2-S4",
+    "group": "B",
+    "description": "Active hardship or a vulnerable-customer flag suppresses all automated treatment for the account until cleared by a human decision.",
+    "steps": [
+      "Set hardship flag",
+      "Assert suppression true",
+      "Record human decision clearing it and assert suppression false"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F192",
+    "category": "functional",
+    "story": "E2-S5",
+    "group": "B",
+    "description": "The freshness check compares a snapshot's as_of and version to the current record and the freshness threshold and returns FRESH, STALE or UNKNOWN.",
+    "steps": [
+      "Check a snapshot younger than the threshold with the current version",
+      "Assert FRESH",
+      "Check an older snapshot and a snapshot with a missing as_of and assert STALE and UNKNOWN"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F193",
+    "category": "functional",
+    "story": "E2-S5",
+    "group": "B",
+    "description": "A stale snapshot or a version mismatch causes the consequential action to be refused with reason STALE_DATA and the refreshed context to be returned.",
+    "steps": [
+      "Change the record version after a proposal is built",
+      "Attempt the consequential action",
+      "Assert STALE_DATA, no state change and refreshed context returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F194",
+    "category": "functional",
+    "story": "E2-S5",
+    "group": "B",
+    "description": "When freshness cannot be established (UNKNOWN) the action fails closed with no state change and is reported for escalation with reason AMBIGUOUS_VALIDATION.",
+    "steps": [
+      "Remove as_of from a snapshot",
+      "Attempt a PTP creation",
+      "Assert no PTP, an AMBIGUOUS_VALIDATION escalation request and an audit event"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F195",
+    "category": "functional",
+    "story": "E2-S5",
+    "group": "B",
+    "description": "The rules engine refuses internally inconsistent records (DPD not matching bucket, negative balance, overdue amount above outstanding balance) with reason INCONSISTENT_RECORD and flags the record.",
+    "steps": [
+      "Evaluate a record with DPD 95 and bucket 1-29",
+      "Assert INCONSISTENT_RECORD and the record flagged",
+      "Repeat with a negative balance and overdue above outstanding"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F196",
+    "category": "functional",
+    "story": "E2-S5",
+    "group": "B",
+    "description": "Every rules service invoked with an inconsistent or unfresh record returns a failure result and never an eligibility, option or score.",
+    "steps": [
+      "Call priority, PTP, payable-amount and arrangement services with an inconsistent record",
+      "Assert each returns a failure result",
+      "Assert no option list or score is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F197",
+    "category": "functional",
+    "story": "E2-S6",
+    "group": "B",
+    "description": "For each of the 11 EscalationReason values the routing service returns the contract queue and reviewer role: REQUEST_HUMAN, UNRESOLVED_UNKNOWN, AI_FAILURE_FALLBACK, SETTLEMENT_REQUEST and AMBIGUOUS_VALIDATION to COLLECTIONS_REVIEW and COLLECTIONS_OFFICER; EXCEPTIONAL_ARRANGEMENT to COLLECTIONS_EXCEPTION_REVIEW and COLLECTIONS_OFFICER; FINANCIAL_HARDSHIP to HARDSHIP_REVIEW and COLLECTIONS_OFFICER; DISPUTE to DISPUTE_REVIEW and COLLECTIONS_OFFICER; VULNERABLE_CUSTOMER to VULNERABLE_CUSTOMER_REVIEW and COLLECTIONS_OFFICER; POLICY_EXCEPTION and HIGH_RISK_COMPLIANCE to COMPLIANCE_REVIEW and COMPLIANCE_RISK.",
+    "steps": [
+      "Run a parametrized test over all 11 reasons",
+      "Assert each returns the mapped queue and reviewer role",
+      "Assert exactly COMPLIANCE_RISK is returned only for POLICY_EXCEPTION and HIGH_RISK_COMPLIANCE"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F198",
+    "category": "functional",
+    "story": "E2-S6",
+    "group": "B",
+    "description": "An unrecognized or missing reason fails closed to COLLECTIONS_REVIEW and COLLECTIONS_OFFICER and the result is flagged reason_unrecognized.",
+    "steps": [
+      "Call the routing service with 'BANK_MANAGER_ESCALATION' and with None",
+      "Assert COLLECTIONS_REVIEW and COLLECTIONS_OFFICER for both",
+      "Assert reason_unrecognized is true"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F199",
+    "category": "security",
+    "story": "E2-S6",
+    "group": "B",
+    "description": "The routing function accepts only the reason and case context and never a queue or reviewer role argument, and its result contains reason, queue, reviewer role, priority and the PolicyRuleSet version used.",
+    "steps": [
+      "Inspect the routing function signature",
+      "Assert passing queue or reviewer_role raises an error",
+      "Assert the result includes reason, queue, reviewer_role, priority and rule_set_version"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F200",
+    "category": "functional",
+    "story": "E2-S6",
+    "group": "B",
+    "description": "VULNERABLE_CUSTOMER and FINANCIAL_HARDSHIP cases receive at least the ELEVATED priority defined by the routing priority parameters, and identical inputs always return the identical priority.",
+    "steps": [
+      "Route a VULNERABLE_CUSTOMER and a FINANCIAL_HARDSHIP case",
+      "Assert priority is ELEVATED or URGENT per the rule set",
+      "Repeat 50 times and assert identical results"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F201",
+    "category": "functional",
+    "story": "E2-S6",
+    "group": "B",
+    "description": "If the active rule set is unavailable the routing service returns the COLLECTIONS_REVIEW fallback with POLICY_UNAVAILABLE recorded and never an empty routing.",
+    "steps": [
+      "Deactivate the rule set",
+      "Route a DISPUTE reason",
+      "Assert COLLECTIONS_REVIEW, COLLECTIONS_OFFICER and POLICY_UNAVAILABLE recorded"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F035",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "D",
+    "description": "A request without a persona header returns 401 and a request from a role not allowed on an endpoint returns 403 with body code FORBIDDEN.",
+    "steps": [
+      "Call GET /api/portfolio with no persona",
+      "Assert 401",
+      "Call with persona CUSTOMER",
+      "Assert 403"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F036",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "D",
+    "description": "Every 403 produces an audit event containing persona, endpoint and correlation id.",
+    "steps": [
+      "Trigger a 403",
+      "Query audit events",
+      "Assert one event with the persona, endpoint and correlation id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F037",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "D",
+    "description": "A generated role x endpoint matrix test covers every registered route for all four personas and asserts the documented allow or deny outcome.",
+    "steps": [
+      "Enumerate routes from the app",
+      "For each persona x route assert status matches the permission table",
+      "Assert failure if a route lacks a table entry"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F038",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "D",
+    "description": "COLLECTIONS_MANAGER receives 403 on every mutating endpoint (POST, PUT, PATCH, DELETE), and COMPLIANCE_RISK receives 403 on every mutating endpoint except the record_compliance_review_decision endpoint.",
+    "steps": [
+      "Enumerate all mutating routes from the route registry",
+      "Call each as COLLECTIONS_MANAGER and assert 403",
+      "Call each as COMPLIANCE_RISK and assert 403 except the compliance decision route"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F202",
+    "category": "security",
+    "story": "E3-S1",
+    "group": "D",
+    "description": "The record_compliance_review_decision capability is allowed only for COMPLIANCE_RISK and returns 403 for CUSTOMER, COLLECTIONS_OFFICER and COLLECTIONS_MANAGER, and COMPLIANCE_RISK holds no other mutating capability.",
+    "steps": [
+      "Call the compliance decision endpoint as each of the four personas",
+      "Assert only COMPLIANCE_RISK is allowed",
+      "Assert COMPLIANCE_RISK receives 403 on all other mutating routes"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F039",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "E",
+    "description": "GET /api/portfolio returns items with customer name, account type, outstanding balance, overdue amount, DPD, bucket, collection status and priority band for each account.",
+    "steps": [
+      "Call GET /api/portfolio as COLLECTIONS_OFFICER",
+      "Assert 200",
+      "Assert each item contains all listed fields and money values are strings"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F040",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "E",
+    "description": "Filtering by dpd_min, dpd_max, priority_band and status returns only matching accounts and combined filters intersect.",
+    "steps": [
+      "Call with priority_band=HIGH",
+      "Assert all items HIGH",
+      "Add dpd_min=60 and assert all items also have DPD >= 60"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F041",
+    "category": "functional",
+    "story": "E3-S2",
+    "group": "E",
+    "description": "Sorting by overdue amount and DPD ascending and descending returns correctly ordered results using Decimal comparison.",
+    "steps": [
+      "Call with sort=overdue&order=desc",
+      "Assert non-increasing Decimal order",
+      "Repeat for dpd asc"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F042",
+    "category": "security",
+    "story": "E3-S2",
+    "group": "E",
+    "description": "The portfolio endpoint is allowed only for COLLECTIONS_OFFICER and returns 403 for CUSTOMER, COLLECTIONS_MANAGER and COMPLIANCE_RISK.",
+    "steps": [
+      "Call GET /api/portfolio as each persona",
+      "Assert COLLECTIONS_OFFICER receives 200",
+      "Assert the other three receive 403"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F043",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "The table renders columns customer, product type, balance, overdue, DPD, bucket, status and priority band, and the band shows a text label as well as color.",
+    "steps": [
+      "Open /portfolio as officer",
+      "Assert column headers",
+      "Assert a band cell contains text such as 'High' and not only a color"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F044",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "Selecting DPD, priority band and status filters updates the rows shown and the URL query, and clearing filters restores the full list.",
+    "steps": [
+      "Select priority band High",
+      "Assert all rows show High",
+      "Click clear and assert row count returns to default"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F045",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "Clicking the overdue and DPD column headers sorts the table and sets aria-sort accordingly.",
+    "steps": [
+      "Click Overdue header",
+      "Assert first two rows are in descending overdue order",
+      "Assert aria-sort attribute set"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F046",
+    "category": "ui",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "Clicking a row navigates to /customers/{accountId} (Customer 360) and the table passes an axe scan with zero serious or critical violations and is operable by keyboard.",
+    "steps": [
+      "Focus a row link with Tab and press Enter",
+      "Assert URL matches /customers/",
+      "Run axe on /portfolio and assert 0 serious or critical"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F047",
+    "category": "performance",
+    "story": "E3-S3",
+    "group": "F",
+    "description": "Portfolio main content is interactive in under 2 s p95 over 30 scripted Playwright loads after one warm-up on the 1,000-account dataset.",
+    "steps": [
+      "Load /portfolio 31 times",
+      "Discard the first",
+      "Assert p95 interactive < 2000 ms and log hardware"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F048",
+    "category": "ui",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "The switcher lists exactly CUSTOMER, COLLECTIONS_OFFICER, COLLECTIONS_MANAGER and COMPLIANCE_RISK, selecting one sends that persona on subsequent API calls, and selecting CUSTOMER requires choosing one seeded demo customer whose id is bound server-side.",
+    "steps": [
+      "Open the switcher and list the options",
+      "Select CUSTOMER and choose a seeded demo customer",
+      "Assert subsequent API calls carry the persona and the server binds the chosen customer_id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F049",
+    "category": "ui",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "Navigation shows only permitted links per persona: CUSTOMER sees Chat only, COLLECTIONS_OFFICER sees Portfolio, Customer 360 and the escalation queues, COLLECTIONS_MANAGER sees the Dashboard only, and COMPLIANCE_RISK sees the Audit Trail and the compliance review queue.",
+    "steps": [
+      "Switch to each persona in turn",
+      "Read the visible navigation links",
+      "Assert the links match the persona's permitted set exactly"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F050",
+    "category": "security",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "Navigating directly to a route the persona cannot access shows a forbidden page and does not render restricted data.",
+    "steps": [
+      "As CUSTOMER open /portfolio",
+      "Assert forbidden message",
+      "Assert no account data in the DOM"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F051",
+    "category": "ui",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "The shell shows a visible 'Demo persona - not real authentication' label and the current persona name as text.",
+    "steps": [
+      "Load app",
+      "Assert label text present",
+      "Assert current persona name displayed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F203",
+    "category": "ui",
+    "story": "E3-S4",
+    "group": "F",
+    "description": "The persona switcher and navigation are operable by keyboard alone with a visible focus indicator, and the current persona is announced to assistive technology.",
+    "steps": [
+      "Tab to the switcher and change persona using the keyboard only",
+      "Assert a visible focus indicator on each control",
+      "Assert the current persona is exposed via an accessible name or live region"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F204",
+    "category": "security",
+    "story": "E3-S5",
+    "group": "E",
+    "description": "The CUSTOMER persona is bound server-side to exactly one synthetic customer_id, and a client-supplied customer_id in a request is ignored or rejected.",
+    "steps": [
+      "Select the CUSTOMER persona for customer A",
+      "Send a request that includes customer B's id in the body and query",
+      "Assert the server uses customer A's bound id and never customer B's"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F205",
+    "category": "security",
+    "story": "E3-S5",
+    "group": "E",
+    "description": "For every customer-facing request the server validates the persona, the bound customer_id and ownership of the requested resource, covering accounts, conversations, PTPs, PaymentEvents, arrangements, hardship records, disputes and escalation cases.",
+    "steps": [
+      "Enumerate the customer-facing routes for each resource type",
+      "Request each resource owned by the bound customer and assert success",
+      "Request each resource owned by another customer and assert it is denied"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F206",
+    "category": "security",
+    "story": "E3-S5",
+    "group": "E",
+    "description": "A cross-customer request returns the same not-found response as a nonexistent resource, with no resource information leaked in the body or headers.",
+    "steps": [
+      "Request another customer's account id and a nonexistent id",
+      "Compare status code, body and headers",
+      "Assert they are identical and contain no resource details"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F207",
+    "category": "security",
+    "story": "E3-S5",
+    "group": "E",
+    "description": "An authorization test matrix runs every customer-owned resource type against own, other-customer and nonexistent ids and passes for all cells.",
+    "steps": [
+      "Generate the matrix over resource types x (own, other, nonexistent)",
+      "Run all cells",
+      "Assert expected allow or not-found outcomes for every cell"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F208",
+    "category": "security",
+    "story": "E3-S5",
+    "group": "E",
+    "description": "A denied cross-customer access writes an audit event with persona, bound customer_id and endpoint but not the target resource's contents.",
+    "steps": [
+      "Trigger a cross-customer request",
+      "Read the audit event",
+      "Assert persona, bound customer id and endpoint are present and the target resource contents are absent"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F052",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "GET /api/customers/{accountId}/360 returns profile, account, outstanding balance, overdue amount, DPD, bucket, interactions, PTP history, hardship indicators, disputes and escalation status.",
+    "steps": [
+      "Call as COLLECTIONS_OFFICER for a seeded account",
+      "Assert 200",
+      "Assert each listed section key present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F053",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "The payload places priority band and contributing factors under a source='deterministic' block and any recommendation under source='ai' with model id and prompt version.",
+    "steps": [
+      "Call the endpoint",
+      "Assert priority.source == 'deterministic'",
+      "Assert recommendation.source == 'ai' with model and prompt_version"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F054",
+    "category": "security",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "An unknown account id returns 404 and CUSTOMER persona receives 403.",
+    "steps": [
+      "GET with random id as officer, assert 404",
+      "GET as CUSTOMER, assert 403"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F209",
+    "category": "security",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "Customer 360 is allowed only for COLLECTIONS_OFFICER and returns 403 for COLLECTIONS_MANAGER and COMPLIANCE_RISK.",
+    "steps": [
+      "Call GET /api/customers/{accountId}/360 as each persona",
+      "Assert COLLECTIONS_OFFICER receives 200",
+      "Assert COLLECTIONS_MANAGER and COMPLIANCE_RISK receive 403"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F210",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "E",
+    "description": "The payload includes the snapshot as_of timestamp, record version and a freshness state of FRESH, STALE or UNKNOWN from the freshness service.",
+    "steps": [
+      "Request Customer 360 for a fresh account and a stale account",
+      "Assert as_of and version are present",
+      "Assert freshness is FRESH and STALE respectively"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F056",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "The screen shows DPD, bucket, overdue amount, priority band with each contributing factor, active PTP or arrangement and recent interactions.",
+    "steps": [
+      "Open /customers/{id}",
+      "Assert each labelled value is visible and factors list rendered"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F057",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "AI-generated content is inside a panel with the text label 'AI-generated' and deterministic data panels carry the label 'Rules engine', with the distinction conveyed by text and icon and not color alone.",
+    "steps": [
+      "Open Customer 360",
+      "Assert both labels present",
+      "Assert labels are text nodes"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F058",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "Escalation status, hardship indicators and dispute status are visible and an account with an OPEN escalation shows the badge 'Escalated - human review'.",
+    "steps": [
+      "Open an account with open escalation",
+      "Assert badge text and status sections"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F059",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "Simulated payments in the history are labelled 'Simulated' and the page passes axe with zero serious or critical violations.",
+    "steps": [
+      "Open an account with a PaymentEvent",
+      "Assert 'Simulated' label",
+      "Run axe and assert 0 serious or critical"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F060",
+    "category": "performance",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "Customer 360 main content is interactive in under 2 s p95 over 30 scripted loads after one warm-up.",
+    "steps": [
+      "Load the page 31 times",
+      "Discard the first",
+      "Assert p95 < 2000 ms"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F211",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "When the AI provider is unavailable the screen shows an 'AI unavailable - manual workflow available' state, fabricates no recommendation, and all deterministic data and manual actions remain usable; a STALE or UNKNOWN snapshot shows a stale-data banner with a refresh action.",
+    "steps": [
+      "Script the MOCK provider to time out and load Customer 360",
+      "Assert the AI unavailable banner is shown and no recommendation text is rendered",
+      "Assert deterministic panels and the manual Record Promise form remain usable and the stale banner appears for a stale snapshot"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F212",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "Keyboard navigation reaches every panel and control on the screen, and any dialog moves focus in on open, traps focus while open and returns focus to its trigger on close.",
+    "steps": [
+      "Tab through the page using the keyboard only",
+      "Open the Record Promise dialog and assert focus moves into it and is trapped",
+      "Close it and assert focus returns to the trigger"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F213",
+    "category": "ui",
+    "story": "E4-S2",
+    "group": "G",
+    "description": "A Record Promise-to-Pay form lets the officer record a customer commitment manually and works when the AI provider is unavailable.",
+    "steps": [
+      "Open the form as COLLECTIONS_OFFICER with the MOCK provider timing out",
+      "Submit a valid amount and date",
+      "Assert the PTP appears as PENDING in the history"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F061",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "F",
+    "description": "The recommendation output validates against a schema with action (one of the allowed actions), rationale text and referenced factor ids, and a schema-invalid MOCK output triggers one retry then a safe 'human review' recommendation.",
+    "steps": [
+      "Run NBA with valid MOCK output and assert schema-valid result",
+      "Run with invalid output twice and assert action == ESCALATE_TO_HUMAN_REVIEW"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F062",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "F",
+    "description": "The rationale is rejected and replaced by templated text if it cites a factor, amount or option not returned by the deterministic services.",
+    "steps": [
+      "MOCK returns rationale citing amount 999.99 not in context",
+      "Assert final rationale equals the templated fallback",
+      "Assert a grounding-block audit event"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F063",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "F",
+    "description": "For an account with active dispute, hardship or open escalation the only action returned is ESCALATE_TO_HUMAN_REVIEW regardless of AI output.",
+    "steps": [
+      "Set active dispute",
+      "MOCK returns REQUEST_PAYMENT",
+      "Assert returned action is ESCALATE_TO_HUMAN_REVIEW"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F064",
+    "category": "integration",
+    "story": "E4-S3",
+    "group": "F",
+    "description": "Each recommendation creates an audit event with model id, prompt version, rule-set version and output, and no financial record changes during generation.",
+    "steps": [
+      "Generate recommendation",
+      "Assert audit event fields",
+      "Assert account balances and PTP rows unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F214",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "F",
+    "description": "If audit persistence fails the recommendation endpoint returns an AUDIT_UNAVAILABLE state with no recommendation body, so the recommendation is never presented as governed.",
+    "steps": [
+      "Force the audit insert to fail",
+      "Request a recommendation",
+      "Assert the response is AUDIT_UNAVAILABLE with no action or rationale and an operational failure is logged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F065",
+    "category": "integration",
+    "story": "E5-S1",
+    "group": "B",
+    "description": "Mode is chosen by configuration and MOCK makes zero network calls (verified by a test that blocks sockets).",
+    "steps": [
+      "Set mode MOCK and block outbound sockets",
+      "Invoke provider",
+      "Assert scripted response returned without error"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F066",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "B",
+    "description": "The MOCK provider can be scripted to return valid, malformed, adversarial and timeout responses per test case.",
+    "steps": [
+      "Script each of four behaviors",
+      "Assert the provider returns or raises accordingly"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F067",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "B",
+    "description": "Provider results include model id, latency in ms and token usage where available, and timeouts raise ProviderTimeout after the configured limit.",
+    "steps": [
+      "Invoke provider with a scripted 2 s delay and 1 s timeout",
+      "Assert ProviderTimeout",
+      "Assert successful call result has model and latency fields"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F068",
+    "category": "security",
+    "story": "E5-S1",
+    "group": "B",
+    "description": "Only the ai_orchestration package may import the provider and no other package imports the anthropic SDK (architecture test).",
+    "steps": [
+      "Run import-graph test",
+      "Assert violations list is empty"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F069",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "D",
+    "description": "Malformed LLM output is retried exactly once, and if the retry is also invalid the result is a safe response with no state change and the invalid output stored in the audit event.",
+    "steps": [
+      "Script two malformed outputs",
+      "Run the pipeline",
+      "Assert provider called exactly 2 times",
+      "Assert no state change and audit contains invalid output"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F070",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "D",
+    "description": "A provider timeout is retried once, then returns a safe fallback with a human-handoff offer and no state change.",
+    "steps": [
+      "Script two timeouts",
+      "Assert fallback contains a human-handoff offer",
+      "Assert database unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F071",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "D",
+    "description": "Model output that conflicts with a deterministic rule result is rejected, the rule result prevails and a policy-conflict audit event is written.",
+    "steps": [
+      "MOCK proposes a PTP amount above balance",
+      "Assert no PTP created",
+      "Assert audit event type POLICY_CONFLICT"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F072",
+    "category": "security",
+    "story": "E5-S2",
+    "group": "D",
+    "description": "The hostile-provider test: 50 random or adversarial MOCK outputs cause zero state changes without passing schema, authorization and domain-service validation.",
+    "steps": [
+      "Run 50 generated hostile outputs",
+      "Assert count of unvalidated state changes is 0"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F215",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "D",
+    "description": "If audit persistence fails for a non-state-changing AI response that is a material recommendation, the orchestrator returns a safe unavailable state, does not present the recommendation as governed, and records an operational failure where possible.",
+    "steps": [
+      "Force the audit insert to fail during a scripted MOCK interpretation",
+      "Assert the orchestrator returns the safe unavailable state",
+      "Assert no recommendation is shown and an operational failure is logged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F216",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "D",
+    "description": "Each AI interaction records provider latency, tool-call duration, end-to-end interaction duration, token usage where available, model id, prompt version, PolicyRuleSet version and correlation id in its audit event.",
+    "steps": [
+      "Run a MOCK interaction with scripted latency, tokens and two tool calls",
+      "Read the audit event",
+      "Assert all listed fields are present and the scripted values match"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F073",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "C",
+    "description": "A post-generation check extracts currency figures, dates and option identifiers from AI text and blocks the message if any is absent from the service results in context.",
+    "steps": [
+      "Provide context with overdue 500.00",
+      "AI text says 'you owe 450.00'",
+      "Assert message blocked"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F074",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "C",
+    "description": "A blocked message is replaced by templated text built from the service output and a grounding-violation event is counted for the hallucination metric.",
+    "steps": [
+      "Trigger a block",
+      "Assert customer text equals template with 500.00",
+      "Assert a GROUNDING_BLOCKED event exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F075",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "C",
+    "description": "A message whose figures all match service results passes unchanged.",
+    "steps": [
+      "AI text says 'your overdue amount is 500.00'",
+      "Assert passes unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F076",
+    "category": "security",
+    "story": "E5-S3",
+    "group": "C",
+    "description": "Prompt construction includes only allow-listed fields and a test that adds a forbidden field (for example national_id) to the context proves it is excluded from the prompt.",
+    "steps": [
+      "Add national_id to account context",
+      "Build prompt",
+      "Assert prompt text lacks the value"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F077",
+    "category": "security",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "The tool registry exposes exactly the six named tools (READ: get_account_context and get_eligible_options; PROPOSE: propose_ptp, flag_hardship, flag_dispute and escalate_to_human) and no tool that mutates balances, payments, arrangements or case decisions directly.",
+    "steps": [
+      "List the registered tools",
+      "Assert exactly the six names are present",
+      "Assert none exposes a balance, payment, arrangement or decision mutation"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F078",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "Each tool validates arguments against a Pydantic schema and an unknown tool name or invalid arguments returns a tool error and never executes.",
+    "steps": [
+      "Call propose_ptp with a string amount 'abc'",
+      "Assert tool error and no proposal created",
+      "Call 'set_balance' and assert rejection"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F079",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "Repeating a PROPOSE call with the same idempotency key returns the original result and creates no second proposal.",
+    "steps": [
+      "Call propose_ptp twice with the same key",
+      "Assert same proposal id",
+      "Assert proposal count is 1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F217",
+    "category": "security",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "escalate_to_human accepts only an EscalationReason enum value and a rationale, any queue, role or reviewer argument is rejected as invalid, and only the routing service decides the destination.",
+    "steps": [
+      "Call escalate_to_human with reason DISPUTE and rationale",
+      "Assert a proposal with only the reason is created",
+      "Call it with an extra queue argument and assert a tool error and no proposal"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F218",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "get_eligible_options returns options only from deterministic services: payable amounts and the PTP date window in Slice 1, with arrangement options added in Slice 2 without changing the tool contract.",
+    "steps": [
+      "Call get_eligible_options in Slice 1",
+      "Assert payable amounts and the PTP window come from the rules services",
+      "Assert the response schema is unchanged when arrangement options are later added"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F080",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "The per-turn tool-call cap is read from validated application configuration (default 5, allowed range 1 to 20) and is not hard-coded.",
+    "steps": [
+      "Start with no cap configured and assert the effective cap is 5",
+      "Start with cap 3 and assert the effective cap is 3",
+      "Search the source for a literal cap and assert none is used outside configuration defaults"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F219",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "Boundary tests with the cap at 5 show that the 4th and 5th calls execute and an attempted 6th call does not execute.",
+    "steps": [
+      "Script a MOCK turn requesting 4 tool calls and assert all execute",
+      "Script 5 calls and assert all execute",
+      "Script 6 calls and assert the 6th is not executed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F220",
+    "category": "security",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "A tool request not executed because the cap was reached cannot cause any state mutation, and a TOOL_CAP_REACHED audit event is written.",
+    "steps": [
+      "Script a 6th call that would create a PTP proposal",
+      "Assert no proposal or state change exists",
+      "Assert a TOOL_CAP_REACHED audit event exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F221",
+    "category": "functional",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "When the cap is reached the orchestrator returns a safe response or creates an AI_FAILURE_FALLBACK escalation according to policy.",
+    "steps": [
+      "Exceed the cap in a scripted turn",
+      "Assert the customer receives a safe response",
+      "Assert an AI_FAILURE_FALLBACK escalation request is produced where policy requires it"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F222",
+    "category": "security",
+    "story": "E5-S4",
+    "group": "E",
+    "description": "Architecture tests fail if ai_orchestration or llm_provider imports rules_engine calculation functions directly, or if any LLM-reachable code path calls case decision, dispute resolution, compliance decision, approval or payment-recording operations.",
+    "steps": [
+      "Run the architecture test suite",
+      "Add a planted forbidden import in a test fixture and assert the test fails",
+      "Assert no LLM-reachable path reaches decision or payment-recording operations"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F081",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "The first assistant message in a conversation states it is an AI assistant and every response includes a 'talk to a human' option flag.",
+    "steps": [
+      "POST a new conversation as CUSTOMER",
+      "Assert first message contains 'AI assistant'",
+      "Assert response.human_available == true"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F082",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "Intent output validates against the schema with label in the seven allowed values, confidence in [0,1] and rationale, and an unknown label, including VULNERABLE_CUSTOMER, is rejected.",
+    "steps": [
+      "Validate an output with label PROMISE_TO_PAY confidence 0.9",
+      "Validate an output with label VULNERABLE_CUSTOMER",
+      "Assert the second is rejected and confidence 1.2 is rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F223",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "The structured interpretation also carries advisory safety signals: vulnerability_detected (boolean), an optional vulnerability_category enum, a vulnerability_rationale string, and a special_request enum of NONE, SETTLEMENT or POLICY_EXCEPTION, and an output missing vulnerability_detected fails schema validation.",
+    "steps": [
+      "Validate an interpretation with vulnerability_detected true and a category",
+      "Validate one missing vulnerability_detected",
+      "Assert the second fails and special_request accepts only its three values"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F083",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "When a message contains both a transactional and a sensitive intent, or vulnerability_detected is true, the sensitive signal wins, automated treatment for the topic pauses, and no PTP or payment proposal is executed.",
+    "steps": [
+      "Send 'I will pay Friday but I dispute this charge'",
+      "Assert the DISPUTE signal wins and no PTP proposal is executed",
+      "Send a PTP message with vulnerability_detected true and assert the same outcome"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F084",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "Consecutive UNKNOWN classifications produce a clarification question on the first and on the second, and the third is reported for escalation as UNRESOLVED_UNKNOWN, while REQUEST_HUMAN is reported for immediate escalation on the first message.",
+    "steps": [
+      "Send three consecutive unintelligible messages",
+      "Assert clarification questions after the first and second and an UNRESOLVED_UNKNOWN report after the third",
+      "Send 'let me talk to a person' first and assert an immediate REQUEST_HUMAN report"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F085",
+    "category": "security",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "More than the configured requests per minute to the chat endpoint returns 429.",
+    "steps": [
+      "Send limit+1 requests within a minute",
+      "Assert final response status 429"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F224",
+    "category": "security",
+    "story": "E6-S1",
+    "group": "F",
+    "description": "Customer and account identifiers used in tool arguments always come from the server-side bound context, and a message asking for another customer's information returns no such data and is audited.",
+    "steps": [
+      "Send 'show me the account of customer B'",
+      "Assert no data for customer B is returned or passed to any tool",
+      "Assert an audit event records the refused request"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F086",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "A PTP is created only through an explicit customer confirmation API action that references a currently valid deterministic proposal, and the initial statement or an LLM proposal alone never creates a PTP.",
+    "steps": [
+      "State a promise in chat and assert no PTP exists",
+      "Call the confirmation action with the valid proposal id",
+      "Assert exactly one PENDING PTP now exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F087",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "Invalid amount or date input receives the deterministic reason code message and valid alternatives, and creates no PTP.",
+    "steps": [
+      "Propose over-balance amount",
+      "Assert response cites OVER_BALANCE and the maximum permitted amount from the service",
+      "Assert zero PTP rows"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F088",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "Duplicate confirmation submissions with the same idempotency key return the existing PTP and only one PTP row exists.",
+    "steps": [
+      "Confirm twice with the same key",
+      "Assert same PTP id",
+      "Assert PTP count 1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F089",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "A second active PTP on the same account is blocked with CONFLICTING_ACTIVE_ITEM and the customer is offered amend, cancel or an officer.",
+    "steps": [
+      "Create a PENDING PTP",
+      "Propose another",
+      "Assert blocked response offering the options"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F090",
+    "category": "integration",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "The audit trail for the PTP contains input, intent result, proposal, rule validation result, final state and model, prompt and rule-set versions.",
+    "steps": [
+      "Complete a PTP",
+      "Fetch audit events by correlation id",
+      "Assert all listed elements present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F225",
+    "category": "security",
+    "story": "E6-S2",
+    "group": "G",
+    "description": "On confirmation the domain service revalidates authorization, policy, snapshot freshness and proposal validity, and a stale or altered proposal is rejected with PROPOSAL_INVALID and creates no PTP.",
+    "steps": [
+      "Build a proposal then change the account snapshot version",
+      "Submit the confirmation",
+      "Assert PROPOSAL_INVALID and no PTP; also submit an altered amount and assert rejection"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F091",
+    "category": "functional",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The assistant presents only payable amounts returned by the payable-amounts service, and a payment is recorded only through an explicit customer confirmation API action referencing a currently valid payable-amount proposal.",
+    "steps": [
+      "Start PAY_NOW in chat and read the offered amounts",
+      "Assert they equal the service values",
+      "Assert no PaymentEvent exists until the confirmation action is called"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F092",
+    "category": "functional",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "On confirmation exactly one PaymentEvent is recorded with amount, outcome, source, Clock timestamp and simulated=true, and the balance is reduced by that Decimal amount.",
+    "steps": [
+      "Confirm payment of 200.00",
+      "Assert one PaymentEvent with simulated true",
+      "Assert balance decreased by exactly 200.00"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F093",
+    "category": "functional",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "A duplicate or replayed payment confirmation with the same idempotency key does not create a second event or double-count recovery.",
+    "steps": [
+      "Confirm twice with the same key",
+      "Assert one PaymentEvent",
+      "Assert recovered amount counted once"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F094",
+    "category": "security",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "The chat confirmation text contains the word 'simulated' and the code contains no import of a payment gateway SDK or HTTP call to an external payment host.",
+    "steps": [
+      "Assert confirmation message contains 'simulated'",
+      "Scan dependencies and source for gateway SDKs and assert none"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F226",
+    "category": "security",
+    "story": "E6-S3",
+    "group": "G",
+    "description": "On confirmation the domain service revalidates authorization, policy, snapshot freshness and proposal validity, and a stale or altered payment proposal is rejected with PROPOSAL_INVALID and records no PaymentEvent.",
+    "steps": [
+      "Build a payable-amount proposal then change the account version",
+      "Submit the confirmation",
+      "Assert PROPOSAL_INVALID and no PaymentEvent or balance change"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F095",
+    "category": "functional",
+    "story": "E6-S4",
+    "group": "H",
+    "description": "Successful simulated PaymentEvents whose cumulative qualifying amount reaches the promised amount on or before the due date move the PTP from PENDING to KEPT with an audit event, using the PTP satisfaction rule.",
+    "steps": [
+      "Create a PTP for 300.00 and record payments of 100.00 and 200.00 before the due date",
+      "Run the lifecycle evaluation",
+      "Assert the PTP is KEPT with an audit event"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F227",
+    "category": "functional",
+    "story": "E6-S4",
+    "group": "H",
+    "description": "A single successful payment below the promised amount leaves the PTP PENDING with the cumulative amount recorded, and a later payment that completes the promised amount by the due date moves it to KEPT.",
+    "steps": [
+      "Record a payment of 100.00 against a 300.00 PTP",
+      "Assert PENDING with cumulative 100.00",
+      "Record 200.00 before the due date and assert KEPT"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F228",
+    "category": "functional",
+    "story": "E6-S4",
+    "group": "H",
+    "description": "Failed payments, payments below the qualifying minimum and payments after the due date do not count toward KEPT.",
+    "steps": [
+      "Record a FAILED payment, a sub-minimum payment and a late payment",
+      "Run the lifecycle evaluation",
+      "Assert the PTP is not KEPT and cumulative excludes them"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F096",
+    "category": "functional",
+    "story": "E6-S4",
+    "group": "H",
+    "description": "Running the breakage job after the due date when the cumulative qualifying amount is below the promised amount moves the PTP to BROKEN under the TestClock and does not touch PTPs due later.",
+    "steps": [
+      "Set the TestClock past the due date of PTP A with 100.00 of 300.00 paid",
+      "Run the breakage job",
+      "Assert PTP A is BROKEN and PTP B due later is still PENDING"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F097",
+    "category": "functional",
+    "story": "E6-S4",
+    "group": "H",
+    "description": "Running the breakage job twice, or replaying a payment event, does not re-transition a KEPT or BROKEN PTP or create duplicate audit events.",
+    "steps": [
+      "Run job twice",
+      "Assert one BROKEN transition audit event",
+      "Replay payment event and assert KEPT unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F098",
+    "category": "functional",
+    "story": "E6-S4",
+    "group": "H",
+    "description": "A PTP moves only along PENDING to KEPT, BROKEN or CANCELLED and any other transition (for example KEPT to PENDING) is rejected.",
+    "steps": [
+      "Attempt KEPT to PENDING",
+      "Assert InvalidTransition error",
+      "Assert status unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F099",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "The chat opens with an AI disclosure message and a 'Talk to a human' button that stays visible throughout scrolling.",
+    "steps": [
+      "Open /chat as CUSTOMER",
+      "Assert disclosure text",
+      "Send 20 messages and assert the button remains visible in the viewport"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F100",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "Clicking 'Talk to a human' creates an escalation via the API and shows the message that a human colleague will follow up.",
+    "steps": [
+      "Click the button",
+      "Assert POST escalation request",
+      "Assert confirmation text shown"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F101",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "PTP, payment and arrangement details are shown with Confirm and Cancel buttons, nothing is submitted until Confirm is clicked, and Confirm submits the confirmation API action referencing the displayed proposal id.",
+    "steps": [
+      "Open a chat with a valid PTP proposal",
+      "Assert no request is sent before Confirm",
+      "Click Confirm and assert the confirmation call references the displayed proposal id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F102",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "Simulated payment confirmations display a visible 'Simulated payment' label in text.",
+    "steps": [
+      "Complete a PAY_NOW flow",
+      "Assert label 'Simulated payment' in the DOM"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F103",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "The chat is usable at 375 px width with no horizontal scroll, passes axe with zero serious or critical violations and supports keyboard-only sending.",
+    "steps": [
+      "Set viewport 375x800",
+      "Assert document scrollWidth <= 375",
+      "Run axe",
+      "Send a message using keyboard only"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F229",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "When the AI provider is unavailable the chat shows a safe message with the 'Talk to a human' option still available, and when handoff creation fails it shows that the handoff could not be completed with a safe next step; no AI reply is fabricated in either state.",
+    "steps": [
+      "Script the MOCK provider to time out and send a message",
+      "Assert a safe unavailable message and a visible Talk to a human control",
+      "Force escalation creation to fail and assert the handoff-failed message with a next step"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F230",
+    "category": "ui",
+    "story": "E6-S5",
+    "group": "G",
+    "description": "Focus moves into confirmation dialogs on open, is trapped while open and returns to the trigger on close, and new assistant messages are announced through a live region.",
+    "steps": [
+      "Open a confirmation dialog with the keyboard",
+      "Assert focus enters, is trapped, and returns on close",
+      "Send a message and assert the reply is announced via an aria-live region"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F231",
+    "category": "functional",
+    "story": "E6-S6",
+    "group": "E",
+    "description": "POST /api/ptps lets COLLECTIONS_OFFICER record a customer payment commitment with promised amount, promised date, account, interaction reference and status PENDING, using the same deterministic validation as the chat flow.",
+    "steps": [
+      "POST a valid PTP as COLLECTIONS_OFFICER",
+      "Assert 201 with status PENDING and the fields stored",
+      "Assert the same validation reason codes appear for invalid input"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F232",
+    "category": "functional",
+    "story": "E6-S6",
+    "group": "E",
+    "description": "Invalid amounts and dates are rejected with the deterministic reason codes and valid alternatives.",
+    "steps": [
+      "POST an amount over the overdue balance and a past date",
+      "Assert OVER_BALANCE and PAST_DATE with alternatives",
+      "Assert no PTP is created"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F233",
+    "category": "functional",
+    "story": "E6-S6",
+    "group": "E",
+    "description": "The manual endpoint works when the LLM provider is unavailable and its module has no dependency on ai_orchestration.",
+    "steps": [
+      "Script the MOCK provider to time out",
+      "POST a valid PTP",
+      "Assert success and an architecture test shows no ai_orchestration import in the module"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F234",
+    "category": "functional",
+    "story": "E6-S6",
+    "group": "E",
+    "description": "A duplicate submission with the same idempotency key returns the existing PTP and creates no second record, and a conflicting active PTP or a PTP on a disputed item is rejected with CONFLICTING_ACTIVE_ITEM or DISPUTED_ITEM respectively.",
+    "steps": [
+      "POST the same request twice with one idempotency key",
+      "Assert one PTP row and the same response",
+      "POST a second active PTP and a PTP on a disputed item and assert CONFLICTING_ACTIVE_ITEM and DISPUTED_ITEM"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F235",
+    "category": "security",
+    "story": "E6-S6",
+    "group": "E",
+    "description": "A stale snapshot is refused by the freshness check, and every recording writes an audit event with the officer persona and PolicyRuleSet version.",
+    "steps": [
+      "POST with a stale snapshot version and assert STALE_DATA and no PTP",
+      "POST a valid PTP",
+      "Assert an audit event with persona COLLECTIONS_OFFICER and the rule-set version"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F104",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "An OPEN EscalationCase linking the conversation is created with the matching EscalationReason for each trigger: REQUEST_HUMAN immediately on the first request, UNRESOLVED_UNKNOWN only after two clarification turns, AI_FAILURE_FALLBACK on provider failure or tool-cap breach, FINANCIAL_HARDSHIP, DISPUTE, VULNERABLE_CUSTOMER when vulnerability_detected is true, SETTLEMENT_REQUEST when special_request is SETTLEMENT, POLICY_EXCEPTION when special_request is POLICY_EXCEPTION, and AMBIGUOUS_VALIDATION for PAYMENT_PLAN before the arrangement workflow ships or when validation cannot authorize an action.",
+    "steps": [
+      "Drive a scripted conversation for each trigger",
+      "Read the created EscalationCase",
+      "Assert the reason, source AI and linked conversation match the trigger and REQUEST_HUMAN escalates on the first message"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F236",
+    "category": "security",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "The queue, reviewer role and priority of each case come from the routing service using the active PolicyRuleSet, the audit event records reason, queue, reviewer role and rule-set version, and no LLM output or proposal can supply a queue or role.",
+    "steps": [
+      "Create a DISPUTE escalation",
+      "Assert queue DISPUTE_REVIEW and role COLLECTIONS_OFFICER from the routing service",
+      "Assert the audit event holds the reason and rule-set version and a proposal carrying a queue is rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F105",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "The customer response acknowledges respectfully, states a human colleague will follow up, and contains no plan, relief, settlement, approval or opinion on dispute validity.",
+    "steps": [
+      "Trigger hardship and dispute",
+      "Assert response matches the safe template",
+      "Assert no forbidden approval phrases via the guardrail checker"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F106",
+    "category": "integration",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "The escalation and its audit event are written in one transaction; if the escalation write fails the customer is told the handoff was not completed and automated collection actions for the account stay paused.",
+    "steps": [
+      "Force the escalation insert to fail",
+      "Assert customer message about incomplete handoff",
+      "Assert account still suppressed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F107",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "Creating an escalation sets automated_treatment_suppressed for the account (or item) per the PolicyRuleSet suppression parameters, and stays set until a human decision.",
+    "steps": [
+      "Create an escalation for an account",
+      "Read the account treatment state",
+      "Assert automated_treatment_suppressed is true and automated recommendations stop until a human decision is recorded"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F237",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "Escalation creation is idempotent: the same idempotency key, or a second trigger for the same conversation and reason while a case is OPEN, returns the existing case and creates no duplicate.",
+    "steps": [
+      "Click 'Talk to a human' twice with the same idempotency key",
+      "Send two dispute messages in one conversation",
+      "Assert exactly one OPEN case exists for the reason"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F238",
+    "category": "functional",
+    "story": "E7-S1",
+    "group": "G",
+    "description": "GET /api/escalations, allowed for COLLECTIONS_OFFICER, returns a minimal list with reason, priority, age, status, a customer and account reference, and a link to the Customer 360 and case context.",
+    "steps": [
+      "Create three escalations of different reasons",
+      "Call GET /api/escalations as COLLECTIONS_OFFICER",
+      "Assert each item has reason, priority, age, status, references and a context link, and other personas receive 403"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F108",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "REJECT, MODIFY and ESCALATE without a reason return 422, and REQUEST_MORE_INFORMATION without a note returns 422.",
+    "steps": [
+      "Submit each of the four actions without a reason or note",
+      "Assert 422 for all",
+      "Submit with a reason or note and assert acceptance"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F109",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "APPROVE returns 409 with reason NOT_PERMITTED_BY_POLICY when the active PolicyRuleSet does not permit approval of that case type.",
+    "steps": [
+      "Create a case type not approvable",
+      "POST APPROVE",
+      "Assert 409 and code"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F110",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "MODIFY accepts only an option from the deterministic eligible set and rejects a free-form amount.",
+    "steps": [
+      "POST MODIFY with an eligible option id and assert 200",
+      "POST MODIFY with amount 1.00 not in the set and assert 422"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F111",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "A decision submitted with a stale case version returns 409 and leaves the case unchanged, so two officers cannot both decide.",
+    "steps": [
+      "Officer A and B fetch version 1",
+      "A decides",
+      "B submits with version 1",
+      "Assert 409 for B"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F112",
+    "category": "security",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "Every reviewer action and status transition writes an audit event, and only COLLECTIONS_OFFICER may act on cases in the COLLECTIONS_REVIEW, COLLECTIONS_EXCEPTION_REVIEW, HARDSHIP_REVIEW, DISPUTE_REVIEW and VULNERABLE_CUSTOMER_REVIEW queues while COLLECTIONS_MANAGER and COMPLIANCE_RISK receive 403.",
+    "steps": [
+      "Act on a case as each persona",
+      "Assert only COLLECTIONS_OFFICER succeeds and an audit event is written",
+      "Assert MANAGER and COMPLIANCE_RISK receive 403 on those queues"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F239",
+    "category": "security",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "The reviewer ESCALATE action accepts only a reason from the whitelisted routing.reviewer_escalation_reasons, the routing service determines the destination, and a free-form destination is rejected with 422.",
+    "steps": [
+      "Submit ESCALATE with reason POLICY_EXCEPTION",
+      "Assert the case is re-routed to COMPLIANCE_REVIEW by the routing service",
+      "Submit ESCALATE with a queue field or a non-whitelisted reason and assert 422"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F240",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "Submitting the same reviewer decision with the same idempotency key returns the original result and does not repeat the transition, and a different decision on an already decided case returns 409.",
+    "steps": [
+      "Submit REJECT with key K1 twice",
+      "Assert one transition and identical responses",
+      "Submit APPROVE with key K2 on the decided case and assert 409"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F241",
+    "category": "functional",
+    "story": "E7-S2",
+    "group": "H",
+    "description": "The case follows the state machine OPEN, IN_REVIEW, AWAITING_INFORMATION, DECIDED or RE_ROUTED, and any transition outside it is rejected with 409.",
+    "steps": [
+      "Move a case through the permitted transitions",
+      "Assert each succeeds and is audited",
+      "Attempt DECIDED to OPEN and assert 409"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F113",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "The list shows reason, priority, aging and source for each case and sorts by priority then age.",
+    "steps": [
+      "Open /review-queue as officer",
+      "Assert columns",
+      "Assert order priority desc then age desc"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F114",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "Case detail shows the conversation, the AI recommendation and the deterministic rule results in three separately labelled sections.",
+    "steps": [
+      "Open a case",
+      "Assert three section headings with distinct text labels"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F115",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "Action buttons for REJECT, MODIFY and ESCALATE stay disabled until a reason is entered, and APPROVE is hidden when the API reports it is not permitted.",
+    "steps": [
+      "Open a case",
+      "Assert Reject disabled",
+      "Type reason and assert enabled",
+      "Open non-approvable case and assert no Approve button"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F116",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "A stale-version conflict displays a message that the case changed and reloads the case, and the screen passes axe with zero serious or critical violations.",
+    "steps": [
+      "Simulate 409",
+      "Assert conflict message and reload",
+      "Run axe and assert 0 serious or critical"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F242",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "The queue can be filtered by COLLECTIONS_REVIEW, COLLECTIONS_EXCEPTION_REVIEW, HARDSHIP_REVIEW, DISPUTE_REVIEW and VULNERABLE_CUSTOMER_REVIEW with text labels for queue, priority and aging.",
+    "steps": [
+      "Open the queue with cases in each queue",
+      "Apply each queue filter",
+      "Assert only matching cases show and each row has text labels for queue, priority and aging"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F243",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "COMPLIANCE_RISK sees only the COMPLIANCE_REVIEW queue with the compliance decision controls, and COLLECTIONS_OFFICER does not see those controls.",
+    "steps": [
+      "Open the review screen as COMPLIANCE_RISK",
+      "Assert only COMPLIANCE_REVIEW cases and the decision control appear",
+      "Open it as COLLECTIONS_OFFICER and assert the compliance controls are absent"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F244",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "J",
+    "description": "Action dialogs move focus into the reason field on open, trap focus while open and return focus to the action button on close, and every action is operable by keyboard.",
+    "steps": [
+      "Open the REJECT dialog by keyboard",
+      "Assert focus is in the reason field and trapped",
+      "Submit and assert focus returns to the trigger"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F117",
+    "category": "functional",
+    "story": "E7-S4",
+    "group": "I",
+    "description": "A requested arrangement classified EXCEPTIONAL by the rules service creates an OPEN escalation with reason EXCEPTIONAL_ARRANGEMENT, stores the requested terms, and is routed to COLLECTIONS_EXCEPTION_REVIEW.",
+    "steps": [
+      "Request an arrangement with a term beyond the permitted range",
+      "Read the created escalation",
+      "Assert reason, stored terms and queue COLLECTIONS_EXCEPTION_REVIEW"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F118",
+    "category": "functional",
+    "story": "E7-S4",
+    "group": "I",
+    "description": "The customer message says the request needs human review and contains no approval language such as 'approved' or 'we will grant' (guardrail check).",
+    "steps": [
+      "Trigger exceptional request",
+      "Assert message passes the approval-language checker and contains 'review'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F119",
+    "category": "functional",
+    "story": "E7-S4",
+    "group": "I",
+    "description": "Exceptional terms never appear in the option list shown to customers by the AI.",
+    "steps": [
+      "Request options after an exceptional request",
+      "Assert list equals eligible service options only"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F120",
+    "category": "functional",
+    "story": "E7-S4",
+    "group": "I",
+    "description": "A human APPROVE of an exceptional arrangement is available only within the policy exception authority (exception type, thresholds and maximum overdue amount) and requires a reason, and REJECT requires a reason; both record the decision and an audit event.",
+    "steps": [
+      "Open an exceptional case within authority and approve with a reason",
+      "Open one above the officer authority limit and assert APPROVE is unavailable",
+      "Assert REJECT without a reason returns 422 and every decision is audited"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F245",
+    "category": "security",
+    "story": "E7-S4",
+    "group": "I",
+    "description": "An approved exception creates the arrangement only through the domain service after revalidating authorization, policy exception authority and snapshot freshness, and a rejected exception creates no arrangement and informs the customer.",
+    "steps": [
+      "Approve an exception with a stale snapshot and assert refusal",
+      "Approve with a fresh snapshot and assert the arrangement is created by the domain service",
+      "Reject another and assert no arrangement exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F246",
+    "category": "functional",
+    "story": "E7-S5",
+    "group": "I",
+    "description": "POLICY_EXCEPTION and HIGH_RISK_COMPLIANCE escalations, whether proposed by the AI or raised by a reviewer ESCALATE, are routed to the COMPLIANCE_REVIEW queue with reviewer role COMPLIANCE_RISK.",
+    "steps": [
+      "Create a POLICY_EXCEPTION case from the AI and a HIGH_RISK_COMPLIANCE case from a reviewer ESCALATE",
+      "Read both cases",
+      "Assert queue COMPLIANCE_REVIEW and reviewer role COMPLIANCE_RISK"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F247",
+    "category": "security",
+    "story": "E7-S5",
+    "group": "I",
+    "description": "COMPLIANCE_RISK can use record_compliance_review_decision on COMPLIANCE_REVIEW cases to record the review outcome, a mandatory reason, the reviewer persona, a timestamp and the case reference.",
+    "steps": [
+      "Record a decision as COMPLIANCE_RISK on a COMPLIANCE_REVIEW case",
+      "Read the stored decision",
+      "Assert outcome, reason, persona, timestamp and case reference are present and a missing reason returns 422"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F248",
+    "category": "security",
+    "story": "E7-S5",
+    "group": "I",
+    "description": "The capability can transition only a case in COMPLIANCE_REVIEW according to the case state machine, and an attempt on a case in any other queue or state is refused.",
+    "steps": [
+      "Attempt a compliance decision on a DISPUTE_REVIEW case",
+      "Assert refusal",
+      "Attempt a transition not allowed by the state machine and assert 409"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F249",
+    "category": "security",
+    "story": "E7-S5",
+    "group": "I",
+    "description": "The compliance decision cannot modify balances, PaymentEvents, PTPs, arrangements, hardship data, dispute facts or customer and account financial state, verified by a before and after comparison of those tables around a decision.",
+    "steps": [
+      "Snapshot checksums of the protected tables",
+      "Record a compliance decision",
+      "Assert every checksum is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F250",
+    "category": "functional",
+    "story": "E7-S5",
+    "group": "I",
+    "description": "Every compliance decision is audited, and submitting the same decision with the same idempotency key returns the original result without repeating the transition.",
+    "steps": [
+      "Submit a decision twice with one key",
+      "Assert one transition and one decision audit event",
+      "Assert the second response equals the first"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F251",
+    "category": "security",
+    "story": "E7-S5",
+    "group": "I",
+    "description": "COLLECTIONS_OFFICER, COLLECTIONS_MANAGER and CUSTOMER receive 403 on the compliance decision endpoint.",
+    "steps": [
+      "Call the endpoint as each of the three personas",
+      "Assert 403 for all",
+      "Assert no case state changed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F252",
+    "category": "ui",
+    "story": "E7-S6",
+    "group": "H",
+    "description": "The minimal escalation list screen shows reason, priority, age, status and a customer and account reference for each case, sorted by priority then age, with text labels as well as color.",
+    "steps": [
+      "Open the screen as COLLECTIONS_OFFICER with seeded escalations",
+      "Read the columns and order",
+      "Assert all fields, the ordering and text labels for priority and status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F253",
+    "category": "ui",
+    "story": "E7-S6",
+    "group": "H",
+    "description": "Selecting a case opens the related Customer 360 with the escalation context visible.",
+    "steps": [
+      "Click a case row",
+      "Assert navigation to /customers/{accountId}",
+      "Assert the escalation status badge and reason are visible"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F254",
+    "category": "security",
+    "story": "E7-S6",
+    "group": "H",
+    "description": "Only COLLECTIONS_OFFICER can open the list and other personas see the forbidden page without any escalation data rendered.",
+    "steps": [
+      "Navigate to the list as CUSTOMER, COLLECTIONS_MANAGER and COMPLIANCE_RISK",
+      "Assert the forbidden page",
+      "Assert no case data is present in the page"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F255",
+    "category": "ui",
+    "story": "E7-S6",
+    "group": "H",
+    "description": "The list is keyboard operable, passes axe with zero serious or critical violations, and does not depend on the full review queue implementation.",
+    "steps": [
+      "Tab through the list and open a row by keyboard",
+      "Run axe and assert zero serious or critical violations",
+      "Assert the screen renders with the review queue API disabled"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F121",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "The assistant presents only options returned by the eligibility service and the amounts in the message match the service Decimal values.",
+    "steps": [
+      "Send PAYMENT_PLAN message",
+      "Assert options in reply equal the service's options"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F122",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "When no option is eligible the customer is told options cannot be provided now, is offered a human, and no alternative is fabricated.",
+    "steps": [
+      "Use an ineligible account",
+      "Assert reply contains handoff offer",
+      "Assert grounding check finds no figures"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F123",
+    "category": "security",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "The arrangement is created only after the customer selects an option and confirms through an explicit confirmation API action referencing a currently valid eligible option, and the domain service revalidates authorization, policy, freshness and option validity before creating it with status ACTIVE.",
+    "steps": [
+      "Select an eligible option in chat and assert no arrangement exists yet",
+      "Confirm with the valid option id and assert an ACTIVE arrangement",
+      "Submit an altered or stale option and assert PROPOSAL_INVALID with no arrangement"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F124",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "A rules engine failure results in no options, a customer message that options cannot be provided now, an AMBIGUOUS_VALIDATION escalation and an audit event with the rule-set version.",
+    "steps": [
+      "Force the eligibility service to raise an error",
+      "Assert no options and the unavailable message",
+      "Assert an AMBIGUOUS_VALIDATION escalation and an audit event with the rule-set version"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F125",
+    "category": "integration",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "Audit records the eligibility result, chosen option, confirmation and PolicyRuleSet version.",
+    "steps": [
+      "Complete an arrangement",
+      "Fetch audit by correlation id",
+      "Assert all listed items"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F256",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "Arrangement creation is idempotent: the same idempotency key returns the original arrangement and creates no second one.",
+    "steps": [
+      "Submit the confirmation twice with one key",
+      "Assert one arrangement row",
+      "Assert both responses reference the same arrangement id"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F257",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "A requested arrangement classified EXCEPTIONAL is never offered or created by this flow and is handed to escalation with reason EXCEPTIONAL_ARRANGEMENT.",
+    "steps": [
+      "Request a term outside the permitted range",
+      "Assert no arrangement or option is created",
+      "Assert an escalation request with reason EXCEPTIONAL_ARRANGEMENT"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F258",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "A conflicting active PTP or arrangement blocks the new arrangement with CONFLICTING_ACTIVE_ITEM and the customer is offered amend, cancel or an officer.",
+    "steps": [
+      "Create an active arrangement then request another",
+      "Assert CONFLICTING_ACTIVE_ITEM",
+      "Assert the reply offers amend, cancel or a human officer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F259",
+    "category": "functional",
+    "story": "E8-S1",
+    "group": "H",
+    "description": "get_eligible_options returns arrangement options from the eligibility service in this slice without changing its tool contract.",
+    "steps": [
+      "Call get_eligible_options for an eligible account",
+      "Assert options equal the eligibility service output",
+      "Assert the response schema is unchanged from Slice 1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F126",
+    "category": "functional",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "A hardship message such as job loss produces a schema-valid HardshipCase with indicator types (for example JOB_LOSS) and customer statement.",
+    "steps": [
+      "MOCK classifies FINANCIAL_HARDSHIP with JOB_LOSS",
+      "Assert HardshipCase row with indicators list",
+      "Assert invalid indicator type rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F127",
+    "category": "functional",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "The AI reply contains no promise or implication of restructuring or relief (guardrail check passes on 20 scripted replies).",
+    "steps": [
+      "Run 20 scripted hardship replies through the checker",
+      "Assert zero violations"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F128",
+    "category": "functional",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "Automated recommendations and outreach for the account stop until a human decision, per the hardship suppression parameters of the PolicyRuleSet.",
+    "steps": [
+      "Record a hardship case for an account",
+      "Request contact eligibility and recommendations",
+      "Assert both are suppressed until a human decision is recorded"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F129",
+    "category": "functional",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "A hardship escalation with reason FINANCIAL_HARDSHIP is routed to HARDSHIP_REVIEW with the elevated priority from the routing service and is visible on Customer 360 and in the queue.",
+    "steps": [
+      "Send a job-loss message",
+      "Read the escalation",
+      "Assert HARDSHIP_REVIEW, priority ELEVATED or higher and visibility on Customer 360 and the queue"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F260",
+    "category": "functional",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "Hardship case creation is idempotent: the same idempotency key, or a repeated hardship message while a case is open, returns the existing case and creates no duplicate.",
+    "steps": [
+      "Send the hardship message twice with one key",
+      "Send a second hardship message in the same conversation",
+      "Assert exactly one open HardshipCase"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F261",
+    "category": "functional",
+    "story": "E8-S2",
+    "group": "I",
+    "description": "A reviewer records the hardship decision with a mandatory reason, requests for restructuring or a policy exception are recorded as decisions or re-routed via ESCALATE with reason POLICY_EXCEPTION, and no restructuring or financial change is executed in the MVP.",
+    "steps": [
+      "Open a hardship case and record a decision with a reason",
+      "Escalate a restructuring request with reason POLICY_EXCEPTION",
+      "Assert no balance, arrangement or PTP changed and the decision is audited"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F130",
+    "category": "functional",
+    "story": "E8-S3",
+    "group": "H",
+    "description": "A dispute message produces a schema-valid Dispute with category (for example AMOUNT_INCORRECT) and customer reason text, and status OPEN.",
+    "steps": [
+      "MOCK classifies DISPUTE",
+      "Assert Dispute row with category and reason",
+      "Assert invalid category rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F131",
+    "category": "functional",
+    "story": "E8-S3",
+    "group": "H",
+    "description": "No AI output states or implies the dispute is valid or invalid (guardrail check on 20 scripted replies passes).",
+    "steps": [
+      "Run 20 replies through the validity checker",
+      "Assert zero violations"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F132",
+    "category": "functional",
+    "story": "E8-S3",
+    "group": "H",
+    "description": "After a dispute is opened no PTP or arrangement can be created on the disputed item and the attempt returns DISPUTED_ITEM until a human action.",
+    "steps": [
+      "Open dispute",
+      "Propose PTP on the item",
+      "Assert rejection DISPUTED_ITEM"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F133",
+    "category": "functional",
+    "story": "E8-S3",
+    "group": "H",
+    "description": "The dispute escalation with reason DISPUTE is routed to DISPUTE_REVIEW and preserves the full conversation and supporting context.",
+    "steps": [
+      "Open a dispute in chat",
+      "Read the escalation case",
+      "Assert queue DISPUTE_REVIEW and the full conversation and context are attached"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F262",
+    "category": "functional",
+    "story": "E8-S3",
+    "group": "H",
+    "description": "Dispute creation is idempotent: the same idempotency key, or a repeated dispute message for the same item while a dispute is open, returns the existing dispute and creates no duplicate.",
+    "steps": [
+      "Submit the dispute twice with one key",
+      "Repeat the dispute message for the same item",
+      "Assert exactly one open Dispute exists for the item"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F134",
+    "category": "functional",
+    "story": "E8-S4",
+    "group": "I",
+    "description": "Resolving a dispute requires an outcome (for example UPHELD, REJECTED, WITHDRAWN) and a non-empty reason, otherwise 422.",
+    "steps": [
+      "POST resolve with no reason",
+      "Assert 422",
+      "POST with outcome and reason and assert 200"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F135",
+    "category": "functional",
+    "story": "E8-S4",
+    "group": "I",
+    "description": "Dispute status moves only OPEN to UNDER_REVIEW to RESOLVED and each transition writes an audit event with the reviewer persona.",
+    "steps": [
+      "Move through statuses",
+      "Assert 3 audit events",
+      "Attempt RESOLVED to OPEN and assert rejection"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F136",
+    "category": "functional",
+    "story": "E8-S4",
+    "group": "I",
+    "description": "After resolution the item suppression is lifted only when the outcome is recorded and remains for the item while the status is not RESOLVED.",
+    "steps": [
+      "Check suppression while UNDER_REVIEW true",
+      "Resolve",
+      "Assert suppression false"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F137",
+    "category": "security",
+    "story": "E8-S4",
+    "group": "I",
+    "description": "Only COLLECTIONS_OFFICER can resolve a dispute and CUSTOMER, COLLECTIONS_MANAGER and COMPLIANCE_RISK receive 403 on the resolve operation.",
+    "steps": [
+      "Call the resolve endpoint as each persona",
+      "Assert only COLLECTIONS_OFFICER succeeds",
+      "Assert the other three receive 403 and the dispute status is unchanged"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F263",
+    "category": "functional",
+    "story": "E8-S4",
+    "group": "I",
+    "description": "Submitting the same dispute resolution with the same idempotency key returns the original result and does not repeat the transition or its audit event.",
+    "steps": [
+      "Resolve with key K1 twice",
+      "Assert one RESOLVED transition and one audit event",
+      "Assert the second response equals the first"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F138",
+    "category": "functional",
+    "story": "E9-S1",
+    "group": "E",
+    "description": "GET /api/audit?correlation_id={id} returns events ordered by timestamp with stages INPUT, AI_INTERPRETATION, PROPOSAL, RULE_VALIDATION, HUMAN_DECISION (where applicable) and FINAL_STATE.",
+    "steps": [
+      "Run a PTP journey",
+      "Query by correlation id",
+      "Assert stages in order"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F139",
+    "category": "functional",
+    "story": "E9-S1",
+    "group": "E",
+    "description": "Filtering by account id and date range returns only matching events.",
+    "steps": [
+      "Create events for two accounts",
+      "Query account A with a date range",
+      "Assert only A's events within the range"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F140",
+    "category": "security",
+    "story": "E9-S1",
+    "group": "E",
+    "description": "The audit endpoint is allowed only for COMPLIANCE_RISK, returns 403 for CUSTOMER, COLLECTIONS_OFFICER and COLLECTIONS_MANAGER, and exposes no write route.",
+    "steps": [
+      "Call GET /api/audit as each of the four personas",
+      "Assert only COMPLIANCE_RISK receives 200",
+      "Assert no POST, PUT, PATCH or DELETE route exists under /api/audit"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F141",
+    "category": "security",
+    "story": "E9-S1",
+    "group": "E",
+    "description": "Returned events contain no secrets or prohibited identifiers (scan over responses for 100 events).",
+    "steps": [
+      "Fetch 100 events",
+      "Run the prohibited-pattern scanner on the JSON",
+      "Assert zero matches"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F142",
+    "category": "ui",
+    "story": "E9-S2",
+    "group": "G",
+    "description": "Searching by account id or correlation id shows the decision chain as an ordered, labelled timeline of the six stages.",
+    "steps": [
+      "Enter a correlation id",
+      "Assert timeline steps in order with text labels"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F143",
+    "category": "ui",
+    "story": "E9-S2",
+    "group": "G",
+    "description": "Each AI step displays model id, prompt version and PolicyRuleSet version.",
+    "steps": [
+      "Open an AI event",
+      "Assert three version values visible"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F144",
+    "category": "ui",
+    "story": "E9-S2",
+    "group": "G",
+    "description": "The viewer has no edit or delete controls and passes axe with zero serious or critical violations.",
+    "steps": [
+      "Open viewer",
+      "Assert no buttons named edit/delete",
+      "Run axe and assert 0 serious or critical"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F264",
+    "category": "ui",
+    "story": "E9-S2",
+    "group": "G",
+    "description": "The timeline is keyboard navigable, each stage is identified by a text label, and the viewer is reachable only by COMPLIANCE_RISK.",
+    "steps": [
+      "Tab through the timeline stages",
+      "Assert each stage has a text label",
+      "Open the route as COLLECTIONS_OFFICER and assert the forbidden page"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F145",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "I",
+    "description": "With the flag off, the control routes return 404 and the panel is not rendered; with the flag on the panel shows mode as text 'MOCK' or 'LIVE'.",
+    "steps": [
+      "Start with DEMO_CONTROLS=false and assert 404 and no panel",
+      "Start with true and assert panel and mode label"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F146",
+    "category": "integration",
+    "story": "E9-S3",
+    "group": "I",
+    "description": "Advance-clock control moves the simulated Clock by the chosen days and a subsequent breakage run marks due PTPs BROKEN.",
+    "steps": [
+      "Advance by 7 days",
+      "Run breakage",
+      "Assert due PTP BROKEN"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F147",
+    "category": "integration",
+    "story": "E9-S3",
+    "group": "I",
+    "description": "The simulated-payment trigger creates a PaymentEvent with source demo control and simulated=true.",
+    "steps": [
+      "Trigger payment",
+      "Assert event source 'demo_control' and simulated true"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F148",
+    "category": "integration",
+    "story": "E9-S3",
+    "group": "I",
+    "description": "Reseed restores the seeded dataset and every control action writes an audit event.",
+    "steps": [
+      "Modify data then reseed",
+      "Assert account count and state equal seed",
+      "Assert audit events for each action"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F150",
+    "category": "security",
+    "story": "E9-S4",
+    "group": "H",
+    "description": "The guardrail suite of at least 20 prompt-injection and policy-override cases produces zero critical policy violations and zero unauthorized state changes in MOCK.",
+    "steps": [
+      "Run the guardrail suite",
+      "Assert violation count 0 and state-change count 0",
+      "Assert case count >= 20"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F151",
+    "category": "security",
+    "story": "E9-S4",
+    "group": "H",
+    "description": "CI scans prompts, logs and seed data for prohibited patterns and fails the build on a planted card number.",
+    "steps": [
+      "Plant a 16-digit number in a fixture",
+      "Run scan",
+      "Assert non-zero exit"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F265",
+    "category": "security",
+    "story": "E9-S4",
+    "group": "H",
+    "description": "The red-team suite contains at least one case for each critical policy violation type defined in BRD 4.2 (unauthorized state change, ungrounded figure or option, settlement or exception approval, dispute or hardship judgement, threatening or misleading language, cross-customer or secret disclosure, continued treatment after dispute or vulnerability) and reports the count per type.",
+    "steps": [
+      "Load the red-team case manifest",
+      "Assert at least one case per violation type",
+      "Run in MOCK and assert the report lists counts per type with zero violations"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F266",
+    "category": "security",
+    "story": "E9-S4",
+    "group": "H",
+    "description": "Prompts sent to the MOCK provider and application logs contain no secrets or prohibited identifiers across the entire red-team run.",
+    "steps": [
+      "Run the red-team suite with a recording MOCK provider",
+      "Scan recorded prompts and logs for card numbers, CVV, PIN, government ID and API key patterns",
+      "Assert zero matches"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F153",
+    "category": "functional",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "The dataset file records version, provenance (authorship method, synthetic statement) and at least 50 labelled cases covering all seven intents, edge, adversarial, policy and vulnerable-signal cases.",
+    "steps": [
+      "Load dataset",
+      "Assert metadata fields",
+      "Assert >= 50 cases and every intent has at least one case"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F154",
+    "category": "functional",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "Running the runner in MOCK produces an EvalRun with mode MOCK, per-case pass or fail and no network calls.",
+    "steps": [
+      "Run in MOCK with sockets blocked",
+      "Assert EvalRun mode MOCK",
+      "Assert per-case results"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F155",
+    "category": "security",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "Running in LIVE mode requires an explicit flag and API key, and refuses to run in CI.",
+    "steps": [
+      "Run LIVE without flag and assert refusal",
+      "Set CI=true with flag and assert refusal"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F156",
+    "category": "functional",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "Each EvalRun stores model id, prompt version, dataset version, rule-set version, date, token usage and estimated cost where available.",
+    "steps": [
+      "Complete a run",
+      "Assert stored fields not null where provider supplies them"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F267",
+    "category": "functional",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "The dataset includes FINANCIAL_HARDSHIP, DISPUTE, REQUEST_HUMAN, vulnerable-customer safety, exceptional-arrangement request, policy-exception request, settlement request and ambiguous-validation cases, and every case carries its expected intent, safety signals and expected escalation reason where applicable.",
+    "steps": [
+      "Load the dataset manifest",
+      "Count cases per category",
+      "Assert every listed category has cases and every case has expected labels including escalation reason where applicable"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F268",
+    "category": "functional",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "The dataset is versioned, has no maximum size enforced, and adding cases produces a new dataset version that the runner and reports record.",
+    "steps": [
+      "Load the dataset at version 1 and append cases",
+      "Assert the version increments",
+      "Assert the loader accepts more than 200 cases and a run records the dataset version"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F269",
+    "category": "security",
+    "story": "E10-S1",
+    "group": "H",
+    "description": "An architecture test fails if any production package imports the evaluation package.",
+    "steps": [
+      "Run the architecture test",
+      "Add a planted import of the evaluation package in a fixture",
+      "Assert the test fails"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F157",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "Intent accuracy and per-category true positives, false negatives and recall are computed correctly on a fixture with known counts.",
+    "steps": [
+      "Run metrics on a 10-case fixture with 2 known misses",
+      "Assert accuracy 0.8 and recall values match hand calculation"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F158",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "A category with fewer than 30 labelled LIVE cases is reported as 'observation only' without a pass or fail claim and one with 30 or more shows pass or fail against 95 percent.",
+    "steps": [
+      "Generate report with categories of 29 and 30 cases",
+      "Assert first labelled observation, second has pass/fail"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F159",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "Escalation accuracy is reported together with precision, recall and over-escalation rate.",
+    "steps": [
+      "Compute on a fixture",
+      "Assert four metrics present and correct"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F160",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "The report lists MOCK and LIVE in separate sections, and a MOCK result never appears in the LIVE section or in any accuracy claim.",
+    "steps": [
+      "Generate report from both run types",
+      "Assert section headings",
+      "Assert MOCK values absent from LIVE section"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F270",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "The vulnerable-customer safety set is evaluated separately from intent metrics, any missed escalation in it is reported as a critical policy violation, and no numeric vulnerable-customer performance percentage is published unless an explicit metric is defined and the set has at least 30 labelled LIVE cases.",
+    "steps": [
+      "Evaluate a fixture safety set with one missed escalation",
+      "Assert the report flags a critical policy violation",
+      "Assert no percentage is published for a set below 30 cases"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F271",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "The 90 percent overall intent accuracy target is reported pass or fail only for LIVE runs and a MOCK run is never evaluated against it.",
+    "steps": [
+      "Compute accuracy on a MOCK run and a LIVE run fixture",
+      "Assert only the LIVE run shows a pass or fail against 90 percent",
+      "Assert the MOCK run is labelled regression only"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F272",
+    "category": "functional",
+    "story": "E10-S2",
+    "group": "I",
+    "description": "The 95 percent recall claim rules are applied per category to FINANCIAL_HARDSHIP, DISPUTE, REQUEST_HUMAN and the other mandatory-escalation scenarios (exceptional arrangement, policy exception, settlement request), each with its own 30-case minimum.",
+    "steps": [
+      "Run a fixture where DISPUTE has 35 cases and SETTLEMENT_REQUEST has 12 cases",
+      "Assert DISPUTE shows pass or fail against 95 percent",
+      "Assert SETTLEMENT_REQUEST is observation only"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F161",
+    "category": "functional",
+    "story": "E10-S3",
+    "group": "J",
+    "description": "GET /api/kpis returns total delinquent accounts, total overdue amount, recovered amount, recovery rate, PTP rate and promise-kept rate computed with Decimal from seeded data and simulated PaymentEvents.",
+    "steps": [
+      "Seed a fixture with known accounts and PaymentEvents",
+      "Call GET /api/kpis",
+      "Assert each value equals the hand-computed Decimal result"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F162",
+    "category": "functional",
+    "story": "E10-S3",
+    "group": "J",
+    "description": "Each KPI includes definition, formula, data label and owner persona and business KPIs carry label ILLUSTRATIVE.",
+    "steps": [
+      "Call endpoint",
+      "Assert every KPI has the four fields",
+      "Assert business KPIs label ILLUSTRATIVE"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F163",
+    "category": "functional",
+    "story": "E10-S3",
+    "group": "J",
+    "description": "Escalation rate, queue size and aging, time-to-review and human override rate are computed from EscalationCase and decision data.",
+    "steps": [
+      "Create 4 cases and 1 override",
+      "Assert override rate 0.25 and queue size correct"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F164",
+    "category": "functional",
+    "story": "E10-S3",
+    "group": "J",
+    "description": "AI KPIs are returned separately for MOCK and LIVE and the deferred KPIs (right-party contact, handling time, cost per collected account) are absent.",
+    "steps": [
+      "Call endpoint",
+      "Assert ai.mock and ai.live objects",
+      "Assert deferred KPI names not present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F165",
+    "category": "security",
+    "story": "E10-S3",
+    "group": "J",
+    "description": "Only COLLECTIONS_MANAGER can read the KPI endpoints and CUSTOMER, COLLECTIONS_OFFICER and COMPLIANCE_RISK receive 403.",
+    "steps": [
+      "Call GET /api/kpis as each persona",
+      "Assert only COLLECTIONS_MANAGER receives 200",
+      "Assert the other three receive 403"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F273",
+    "category": "functional",
+    "story": "E10-S3",
+    "group": "J",
+    "description": "The customer-resolution and completeness KPIs PTP breakage rate, self-service resolution rate, arrangement take-up rate, hardship case count and dispute case count are returned with definition, formula and data label.",
+    "steps": [
+      "Seed a fixture with known PTP, arrangement, hardship, dispute and escalation records",
+      "Call GET /api/kpis",
+      "Assert each of the five KPIs equals the hand-computed value and carries definition, formula and label"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F166",
+    "category": "ui",
+    "story": "E10-S4",
+    "group": "K",
+    "description": "The dashboard has three headed sections Business, Operational and AI quality and governance each listing its KPIs from the API.",
+    "steps": [
+      "Open /dashboard as MANAGER",
+      "Assert three headings and KPI tiles from the API values"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F167",
+    "category": "ui",
+    "story": "E10-S4",
+    "group": "K",
+    "description": "Every KPI tile shows a text badge ILLUSTRATIVE, MOCK or LIVE and MOCK and LIVE AI values are in separate tiles.",
+    "steps": [
+      "Assert each tile has one of the three badge texts",
+      "Assert AI section has MOCK and LIVE groups"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F168",
+    "category": "ui",
+    "story": "E10-S4",
+    "group": "K",
+    "description": "A LIVE recall tile for a category with fewer than 30 cases shows 'observation only' and no percent-pass indicator.",
+    "steps": [
+      "Load data with a 12-case category",
+      "Assert 'observation only' text",
+      "Assert no pass badge"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F169",
+    "category": "ui",
+    "story": "E10-S4",
+    "group": "K",
+    "description": "The dashboard is read-only (no mutation controls) and passes axe with zero serious or critical violations.",
+    "steps": [
+      "Assert no form or action buttons",
+      "Run axe and assert 0 serious or critical"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F274",
+    "category": "ui",
+    "story": "E10-S4",
+    "group": "K",
+    "description": "Only COLLECTIONS_MANAGER can open the dashboard route and every other persona sees the forbidden page with no KPI data rendered, and the dashboard is keyboard operable.",
+    "steps": [
+      "Navigate to the dashboard as each persona",
+      "Assert only COLLECTIONS_MANAGER sees the dashboard",
+      "Tab through the dashboard tiles by keyboard"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F170",
+    "category": "functional",
+    "story": "E10-S5",
+    "group": "K",
+    "description": "docs/portfolio/kpi-tree.md contains every KPI in the BRD 4.5 tree with definition, formula, data source, owner persona and label, and lists the three deferred KPIs.",
+    "steps": [
+      "Read kpi-tree.md",
+      "Assert each KPI name present with the five attributes",
+      "Assert deferred KPIs section"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F171",
+    "category": "functional",
+    "story": "E10-S5",
+    "group": "K",
+    "description": "docs/portfolio/ai-evaluation-report.md shows per category dataset provenance, case count, true positives, false negatives, recall, model, prompt version and date, with MOCK and LIVE separate.",
+    "steps": [
+      "Read report",
+      "Assert the listed columns exist for hardship, dispute and request human",
+      "Assert separate MOCK and LIVE sections"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F172",
+    "category": "functional",
+    "story": "E10-S5",
+    "group": "K",
+    "description": "docs/portfolio/ai-risk-register.md has one entry for each of the 27 failure scenarios and the 9 top risks, each with likelihood, impact, control, owner and linked test.",
+    "steps": [
+      "Parse register",
+      "Assert 36 entries",
+      "Assert each has the five fields and a test reference that exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F173",
+    "category": "functional",
+    "story": "E10-S5",
+    "group": "K",
+    "description": "docs/portfolio/decision-log.md contains every decision in the BRD decision log at generation time, each with status, alternatives and rationale, and a test fails if any decision ID present in the BRD decision log is missing from the file, so new decisions never require editing this criterion.",
+    "steps": [
+      "Parse all decision IDs from the BRD decision log table",
+      "Assert each ID appears in docs/portfolio/decision-log.md with status, alternatives and rationale",
+      "Add a new decision row to a BRD fixture and assert the test fails until the log file includes it"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F275",
+    "category": "integration",
+    "story": "E11-S1",
+    "group": "J",
+    "description": "A Playwright test as COLLECTIONS_OFFICER opens the Portfolio, selects an account and reaches Customer 360 showing the priority band with contributing factors and the AI next-best-action panel.",
+    "steps": [
+      "Switch to COLLECTIONS_OFFICER and open the Portfolio",
+      "Click an account row",
+      "Assert Customer 360 shows the priority band, factors and the AI-labelled recommendation"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F276",
+    "category": "integration",
+    "story": "E11-S1",
+    "group": "J",
+    "description": "A Playwright test as the bound CUSTOMER completes the PTP conversation: PROMISE_TO_PAY is identified, service-returned values are shown, an explicit Confirm click is required, and the PTP appears as PENDING.",
+    "steps": [
+      "Switch to CUSTOMER and chat a promise to pay",
+      "Assert values match the service proposal and no PTP exists before Confirm",
+      "Click Confirm and assert a PENDING PTP in Customer 360"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F277",
+    "category": "integration",
+    "story": "E11-S1",
+    "group": "J",
+    "description": "Using the demo clock and simulated PAY_NOW, one scenario pays a PTP in two partial simulated payments and it becomes KEPT, and another advances the clock past the due date and it becomes BROKEN, with API assertions that each PaymentEvent has simulated=true.",
+    "steps": [
+      "Run the partial-payment scenario and assert KEPT",
+      "Run the missed-date scenario and assert BROKEN",
+      "Assert via API that PaymentEvents have simulated=true"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F278",
+    "category": "integration",
+    "story": "E11-S1",
+    "group": "J",
+    "description": "As COMPLIANCE_RISK the audit viewer shows the full decision chain for the journey with model id, prompt version and PolicyRuleSet version, and API assertions confirm an audit event for every state transition.",
+    "steps": [
+      "Open the Audit Trail as COMPLIANCE_RISK and search by correlation id",
+      "Assert the six stages and the versions are visible",
+      "Assert via API one audit event per PTP and PaymentEvent transition"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F279",
+    "category": "integration",
+    "story": "E11-S1",
+    "group": "J",
+    "description": "The journey test runs in MOCK mode in CI with no network access to the provider.",
+    "steps": [
+      "Run the journey test in the CI configuration",
+      "Assert MOCK mode is active",
+      "Assert zero outbound provider calls"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F280",
+    "category": "integration",
+    "story": "E11-S2",
+    "group": "J",
+    "description": "A Playwright test as the bound CUSTOMER requests a payment plan and sees only the options returned by the eligibility service.",
+    "steps": [
+      "Chat that a full payment is not possible",
+      "Read the options shown",
+      "Assert they equal the eligibility service output via API"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F281",
+    "category": "integration",
+    "story": "E11-S2",
+    "group": "J",
+    "description": "Selecting an option and clicking Confirm creates exactly one ACTIVE arrangement even if Confirm is clicked twice.",
+    "steps": [
+      "Select an option and double-click Confirm",
+      "Assert one ACTIVE arrangement via API",
+      "Assert Customer 360 shows the arrangement"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F282",
+    "category": "integration",
+    "story": "E11-S2",
+    "group": "J",
+    "description": "A no-eligible-option scenario tells the customer options are unavailable and offers a human, and an exceptional request scenario creates an escalation in COLLECTIONS_EXCEPTION_REVIEW with no approval language.",
+    "steps": [
+      "Run the ineligible account scenario",
+      "Run the out-of-range term scenario",
+      "Assert no arrangement, the human offer, and the exceptional escalation without approval wording"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F283",
+    "category": "integration",
+    "story": "E11-S2",
+    "group": "J",
+    "description": "The audit viewer shows the eligibility result, chosen option, confirmation and PolicyRuleSet version for the journey.",
+    "steps": [
+      "Open the Audit Trail as COMPLIANCE_RISK",
+      "Search by correlation id",
+      "Assert the eligibility, option, confirmation and rule-set version appear"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F284",
+    "category": "integration",
+    "story": "E11-S3",
+    "group": "K",
+    "description": "A Playwright test as the bound CUSTOMER describes job loss and the system records a structured hardship case, stops automated treatment and creates an escalation in HARDSHIP_REVIEW with elevated priority.",
+    "steps": [
+      "Chat a job-loss message",
+      "Read the HardshipCase and escalation via API",
+      "Assert structured indicators, suppression and queue HARDSHIP_REVIEW with elevated priority"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F285",
+    "category": "integration",
+    "story": "E11-S3",
+    "group": "K",
+    "description": "As COLLECTIONS_OFFICER the case appears in the review queue, the officer records a decision with a reason, and the UI blocks submission without a reason.",
+    "steps": [
+      "Open the queue and the hardship case",
+      "Try to submit without a reason and assert it is blocked",
+      "Submit with a reason and assert DECIDED with an audit event"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F286",
+    "category": "integration",
+    "story": "E11-S3",
+    "group": "K",
+    "description": "Customer 360 shows the hardship status and a human-review-only next-best-action, and no automated outreach is produced for the account.",
+    "steps": [
+      "Open Customer 360 for the account",
+      "Assert hardship status and human-review-only action",
+      "Assert no automated contact was generated"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F287",
+    "category": "integration",
+    "story": "E11-S3",
+    "group": "K",
+    "description": "A vulnerable-customer variant with vulnerability_detected true creates a VULNERABLE_CUSTOMER_REVIEW escalation and the audit viewer shows the full chain.",
+    "steps": [
+      "Chat a message that scripts vulnerability_detected true",
+      "Assert queue VULNERABLE_CUSTOMER_REVIEW",
+      "Open the audit chain as COMPLIANCE_RISK and assert all stages"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F288",
+    "category": "integration",
+    "story": "E11-S4",
+    "group": "K",
+    "description": "A Playwright test as the bound CUSTOMER raises a dispute and the system stores a structured category and reason, pauses the disputed item and creates an escalation in DISPUTE_REVIEW.",
+    "steps": [
+      "Chat a dispute about an amount",
+      "Read the Dispute and escalation via API",
+      "Assert category, reason, paused item and queue DISPUTE_REVIEW"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F289",
+    "category": "integration",
+    "story": "E11-S4",
+    "group": "K",
+    "description": "An attempt to create a PTP on the disputed item through chat is refused with DISPUTED_ITEM until a human action.",
+    "steps": [
+      "Try to promise a payment on the disputed item",
+      "Assert DISPUTED_ITEM and no PTP",
+      "Assert other items on the account remain eligible"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F290",
+    "category": "integration",
+    "story": "E11-S4",
+    "group": "K",
+    "description": "As COLLECTIONS_OFFICER the case is reviewed and resolved with an outcome and a reason, the dispute becomes RESOLVED, and the UI requires both before submission.",
+    "steps": [
+      "Open the dispute case in the queue",
+      "Try to resolve without outcome or reason and assert it is blocked",
+      "Resolve with both and assert RESOLVED and the suppression lifted"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F291",
+    "category": "integration",
+    "story": "E11-S4",
+    "group": "K",
+    "description": "The audit viewer shows every dispute status transition and the reviewer decision for the journey.",
+    "steps": [
+      "Open the Audit Trail as COMPLIANCE_RISK",
+      "Search by the dispute case",
+      "Assert OPEN, UNDER_REVIEW and RESOLVED transitions and the reviewer persona"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F292",
+    "category": "ui",
+    "story": "E11-S5",
+    "group": "I",
+    "description": "An axe scan runs in Playwright on every primary screen delivered so far (persona switcher, Portfolio, Customer 360, Chat, escalation list) and fails on any serious or critical violation.",
+    "steps": [
+      "Run the axe suite over each screen",
+      "Assert zero serious and critical violations",
+      "Add a planted violation in a fixture and assert the suite fails"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F293",
+    "category": "ui",
+    "story": "E11-S5",
+    "group": "I",
+    "description": "Keyboard-navigation tests reach and operate every interactive control on the primary journeys without a mouse and show a visible focus indicator.",
+    "steps": [
+      "Drive Portfolio, Customer 360, Chat and the escalation list with the keyboard only",
+      "Assert every control is reachable and operable",
+      "Assert a visible focus indicator on each focused control"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F294",
+    "category": "ui",
+    "story": "E11-S5",
+    "group": "I",
+    "description": "Focus-management tests confirm focus moves into dialogs and confirmations on open, is trapped while open, returns to the trigger on close, and new chat messages are announced through a live region.",
+    "steps": [
+      "Open each dialog and confirmation",
+      "Assert focus entry, trap and return",
+      "Send a chat message and assert the aria-live announcement"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F295",
+    "category": "ui",
+    "story": "E11-S5",
+    "group": "I",
+    "description": "A test asserts that AI, rules-engine, risk, priority and simulated states each carry a text or icon label and never rely on color alone.",
+    "steps": [
+      "Collect every status badge and panel label",
+      "Assert each has a text or icon label",
+      "Render in grayscale and assert each status is still identifiable by its label"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F296",
+    "category": "integration",
+    "story": "E11-S5",
+    "group": "I",
+    "description": "The suite runs in CI and its reporting states that the product targets WCAG 2.1 AA and makes no conformance claim.",
+    "steps": [
+      "Run the suite in the CI configuration",
+      "Read the summary output",
+      "Assert it says 'targets WCAG 2.1 AA' and contains no conformance claim"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F297",
+    "category": "ui",
+    "story": "E11-S6",
+    "group": "L",
+    "description": "A documented manual review checklist covering keyboard operation, screen-reader announcement of chat and review actions, contrast, zoom to 200 percent and focus order is executed on the primary journeys and its results are recorded in docs/portfolio/accessibility-review.md.",
+    "steps": [
+      "Execute the checklist on Journeys A, B1, B2 and C",
+      "Open docs/portfolio/accessibility-review.md",
+      "Assert each checklist item has a recorded result, reviewer and date"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F298",
+    "category": "functional",
+    "story": "E11-S6",
+    "group": "L",
+    "description": "Every finding has a severity and status, and no open critical finding remains before any WCAG 2.1 AA conformance statement is published.",
+    "steps": [
+      "Read the findings table",
+      "Assert each finding has severity and status",
+      "Assert no critical finding is open when a conformance statement is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F299",
+    "category": "functional",
+    "story": "E11-S6",
+    "group": "L",
+    "description": "Until the review is complete, the README and documentation state that the product targets WCAG 2.1 AA and do not claim conformance.",
+    "steps": [
+      "Search the README and docs for WCAG statements",
+      "Assert wording is 'targets' while the review is incomplete",
+      "Assert no 'conforms' or 'compliant' claim exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  }
+]
