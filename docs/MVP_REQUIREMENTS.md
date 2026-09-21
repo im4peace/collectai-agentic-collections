@@ -14,7 +14,8 @@ so that I can prioritize collection activities.
 - Show customer name, account type, outstanding balance, overdue amount and Days Past Due (DPD).
 - Show delinquency bucket.
 - Show collection status.
-- Allow filtering by DPD, risk level and status.
+- Show the deterministic Collections Priority band (see US-003).
+- Allow filtering by DPD, risk level (the deterministic priority band) and status.
 - Allow sorting by overdue amount and DPD.
 - Selecting an account opens Customer 360.
 
@@ -42,6 +43,8 @@ Display:
 - Promise-to-Pay history
 - Hardship indicators
 - Disputes
+- Escalation status
+- Collections Priority band and contributing factors
 - Recommended next action
 
 No real customer PII may be used.
@@ -75,6 +78,14 @@ so that accounts can be handled consistently.
 - AI cannot invent eligibility.
 - Recommendations are logged.
 
+### Collections Priority
+
+- A deterministic service computes a priority score, a priority band and its contributing factors for each delinquent account.
+- Inputs are synthetic account attributes such as DPD, overdue amount, broken PTP, active dispute, hardship status and recent contact outcome.
+- The LLM may explain the priority using the returned factors and recommend a next-best-action.
+- The LLM must not calculate or modify the score, band or factors.
+- Accounts with an active dispute, active hardship case or open escalation are flagged so that automated treatment is suppressed and human treatment is indicated.
+
 ---
 
 ## Epic 4 — AI Customer Conversation
@@ -105,6 +116,15 @@ The assistant must:
 - avoid threats or misleading statements
 - escalate when appropriate
 
+PAY_NOW is a simulated payment capability only:
+
+- No real payment gateway, payment processing or external financial transaction occurs.
+- Payable amounts come from deterministic services; the customer must explicitly confirm.
+- The outcome is recorded as a synthetic PaymentEvent.
+- The UI clearly identifies simulated payment behavior.
+
+Sensitive intents and scenarios (FINANCIAL_HARDSHIP, DISPUTE, REQUEST_HUMAN, vulnerable-customer signals, settlement requests, exceptional arrangement requests) are routed to human review, including before their full workflows are available.
+
 ---
 
 ## Epic 5 — Promise-to-Pay
@@ -134,6 +154,13 @@ Status values:
 
 Financial validation must be deterministic.
 
+Lifecycle:
+
+- A simulated successful payment (PaymentEvent) may satisfy an applicable PTP, moving it from PENDING to KEPT under a deterministic rule.
+- A PTP whose due date passes without a satisfying PaymentEvent moves from PENDING to BROKEN.
+- Time is injected so lifecycle transitions are testable deterministically.
+- Simulated payment outcomes may feed demo recovery metrics.
+
 ---
 
 ## Epic 6 — Payment Arrangement
@@ -151,7 +178,9 @@ when I cannot pay the full overdue amount.
 - AI cannot create financial calculations.
 - Eligible arrangements are returned by a rules service.
 - Customer can select an eligible option.
-- Exceptional arrangements require human approval.
+- An exceptional arrangement is a customer-requested arrangement that is not one of the options returned as eligible by the active deterministic rule set (for example a payment date or term outside permitted ranges).
+- Exceptional arrangements require human review with approval or rejection and a mandatory reason.
+- The LLM must not decide whether an exception is approved.
 
 ---
 
@@ -194,10 +223,14 @@ Officer can:
 - Review conversation
 - Review AI recommendation
 - Review supporting data
-- Approve allowed actions
-- Reject recommendation
-- Modify permitted actions
-- Record reason
+- Approve, where policy permits
+- Reject
+- Modify, within explicitly permitted deterministic boundaries
+- Request more information
+- Escalate to a higher-authority human review
+- Record a reason (mandatory for material decisions)
+
+Human review is mandatory for exceptional payment arrangements, financial hardship requiring restructuring or a policy exception, vulnerable-customer scenarios, disputes, settlement requests, policy exceptions, high-risk compliance cases, and ambiguous cases where deterministic validation cannot authorize the proposed action.
 
 Every decision must be audited.
 
@@ -218,7 +251,8 @@ Record:
 - timestamp
 - customer/account reference
 - AI capability used
-- model/version where applicable
+- model/version and prompt/template version where applicable
+- rule-set version used for the decision
 - input context reference
 - AI output
 - tool calls
@@ -255,6 +289,14 @@ so that I can evaluate business outcomes.
 - Human override rate
 - Escalation rate
 - Response latency
+- Sensitive-category recall (hardship, dispute, human request)
+
+### KPI Rules
+
+- Business KPIs on synthetic data are illustrative and are not evidence of real banking outcomes.
+- AI quality KPIs distinguish MOCK results (regression only) from LIVE evaluation results. MOCK results are never presented as evidence of real-model quality.
+- A per-category recall claim of 95% or more may only be made when that category contains at least 30 labelled LIVE evaluation cases. The evaluation dataset has no fixed maximum size and may grow as needed for intent, sensitive-scenario, edge-case and adversarial coverage.
+- Deferred, because the MVP lacks the required data: right-party contact rate, average handling time and cost per collected account.
 
 ---
 
@@ -293,3 +335,6 @@ CollectAI must follow these principles:
 8. Every material AI recommendation must be auditable.
 9. AI output must use structured schemas where appropriate.
 10. Tests must validate both business logic and AI guardrails.
+11. Collections priority and risk banding are deterministic; the LLM may explain them but never calculate or modify them.
+12. Settlement is deferred from the MVP. Any settlement request encountered is escalated to a human.
+13. Payments are simulated only; no real payment processing occurs.
