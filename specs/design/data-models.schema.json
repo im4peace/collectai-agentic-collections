@@ -1,0 +1,4416 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://collectai.example.com/schemas/data-models.schema.json",
+  "title": "CollectAI data models",
+  "description": "JSON Schema (draft-07) for every persisted entity. Field names match specs/design/api-contracts.md. Synthetic data only. The top-level object describes a whole dataset (table name to array of rows) so seed files can be validated with it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "customer": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Customer"
+      }
+    },
+    "account": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Account"
+      }
+    },
+    "delinquency_record": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DelinquencyRecord"
+      }
+    },
+    "delinquent_item": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DelinquentItem"
+      }
+    },
+    "interaction": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Interaction"
+      }
+    },
+    "promise_to_pay": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PromiseToPay"
+      }
+    },
+    "payment_event": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PaymentEvent"
+      }
+    },
+    "payment_arrangement": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PaymentArrangement"
+      }
+    },
+    "hardship_case": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/HardshipCase"
+      }
+    },
+    "dispute": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Dispute"
+      }
+    },
+    "escalation_case": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EscalationCase"
+      }
+    },
+    "review_decision": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ReviewDecision"
+      }
+    },
+    "conversation": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Conversation"
+      }
+    },
+    "chat_message": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ChatMessage"
+      }
+    },
+    "chat_turn": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ChatTurn"
+      }
+    },
+    "proposal": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Proposal"
+      }
+    },
+    "recommendation": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Recommendation"
+      }
+    },
+    "audit_event": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AuditEvent"
+      }
+    },
+    "policy_rule_set": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PolicyRuleSet"
+      }
+    },
+    "demo_session": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DemoSession"
+      }
+    },
+    "idempotency_record": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/IdempotencyRecord"
+      }
+    },
+    "clock_state": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ClockState"
+      }
+    },
+    "eval_run": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EvalRun"
+      }
+    },
+    "eval_case_result": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EvalCaseResult"
+      }
+    }
+  },
+  "definitions": {
+    "enums": {
+      "Persona": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER",
+          "COLLECTIONS_OFFICER",
+          "COLLECTIONS_MANAGER",
+          "COMPLIANCE_RISK"
+        ]
+      },
+      "AccountType": {
+        "type": "string",
+        "enum": [
+          "CARD",
+          "PERSONAL_LOAN"
+        ]
+      },
+      "Bucket": {
+        "type": "string",
+        "enum": [
+          "CURRENT",
+          "DPD_1_29",
+          "DPD_30_59",
+          "DPD_60_89",
+          "DPD_90_PLUS"
+        ]
+      },
+      "CollectionStatus": {
+        "type": "string",
+        "enum": [
+          "NEW",
+          "IN_PROGRESS",
+          "PTP_PENDING",
+          "ARRANGEMENT_ACTIVE",
+          "ESCALATED",
+          "RESOLVED"
+        ]
+      },
+      "PriorityBand": {
+        "type": "string",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH"
+        ]
+      },
+      "Intent": {
+        "type": "string",
+        "enum": [
+          "PAY_NOW",
+          "PROMISE_TO_PAY",
+          "PAYMENT_PLAN",
+          "FINANCIAL_HARDSHIP",
+          "DISPUTE",
+          "REQUEST_HUMAN",
+          "UNKNOWN"
+        ]
+      },
+      "SpecialRequest": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "SETTLEMENT",
+          "POLICY_EXCEPTION"
+        ]
+      },
+      "VulnerabilityCategory": {
+        "type": "string",
+        "enum": [
+          "BEREAVEMENT",
+          "SERIOUS_ILLNESS_OR_DISABILITY",
+          "MENTAL_HEALTH_CONCERN",
+          "DOMESTIC_ABUSE_OR_COERCION",
+          "LIMITED_CAPACITY_TO_UNDERSTAND",
+          "LANGUAGE_OR_COMMUNICATION_BARRIER",
+          "OTHER"
+        ]
+      },
+      "PtpStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "KEPT",
+          "BROKEN",
+          "CANCELLED"
+        ]
+      },
+      "PtpSource": {
+        "type": "string",
+        "enum": [
+          "OFFICER_MANUAL",
+          "CUSTOMER_CHAT"
+        ]
+      },
+      "PaymentOutcome": {
+        "type": "string",
+        "enum": [
+          "SUCCEEDED",
+          "FAILED"
+        ]
+      },
+      "PaymentSource": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER_CHAT",
+          "DEMO_CONTROL"
+        ]
+      },
+      "PayableOptionType": {
+        "type": "string",
+        "enum": [
+          "OVERDUE_AMOUNT",
+          "FULL_BALANCE"
+        ]
+      },
+      "ArrangementStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "COMPLETED",
+          "CANCELLED"
+        ]
+      },
+      "ArrangementCreatedVia": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER_CONFIRMATION",
+          "EXCEPTION_APPROVAL"
+        ]
+      },
+      "EscalationReason": {
+        "type": "string",
+        "enum": [
+          "REQUEST_HUMAN",
+          "UNRESOLVED_UNKNOWN",
+          "AI_FAILURE_FALLBACK",
+          "EXCEPTIONAL_ARRANGEMENT",
+          "FINANCIAL_HARDSHIP",
+          "DISPUTE",
+          "SETTLEMENT_REQUEST",
+          "AMBIGUOUS_VALIDATION",
+          "VULNERABLE_CUSTOMER",
+          "POLICY_EXCEPTION",
+          "HIGH_RISK_COMPLIANCE"
+        ]
+      },
+      "ReviewQueue": {
+        "type": "string",
+        "enum": [
+          "COLLECTIONS_REVIEW",
+          "COLLECTIONS_EXCEPTION_REVIEW",
+          "HARDSHIP_REVIEW",
+          "DISPUTE_REVIEW",
+          "VULNERABLE_CUSTOMER_REVIEW",
+          "COMPLIANCE_REVIEW"
+        ]
+      },
+      "ReviewerRole": {
+        "type": "string",
+        "enum": [
+          "COLLECTIONS_OFFICER",
+          "COMPLIANCE_RISK"
+        ]
+      },
+      "EscalationPriority": {
+        "type": "string",
+        "enum": [
+          "NORMAL",
+          "ELEVATED",
+          "URGENT"
+        ]
+      },
+      "CaseStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "IN_REVIEW",
+          "AWAITING_INFORMATION",
+          "DECIDED",
+          "RE_ROUTED"
+        ]
+      },
+      "CaseSource": {
+        "type": "string",
+        "enum": [
+          "AI",
+          "CUSTOMER",
+          "SYSTEM",
+          "REVIEWER"
+        ]
+      },
+      "ReviewAction": {
+        "type": "string",
+        "enum": [
+          "APPROVE",
+          "REJECT",
+          "MODIFY",
+          "REQUEST_MORE_INFORMATION",
+          "ESCALATE"
+        ]
+      },
+      "DecisionKind": {
+        "type": "string",
+        "enum": [
+          "REVIEWER_ACTION",
+          "COMPLIANCE_DECISION",
+          "START_REVIEW"
+        ]
+      },
+      "ComplianceOutcome": {
+        "type": "string",
+        "enum": [
+          "CLEARED",
+          "NOT_CLEARED",
+          "REMEDIATION_REQUIRED"
+        ]
+      },
+      "ExceptionType": {
+        "type": "string",
+        "enum": [
+          "TERM",
+          "START_DATE",
+          "AMOUNT_STRUCTURE"
+        ]
+      },
+      "EligibilityClass": {
+        "type": "string",
+        "enum": [
+          "ELIGIBLE",
+          "EXCEPTIONAL",
+          "NOT_ELIGIBLE"
+        ]
+      },
+      "HardshipIndicatorType": {
+        "type": "string",
+        "enum": [
+          "JOB_LOSS",
+          "INCOME_REDUCTION",
+          "MEDICAL_OR_FAMILY_EMERGENCY",
+          "TEMPORARY_FINANCIAL_DIFFICULTY",
+          "OTHER"
+        ]
+      },
+      "HardshipStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "UNDER_REVIEW",
+          "DECIDED"
+        ]
+      },
+      "DisputeCategory": {
+        "type": "string",
+        "enum": [
+          "AMOUNT_INCORRECT",
+          "NOT_MY_DEBT",
+          "ALREADY_PAID",
+          "FRAUD_OR_UNAUTHORIZED",
+          "FEE_OR_INTEREST_DISPUTE",
+          "OTHER"
+        ]
+      },
+      "DisputeStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "UNDER_REVIEW",
+          "RESOLVED"
+        ]
+      },
+      "DisputeOutcome": {
+        "type": "string",
+        "enum": [
+          "UPHELD",
+          "REJECTED",
+          "WITHDRAWN"
+        ]
+      },
+      "NbaAction": {
+        "type": "string",
+        "enum": [
+          "CONTACT_CUSTOMER",
+          "REQUEST_PAYMENT",
+          "OFFER_ELIGIBLE_ARRANGEMENT",
+          "FOLLOW_UP_PTP",
+          "REFER_TO_HARDSHIP_WORKFLOW",
+          "ESCALATE_TO_HUMAN_REVIEW"
+        ]
+      },
+      "RecommendationStatus": {
+        "type": "string",
+        "enum": [
+          "GENERATED",
+          "SAFE_FALLBACK",
+          "HUMAN_REVIEW_ONLY",
+          "AI_UNAVAILABLE",
+          "NOT_GENERATED"
+        ]
+      },
+      "RecommendationDecision": {
+        "type": "string",
+        "enum": [
+          "ACCEPTED",
+          "OVERRIDDEN"
+        ]
+      },
+      "ContentSource": {
+        "type": "string",
+        "enum": [
+          "MODEL",
+          "TEMPLATE",
+          "CUSTOMER_INPUT"
+        ]
+      },
+      "ProposalKind": {
+        "type": "string",
+        "enum": [
+          "PTP",
+          "PAYMENT",
+          "ARRANGEMENT",
+          "EXCEPTION_REQUEST"
+        ]
+      },
+      "ProposalStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING_CONFIRMATION",
+          "CONFIRMED",
+          "CANCELLED",
+          "EXPIRED",
+          "INVALIDATED"
+        ]
+      },
+      "MessageRole": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER",
+          "ASSISTANT",
+          "SYSTEM"
+        ]
+      },
+      "ConversationStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "HANDED_OFF",
+          "CLOSED"
+        ]
+      },
+      "SafeState": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "AI_UNAVAILABLE",
+          "HANDOFF_CREATED",
+          "HANDOFF_FAILED",
+          "POLICY_UNAVAILABLE",
+          "AUDIT_UNAVAILABLE",
+          "TOOL_CAP_REACHED",
+          "STALE_DATA_REFRESHED"
+        ]
+      },
+      "MessageLabel": {
+        "type": "string",
+        "enum": [
+          "AI_DISCLOSURE",
+          "SIMULATED",
+          "HUMAN_HANDOFF",
+          "SAFE_FALLBACK"
+        ]
+      },
+      "Freshness": {
+        "type": "string",
+        "enum": [
+          "FRESH",
+          "STALE",
+          "UNKNOWN"
+        ]
+      },
+      "ItemKind": {
+        "type": "string",
+        "enum": [
+          "INSTALLMENT",
+          "STATEMENT_CYCLE",
+          "FEE_OR_CHARGE"
+        ]
+      },
+      "ItemStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "PAID"
+        ]
+      },
+      "ContactOutcome": {
+        "type": "string",
+        "enum": [
+          "NO_CONTACT",
+          "CONTACT_NO_COMMITMENT",
+          "PTP_MADE",
+          "PTP_BROKEN",
+          "PAYMENT_MADE"
+        ]
+      },
+      "InteractionChannel": {
+        "type": "string",
+        "enum": [
+          "SIMULATED_CHAT",
+          "SIMULATED_OUTBOUND_CALL",
+          "SIMULATED_OUTBOUND_MESSAGE",
+          "SYSTEM_EVENT"
+        ]
+      },
+      "InteractionDirection": {
+        "type": "string",
+        "enum": [
+          "INBOUND",
+          "OUTBOUND",
+          "INTERNAL"
+        ]
+      },
+      "SuppressionSource": {
+        "type": "string",
+        "enum": [
+          "ESCALATION",
+          "HARDSHIP",
+          "DISPUTE",
+          "VULNERABLE"
+        ]
+      },
+      "SuppressionScope": {
+        "type": "string",
+        "enum": [
+          "ITEM",
+          "ACCOUNT"
+        ]
+      },
+      "AuditStage": {
+        "type": "string",
+        "enum": [
+          "INPUT",
+          "AI_INTERPRETATION",
+          "PROPOSAL",
+          "RULE_VALIDATION",
+          "HUMAN_DECISION",
+          "FINAL_STATE"
+        ]
+      },
+      "ActorKind": {
+        "type": "string",
+        "enum": [
+          "CUSTOMER",
+          "STAFF",
+          "SYSTEM",
+          "AI"
+        ]
+      },
+      "ProviderMode": {
+        "type": "string",
+        "enum": [
+          "MOCK",
+          "LIVE"
+        ]
+      },
+      "LlmMode": {
+        "type": "string",
+        "enum": [
+          "MOCK",
+          "LIVE"
+        ]
+      },
+      "ClockMode": {
+        "type": "string",
+        "enum": [
+          "SYSTEM",
+          "SIMULATED"
+        ]
+      },
+      "DataLabel": {
+        "type": "string",
+        "enum": [
+          "ILLUSTRATIVE",
+          "MOCK",
+          "LIVE"
+        ]
+      },
+      "ClaimStatus": {
+        "type": "string",
+        "enum": [
+          "NOT_APPLICABLE",
+          "OBSERVATION_ONLY",
+          "PASS",
+          "FAIL"
+        ]
+      },
+      "KpiUnit": {
+        "type": "string",
+        "enum": [
+          "COUNT",
+          "CURRENCY",
+          "RATIO",
+          "MILLISECONDS",
+          "USD_ESTIMATE"
+        ]
+      },
+      "CaseSummaryKind": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "OPEN",
+          "CLOSED"
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "UNAUTHENTICATED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "VALIDATION_ERROR",
+          "BUSINESS_RULE_VIOLATION",
+          "CONFLICT",
+          "RATE_LIMITED",
+          "POLICY_UNAVAILABLE",
+          "AUDIT_UNAVAILABLE",
+          "HANDOFF_FAILED",
+          "SERVICE_UNAVAILABLE",
+          "INTERNAL_ERROR"
+        ]
+      }
+    },
+    "Money": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d{2}$",
+      "description": "Decimal string with exactly 2 decimal places, stored as NUMERIC(14,2). Never a float."
+    },
+    "PolicyParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "ptp",
+        "payment",
+        "arrangement",
+        "exception",
+        "contact",
+        "freshness",
+        "suppression",
+        "vulnerability",
+        "routing",
+        "compliance"
+      ],
+      "properties": {
+        "priority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "weights",
+            "normalization",
+            "contact_outcome_scores",
+            "band_cutoffs"
+          ],
+          "properties": {
+            "weights": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "dpd",
+                "overdue_amount",
+                "broken_ptp_count",
+                "recent_contact_outcome"
+              ],
+              "properties": {
+                "dpd": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d{1,4})?$"
+                },
+                "overdue_amount": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d{1,4})?$"
+                },
+                "broken_ptp_count": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d{1,4})?$"
+                },
+                "recent_contact_outcome": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d{1,4})?$"
+                }
+              }
+            },
+            "normalization": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "dpd_days",
+                "overdue_amount",
+                "broken_ptp_count"
+              ],
+              "properties": {
+                "dpd_days": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "overdue_amount": {
+                  "$ref": "#/definitions/Money"
+                },
+                "broken_ptp_count": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "contact_outcome_scores": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "NO_CONTACT",
+                "CONTACT_NO_COMMITMENT",
+                "PTP_MADE",
+                "PTP_BROKEN",
+                "PAYMENT_MADE"
+              ],
+              "properties": {
+                "NO_CONTACT": {
+                  "type": "string",
+                  "pattern": "^(0(\\.\\d{1,4})?|1(\\.0{1,4})?)$"
+                },
+                "CONTACT_NO_COMMITMENT": {
+                  "type": "string",
+                  "pattern": "^(0(\\.\\d{1,4})?|1(\\.0{1,4})?)$"
+                },
+                "PTP_MADE": {
+                  "type": "string",
+                  "pattern": "^(0(\\.\\d{1,4})?|1(\\.0{1,4})?)$"
+                },
+                "PTP_BROKEN": {
+                  "type": "string",
+                  "pattern": "^(0(\\.\\d{1,4})?|1(\\.0{1,4})?)$"
+                },
+                "PAYMENT_MADE": {
+                  "type": "string",
+                  "pattern": "^(0(\\.\\d{1,4})?|1(\\.0{1,4})?)$"
+                }
+              }
+            },
+            "band_cutoffs": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "string",
+                "pattern": "^\\d+(\\.\\d{1,4})?$"
+              },
+              "description": "Strictly ascending, each within 0 and the sum of the weights (cross-field rule checked by the loader)"
+            }
+          }
+        },
+        "ptp": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "window_days",
+            "min_amount",
+            "qualifying_payment_min_amount"
+          ],
+          "properties": {
+            "window_days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            },
+            "min_amount": {
+              "$ref": "#/definitions/Money"
+            },
+            "qualifying_payment_min_amount": {
+              "$ref": "#/definitions/Money"
+            }
+          }
+        },
+        "payment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "payable_options"
+          ],
+          "properties": {
+            "payable_options": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/enums/PayableOptionType"
+              }
+            }
+          }
+        },
+        "arrangement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "eligible_max_dpd",
+            "min_overdue_amount",
+            "installment_counts",
+            "min_installment_amount",
+            "max_start_delay_days",
+            "allow_with_active_ptp"
+          ],
+          "properties": {
+            "eligible_max_dpd": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "min_overdue_amount": {
+              "$ref": "#/definitions/Money"
+            },
+            "installment_counts": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 60
+              }
+            },
+            "min_installment_amount": {
+              "$ref": "#/definitions/Money"
+            },
+            "max_start_delay_days": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 90
+            },
+            "allow_with_active_ptp": {
+              "type": "boolean"
+            }
+          }
+        },
+        "exception": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "thresholds",
+            "authority"
+          ],
+          "properties": {
+            "thresholds": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "max_installment_count",
+                "max_start_delay_days",
+                "min_installment_amount"
+              ],
+              "properties": {
+                "max_installment_count": {
+                  "type": "integer",
+                  "maximum": 120
+                },
+                "max_start_delay_days": {
+                  "type": "integer",
+                  "maximum": 180
+                },
+                "min_installment_amount": {
+                  "$ref": "#/definitions/Money"
+                }
+              }
+            },
+            "authority": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "collections_officer"
+              ],
+              "properties": {
+                "collections_officer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "types",
+                    "max_overdue_amount"
+                  ],
+                  "properties": {
+                    "types": {
+                      "type": "array",
+                      "uniqueItems": true,
+                      "items": {
+                        "$ref": "#/definitions/enums/ExceptionType"
+                      }
+                    },
+                    "max_overdue_amount": {
+                      "$ref": "#/definitions/Money"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "contact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_attempts",
+            "period_days",
+            "min_interval_hours"
+          ],
+          "properties": {
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "period_days": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "min_interval_hours": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "freshness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_snapshot_age_minutes"
+          ],
+          "properties": {
+            "max_snapshot_age_minutes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10080
+            }
+          }
+        },
+        "suppression": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "dispute_scope",
+            "hardship_scope",
+            "vulnerable_scope",
+            "release"
+          ],
+          "properties": {
+            "dispute_scope": {
+              "$ref": "#/definitions/enums/SuppressionScope"
+            },
+            "hardship_scope": {
+              "type": "string",
+              "enum": [
+                "ACCOUNT"
+              ]
+            },
+            "vulnerable_scope": {
+              "type": "string",
+              "enum": [
+                "ACCOUNT"
+              ]
+            },
+            "release": {
+              "type": "string",
+              "enum": [
+                "HUMAN_DECISION"
+              ]
+            }
+          }
+        },
+        "vulnerability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "categories"
+          ],
+          "properties": {
+            "categories": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "routing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "table",
+            "fallback",
+            "priority_by_reason",
+            "reviewer_escalation_reasons",
+            "aging_warning_hours"
+          ],
+          "properties": {
+            "table": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "REQUEST_HUMAN",
+                "UNRESOLVED_UNKNOWN",
+                "AI_FAILURE_FALLBACK",
+                "EXCEPTIONAL_ARRANGEMENT",
+                "FINANCIAL_HARDSHIP",
+                "DISPUTE",
+                "SETTLEMENT_REQUEST",
+                "AMBIGUOUS_VALIDATION",
+                "VULNERABLE_CUSTOMER",
+                "POLICY_EXCEPTION",
+                "HIGH_RISK_COMPLIANCE"
+              ],
+              "properties": {
+                "REQUEST_HUMAN": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "UNRESOLVED_UNKNOWN": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "AI_FAILURE_FALLBACK": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "EXCEPTIONAL_ARRANGEMENT": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "FINANCIAL_HARDSHIP": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "DISPUTE": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "SETTLEMENT_REQUEST": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "AMBIGUOUS_VALIDATION": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "VULNERABLE_CUSTOMER": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "POLICY_EXCEPTION": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                },
+                "HIGH_RISK_COMPLIANCE": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "queue",
+                    "reviewer_role"
+                  ],
+                  "properties": {
+                    "queue": {
+                      "$ref": "#/definitions/enums/ReviewQueue"
+                    },
+                    "reviewer_role": {
+                      "$ref": "#/definitions/enums/ReviewerRole"
+                    }
+                  }
+                }
+              }
+            },
+            "fallback": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "queue",
+                "reviewer_role"
+              ],
+              "properties": {
+                "queue": {
+                  "type": "string",
+                  "enum": [
+                    "COLLECTIONS_REVIEW"
+                  ]
+                },
+                "reviewer_role": {
+                  "type": "string",
+                  "enum": [
+                    "COLLECTIONS_OFFICER"
+                  ]
+                }
+              }
+            },
+            "priority_by_reason": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "REQUEST_HUMAN",
+                "UNRESOLVED_UNKNOWN",
+                "AI_FAILURE_FALLBACK",
+                "EXCEPTIONAL_ARRANGEMENT",
+                "FINANCIAL_HARDSHIP",
+                "DISPUTE",
+                "SETTLEMENT_REQUEST",
+                "AMBIGUOUS_VALIDATION",
+                "VULNERABLE_CUSTOMER",
+                "POLICY_EXCEPTION",
+                "HIGH_RISK_COMPLIANCE"
+              ],
+              "properties": {
+                "REQUEST_HUMAN": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "UNRESOLVED_UNKNOWN": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "AI_FAILURE_FALLBACK": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "EXCEPTIONAL_ARRANGEMENT": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "FINANCIAL_HARDSHIP": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "DISPUTE": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "SETTLEMENT_REQUEST": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "AMBIGUOUS_VALIDATION": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "VULNERABLE_CUSTOMER": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "POLICY_EXCEPTION": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                },
+                "HIGH_RISK_COMPLIANCE": {
+                  "$ref": "#/definitions/enums/EscalationPriority"
+                }
+              }
+            },
+            "reviewer_escalation_reasons": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/enums/EscalationReason"
+                  },
+                  {
+                    "not": {
+                      "enum": [
+                        "REQUEST_HUMAN",
+                        "UNRESOLVED_UNKNOWN"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "aging_warning_hours": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "NORMAL",
+                "ELEVATED",
+                "URGENT"
+              ],
+              "properties": {
+                "NORMAL": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "ELEVATED": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "URGENT": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        "compliance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "review_outcomes"
+          ],
+          "properties": {
+            "review_outcomes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/enums/ComplianceOutcome"
+              }
+            }
+          }
+        }
+      }
+    },
+    "ScheduleEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sequence",
+        "due_date",
+        "amount"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "amount": {
+          "$ref": "#/definitions/Money"
+        }
+      }
+    },
+    "RequestedTerms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "installment_count",
+        "first_installment_date",
+        "installment_amount"
+      ],
+      "properties": {
+        "installment_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "first_installment_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "installment_amount": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/Money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "HardshipIndicator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "indicator_type",
+        "customer_statement"
+      ],
+      "properties": {
+        "indicator_type": {
+          "$ref": "#/definitions/enums/HardshipIndicatorType"
+        },
+        "customer_statement": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "ToolCallRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool_name",
+        "tool_type",
+        "arguments",
+        "result_status",
+        "idempotency_key",
+        "duration_ms"
+      ],
+      "properties": {
+        "tool_name": {
+          "type": "string",
+          "enum": [
+            "get_account_context",
+            "get_eligible_options",
+            "propose_ptp",
+            "flag_hardship",
+            "flag_dispute",
+            "escalate_to_human"
+          ]
+        },
+        "tool_type": {
+          "type": "string",
+          "enum": [
+            "READ",
+            "PROPOSE"
+          ]
+        },
+        "arguments": {
+          "type": "object"
+        },
+        "result_status": {
+          "type": "string",
+          "enum": [
+            "EXECUTED",
+            "REJECTED_INVALID_ARGS",
+            "REJECTED_UNKNOWN_TOOL",
+            "NOT_EXECUTED_CAP_REACHED",
+            "REPLAYED"
+          ]
+        },
+        "idempotency_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "LatencyInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_latency_ms",
+        "tool_call_duration_ms",
+        "interaction_duration_ms"
+      ],
+      "properties": {
+        "provider_latency_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "tool_call_duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "interaction_duration_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "TokenUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_tokens",
+        "output_tokens",
+        "estimated_cost_usd"
+      ],
+      "properties": {
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimated_cost_usd": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^\\d+\\.\\d{6}$"
+        }
+      }
+    },
+    "IntentRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "confidence",
+        "rationale",
+        "vulnerability_detected",
+        "vulnerability_category",
+        "vulnerability_rationale",
+        "special_request"
+      ],
+      "properties": {
+        "label": {
+          "$ref": "#/definitions/enums/Intent"
+        },
+        "confidence": {
+          "type": "string",
+          "pattern": "^(0(\\.\\d{1,4})?|1(\\.0{1,4})?)$"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "vulnerability_detected": {
+          "type": "boolean"
+        },
+        "vulnerability_category": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/VulnerabilityCategory"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vulnerability_rationale": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "special_request": {
+          "$ref": "#/definitions/enums/SpecialRequest"
+        }
+      }
+    },
+    "Customer": {
+      "type": "object",
+      "description": "A synthetic bank customer. The vulnerability flag is set by a VULNERABLE_CUSTOMER case and released only by a human decision.",
+      "additionalProperties": false,
+      "required": [
+        "customer_id",
+        "display_name",
+        "email",
+        "phone",
+        "vulnerability_flag",
+        "vulnerability_category",
+        "vulnerability_case_id",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Synthetic name"
+        },
+        "email": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._%+-]+@example\\.com$",
+          "description": "Reserved domain example.com only"
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^\\+1-555-01\\d{2}$",
+          "description": "Fictional range +1-555-01xx only"
+        },
+        "vulnerability_flag": {
+          "type": "boolean",
+          "description": "Default false"
+        },
+        "vulnerability_category": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/VulnerabilityCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Non-null iff vulnerability_flag; must be in policy vulnerability.categories"
+        },
+        "vulnerability_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Case that set the flag (FK escalation_case)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "customer",
+      "x-primary-key": "customer_id"
+    },
+    "Account": {
+      "type": "object",
+      "description": "A CARD or PERSONAL_LOAN account. Shared abstraction with product-specific attributes in product_attributes (D-014).",
+      "additionalProperties": false,
+      "required": [
+        "account_id",
+        "customer_id",
+        "account_type",
+        "product_name",
+        "currency",
+        "opened_on",
+        "product_attributes",
+        "created_at"
+      ],
+      "properties": {
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owner, FK customer"
+        },
+        "account_type": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/AccountType"
+            }
+          ],
+          "description": "CARD or PERSONAL_LOAN"
+        },
+        "product_name": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Synthetic product name"
+        },
+        "currency": {
+          "type": "string",
+          "enum": [
+            "USD"
+          ],
+          "description": "Always USD"
+        },
+        "opened_on": {
+          "type": "string",
+          "format": "date",
+          "description": "Open date"
+        },
+        "product_attributes": {
+          "type": "object",
+          "description": "CARD: credit_limit, minimum_payment_due. PERSONAL_LOAN: original_principal, term_months, monthly_installment (money strings, term_months numeric string)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "account",
+      "x-primary-key": "account_id"
+    },
+    "DelinquencyRecord": {
+      "type": "object",
+      "description": "Current snapshot of delinquency facts for one account. Every update increments record_version and stamps as_of (E1-S3 AC7, E2-S5).",
+      "additionalProperties": false,
+      "required": [
+        "account_id",
+        "customer_id",
+        "outstanding_balance",
+        "overdue_amount",
+        "dpd",
+        "bucket",
+        "collection_status",
+        "as_of",
+        "record_version",
+        "updated_at"
+      ],
+      "properties": {
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "PK and FK account (1:1)"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer (denormalized for ownership scoping)"
+        },
+        "outstanding_balance": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Total balance, >= 0"
+        },
+        "overdue_amount": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Overdue amount, >= 0"
+        },
+        "dpd": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Days past due"
+        },
+        "bucket": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/Bucket"
+            }
+          ],
+          "description": "Must match dpd (0 CURRENT, 1-29, 30-59, 60-89, 90+)"
+        },
+        "collection_status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/CollectionStatus"
+            }
+          ],
+          "description": "Workflow status"
+        },
+        "as_of": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Snapshot time; null means freshness UNKNOWN"
+        },
+        "record_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic, starts at 1, +1 on every update"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "delinquency_record",
+      "x-primary-key": "account_id"
+    },
+    "DelinquentItem": {
+      "type": "object",
+      "description": "An overdue component that can be disputed (installment, statement cycle, fee).",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "account_id",
+        "customer_id",
+        "kind",
+        "label",
+        "amount_outstanding",
+        "due_date",
+        "status"
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "pattern": "^itm_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ItemKind"
+            }
+          ],
+          "description": "INSTALLMENT, STATEMENT_CYCLE or FEE_OR_CHARGE"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Synthetic label"
+        },
+        "amount_outstanding": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": ">= 0"
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Original due date"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ItemStatus"
+            }
+          ],
+          "description": "OPEN or PAID"
+        }
+      },
+      "x-table": "delinquent_item",
+      "x-primary-key": "item_id"
+    },
+    "Interaction": {
+      "type": "object",
+      "description": "A previous (synthetic) contact or system event on an account; feeds the recent-contact priority factor and contact-frequency policy.",
+      "additionalProperties": false,
+      "required": [
+        "interaction_id",
+        "account_id",
+        "customer_id",
+        "channel",
+        "direction",
+        "outcome",
+        "occurred_at",
+        "summary",
+        "counts_as_attempt",
+        "conversation_id"
+      ],
+      "properties": {
+        "interaction_id": {
+          "type": "string",
+          "pattern": "^int_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "channel": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/InteractionChannel"
+            }
+          ],
+          "description": "Simulated channel"
+        },
+        "direction": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/InteractionDirection"
+            }
+          ],
+          "description": "INBOUND, OUTBOUND or INTERNAL"
+        },
+        "outcome": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/ContactOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Contact outcome"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Synthetic summary"
+        },
+        "counts_as_attempt": {
+          "type": "boolean",
+          "description": "Counts toward contact.max_attempts"
+        },
+        "conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^conv_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "FK conversation"
+        }
+      },
+      "x-table": "interaction",
+      "x-primary-key": "interaction_id"
+    },
+    "PromiseToPay": {
+      "type": "object",
+      "description": "A customer payment commitment. Lifecycle PENDING to KEPT, BROKEN or CANCELLED only (E6-S4).",
+      "additionalProperties": false,
+      "required": [
+        "ptp_id",
+        "account_id",
+        "customer_id",
+        "item_id",
+        "promised_amount",
+        "promised_date",
+        "status",
+        "cumulative_paid",
+        "interaction_reference",
+        "source",
+        "created_by_persona",
+        "created_at",
+        "updated_at",
+        "kept_at",
+        "broken_at",
+        "cancelled_at",
+        "cancel_reason",
+        "policy_version",
+        "version"
+      ],
+      "properties": {
+        "ptp_id": {
+          "type": "string",
+          "pattern": "^ptp_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "item_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^itm_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional item the PTP is against (disputed-item check)"
+        },
+        "promised_amount": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "> 0, validated by the PTP validator"
+        },
+        "promised_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Between today and today + ptp.window_days at creation"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/PtpStatus"
+            }
+          ],
+          "description": "PENDING, KEPT, BROKEN, CANCELLED"
+        },
+        "cumulative_paid": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Qualifying successful simulated payments counted so far"
+        },
+        "interaction_reference": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "int_ or conv_ id"
+        },
+        "source": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/PtpSource"
+            }
+          ],
+          "description": "OFFICER_MANUAL or CUSTOMER_CHAT"
+        },
+        "created_by_persona": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/Persona"
+            }
+          ],
+          "description": "Persona that recorded it"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "kept_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when KEPT"
+        },
+        "broken_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when BROKEN"
+        },
+        "cancelled_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when CANCELLED"
+        },
+        "cancel_reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Required when CANCELLED"
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "FK policy_rule_set"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Row version, optimistic concurrency"
+        }
+      },
+      "x-table": "promise_to_pay",
+      "x-primary-key": "ptp_id"
+    },
+    "PaymentEvent": {
+      "type": "object",
+      "description": "A SIMULATED payment outcome. No real payment ever occurs (D-021). Immutable once written.",
+      "additionalProperties": false,
+      "required": [
+        "payment_event_id",
+        "account_id",
+        "customer_id",
+        "amount",
+        "outcome",
+        "source",
+        "simulated",
+        "occurred_at",
+        "balance_after",
+        "applied_to_ptp_id",
+        "proposal_id",
+        "created_by_persona"
+      ],
+      "properties": {
+        "payment_event_id": {
+          "type": "string",
+          "pattern": "^pay_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "amount": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "> 0"
+        },
+        "outcome": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/PaymentOutcome"
+            }
+          ],
+          "description": "SUCCEEDED or FAILED"
+        },
+        "source": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/PaymentSource"
+            }
+          ],
+          "description": "CUSTOMER_CHAT or DEMO_CONTROL"
+        },
+        "simulated": {
+          "type": "boolean",
+          "enum": [
+            true
+          ],
+          "description": "Always true; CHECK (simulated) rejects any non-simulated row"
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "balance_after": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Outstanding balance after the event (unchanged when FAILED)"
+        },
+        "applied_to_ptp_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^ptp_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "PTP counted toward, if any"
+        },
+        "proposal_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^prp_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Confirmed proposal that produced it (CUSTOMER_CHAT)"
+        },
+        "created_by_persona": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/Persona"
+            }
+          ],
+          "description": "CUSTOMER or COLLECTIONS_OFFICER (demo control)"
+        }
+      },
+      "x-table": "payment_event",
+      "x-primary-key": "payment_event_id"
+    },
+    "PaymentArrangement": {
+      "type": "object",
+      "description": "An installment arrangement with schedule (Slice 2). Created only through the arrangement domain service.",
+      "additionalProperties": false,
+      "required": [
+        "arrangement_id",
+        "account_id",
+        "customer_id",
+        "status",
+        "created_via",
+        "exception_case_id",
+        "option_id",
+        "installment_count",
+        "installment_amount",
+        "final_installment_amount",
+        "total_amount",
+        "first_installment_date",
+        "frequency",
+        "schedule",
+        "policy_version",
+        "created_at",
+        "updated_at",
+        "version"
+      ],
+      "properties": {
+        "arrangement_id": {
+          "type": "string",
+          "pattern": "^arr_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ArrangementStatus"
+            }
+          ],
+          "description": "ACTIVE, COMPLETED or CANCELLED"
+        },
+        "created_via": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ArrangementCreatedVia"
+            }
+          ],
+          "description": "CUSTOMER_CONFIRMATION or EXCEPTION_APPROVAL"
+        },
+        "exception_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Case that approved the exception; non-null iff EXCEPTION_APPROVAL"
+        },
+        "option_id": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "opt-{installment_count}-{first_installment_date}"
+        },
+        "installment_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of installments"
+        },
+        "installment_amount": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Regular installment"
+        },
+        "final_installment_amount": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Absorbs the remainder"
+        },
+        "total_amount": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/Money"
+            }
+          ],
+          "description": "Arranged amount"
+        },
+        "first_installment_date": {
+          "type": "string",
+          "format": "date",
+          "description": "First due date"
+        },
+        "frequency": {
+          "type": "string",
+          "enum": [
+            "MONTHLY"
+          ],
+          "description": "Constant MONTHLY"
+        },
+        "schedule": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ScheduleEntry"
+          },
+          "description": "Full schedule; sums exactly to total_amount"
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "FK policy_rule_set"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Row version"
+        }
+      },
+      "x-table": "payment_arrangement",
+      "x-primary-key": "arrangement_id"
+    },
+    "HardshipCase": {
+      "type": "object",
+      "description": "Structured hardship record created from a validated flag_hardship proposal (Slice 2). No relief is ever executed in the MVP.",
+      "additionalProperties": false,
+      "required": [
+        "hardship_case_id",
+        "account_id",
+        "customer_id",
+        "conversation_id",
+        "status",
+        "indicators",
+        "escalation_case_id",
+        "created_at",
+        "decided_at",
+        "updated_at",
+        "version"
+      ],
+      "properties": {
+        "hardship_case_id": {
+          "type": "string",
+          "pattern": "^hsp_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^conv_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Source conversation"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/HardshipStatus"
+            }
+          ],
+          "description": "OPEN, UNDER_REVIEW or DECIDED"
+        },
+        "indicators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HardshipIndicator"
+          },
+          "description": "Structured indicators, at least one"
+        },
+        "escalation_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Linked FINANCIAL_HARDSHIP case"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "decided_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Decision time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Row version"
+        }
+      },
+      "x-table": "hardship_case",
+      "x-primary-key": "hardship_case_id"
+    },
+    "Dispute": {
+      "type": "object",
+      "description": "Structured dispute created from a validated flag_dispute proposal (Slice 3). The LLM never judges validity.",
+      "additionalProperties": false,
+      "required": [
+        "dispute_id",
+        "account_id",
+        "customer_id",
+        "item_id",
+        "category",
+        "customer_reason",
+        "status",
+        "outcome",
+        "resolution_reason",
+        "conversation_id",
+        "escalation_case_id",
+        "created_at",
+        "resolved_at",
+        "updated_at",
+        "version"
+      ],
+      "properties": {
+        "dispute_id": {
+          "type": "string",
+          "pattern": "^dsp_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "item_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^itm_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Disputed item; null means the whole overdue amount"
+        },
+        "category": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/DisputeCategory"
+            }
+          ],
+          "description": "Category"
+        },
+        "customer_reason": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Redacted customer-provided reason"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/DisputeStatus"
+            }
+          ],
+          "description": "OPEN to UNDER_REVIEW to RESOLVED"
+        },
+        "outcome": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/DisputeOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set only when RESOLVED"
+        },
+        "resolution_reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Reviewer reason; required when RESOLVED"
+        },
+        "conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^conv_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Source conversation"
+        },
+        "escalation_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Linked DISPUTE case"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "resolved_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when RESOLVED"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Row version"
+        }
+      },
+      "x-table": "dispute",
+      "x-primary-key": "dispute_id"
+    },
+    "EscalationCase": {
+      "type": "object",
+      "description": "A human-review case. Queue, reviewer_role and priority are set ONLY by the routing service from the reason and the active PolicyRuleSet (D-030).",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "customer_id",
+        "account_id",
+        "conversation_id",
+        "item_id",
+        "reason",
+        "queue",
+        "reviewer_role",
+        "priority",
+        "status",
+        "source",
+        "summary",
+        "requested_terms",
+        "exception_types",
+        "hardship_case_id",
+        "dispute_id",
+        "recommendation_id",
+        "parent_case_id",
+        "rerouted_to_case_id",
+        "routing_policy_version",
+        "routing_flags",
+        "first_reviewed_at",
+        "created_at",
+        "decided_at",
+        "updated_at",
+        "version"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^esc_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^conv_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Linked conversation (null for reviewer re-routes without one)"
+        },
+        "item_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^itm_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Item scope, when item-level"
+        },
+        "reason": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/EscalationReason"
+            }
+          ],
+          "description": "One of the 11 reasons"
+        },
+        "queue": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ReviewQueue"
+            }
+          ],
+          "description": "Set by routing service"
+        },
+        "reviewer_role": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ReviewerRole"
+            }
+          ],
+          "description": "Set by routing service"
+        },
+        "priority": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/EscalationPriority"
+            }
+          ],
+          "description": "Set by routing service"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/CaseStatus"
+            }
+          ],
+          "description": "OPEN, IN_REVIEW, AWAITING_INFORMATION, DECIDED, RE_ROUTED"
+        },
+        "source": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/CaseSource"
+            }
+          ],
+          "description": "AI, CUSTOMER, SYSTEM or REVIEWER"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Templated one-line summary"
+        },
+        "requested_terms": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/RequestedTerms"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Requested arrangement terms (EXCEPTIONAL_ARRANGEMENT)"
+        },
+        "exception_types": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/enums/ExceptionType"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Deterministic exception classification"
+        },
+        "hardship_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^hsp_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Linked hardship record"
+        },
+        "dispute_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^dsp_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Linked dispute"
+        },
+        "recommendation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^rec_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "AI recommendation shown to the reviewer, when any"
+        },
+        "parent_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Case this was re-routed from"
+        },
+        "rerouted_to_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Case this was re-routed to"
+        },
+        "routing_policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "PolicyRuleSet version used by routing"
+        },
+        "routing_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "e.g. reason_unrecognized, POLICY_UNAVAILABLE; empty array normally"
+        },
+        "first_reviewed_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "First move out of OPEN; feeds the time-to-review KPI"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "decided_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when DECIDED or RE_ROUTED"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optimistic-concurrency version"
+        }
+      },
+      "x-table": "escalation_case",
+      "x-primary-key": "case_id"
+    },
+    "ReviewDecision": {
+      "type": "object",
+      "description": "A recorded human decision or state transition on an EscalationCase. Insert-only.",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "case_id",
+        "kind",
+        "action",
+        "compliance_outcome",
+        "reason",
+        "note",
+        "modification_option_id",
+        "escalate_reason",
+        "rerouted_case_id",
+        "release_suppression",
+        "overrode_ai",
+        "reviewer_persona",
+        "decided_at",
+        "case_version_after",
+        "policy_version"
+      ],
+      "properties": {
+        "decision_id": {
+          "type": "string",
+          "pattern": "^dec_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "case_id": {
+          "type": "string",
+          "pattern": "^esc_[A-Za-z0-9]{6,40}$",
+          "description": "FK escalation_case"
+        },
+        "kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/DecisionKind"
+            }
+          ],
+          "description": "REVIEWER_ACTION, COMPLIANCE_DECISION or START_REVIEW"
+        },
+        "action": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/ReviewAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when kind = REVIEWER_ACTION"
+        },
+        "compliance_outcome": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/ComplianceOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set when kind = COMPLIANCE_DECISION"
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mandatory for REJECT, MODIFY, ESCALATE, APPROVE and compliance decisions"
+        },
+        "note": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mandatory for REQUEST_MORE_INFORMATION"
+        },
+        "modification_option_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Chosen eligible option (MODIFY)"
+        },
+        "escalate_reason": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/EscalationReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Whitelisted reason (ESCALATE)"
+        },
+        "rerouted_case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "New case created by ESCALATE"
+        },
+        "release_suppression": {
+          "type": "boolean",
+          "description": "Released hardship or vulnerable suppression"
+        },
+        "overrode_ai": {
+          "type": "boolean",
+          "description": "REJECT or MODIFY on a case whose source is AI (human override rate)"
+        },
+        "reviewer_persona": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/Persona"
+            }
+          ],
+          "description": "Persona that decided"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "case_version_after": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Case version after the decision"
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "PolicyRuleSet version used"
+        }
+      },
+      "x-table": "review_decision",
+      "x-primary-key": "decision_id"
+    },
+    "Conversation": {
+      "type": "object",
+      "description": "A customer chat conversation on one owned account.",
+      "additionalProperties": false,
+      "required": [
+        "conversation_id",
+        "customer_id",
+        "account_id",
+        "status",
+        "clarification_count",
+        "created_at",
+        "last_message_at"
+      ],
+      "properties": {
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^conv_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account, must belong to the customer"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ConversationStatus"
+            }
+          ],
+          "description": "ACTIVE, HANDED_OFF or CLOSED"
+        },
+        "clarification_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Consecutive UNKNOWN clarifications issued (bounded by MAX_CLARIFICATION_TURNS)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "last_message_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Clock time"
+        }
+      },
+      "x-table": "conversation",
+      "x-primary-key": "conversation_id"
+    },
+    "ChatMessage": {
+      "type": "object",
+      "description": "One message. Assistant text is grounded model text or a template.",
+      "additionalProperties": false,
+      "required": [
+        "message_id",
+        "conversation_id",
+        "customer_id",
+        "turn_id",
+        "role",
+        "content",
+        "content_source",
+        "labels",
+        "created_at"
+      ],
+      "properties": {
+        "message_id": {
+          "type": "string",
+          "pattern": "^msg_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^conv_[A-Za-z0-9]{6,40}$",
+          "description": "FK conversation"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "turn_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^trn_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Turn that produced it (null for the greeting and confirmations)"
+        },
+        "role": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/MessageRole"
+            }
+          ],
+          "description": "CUSTOMER, ASSISTANT or SYSTEM"
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Message text"
+        },
+        "content_source": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ContentSource"
+            }
+          ],
+          "description": "CUSTOMER_INPUT, MODEL or TEMPLATE"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/enums/MessageLabel"
+          },
+          "description": "AI_DISCLOSURE, SIMULATED, HUMAN_HANDOFF, SAFE_FALLBACK"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "chat_message",
+      "x-primary-key": "message_id"
+    },
+    "ChatTurn": {
+      "type": "object",
+      "description": "One request/response cycle. Stores the structured interpretation and links used for idempotent replay.",
+      "additionalProperties": false,
+      "required": [
+        "turn_id",
+        "conversation_id",
+        "customer_id",
+        "customer_message_id",
+        "assistant_message_id",
+        "intent",
+        "proposal_id",
+        "safe_state",
+        "correlation_id",
+        "tool_call_count",
+        "created_at"
+      ],
+      "properties": {
+        "turn_id": {
+          "type": "string",
+          "pattern": "^trn_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^conv_[A-Za-z0-9]{6,40}$",
+          "description": "FK conversation"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "customer_message_id": {
+          "type": "string",
+          "pattern": "^msg_[A-Za-z0-9]{6,40}$",
+          "description": "FK chat_message"
+        },
+        "assistant_message_id": {
+          "type": "string",
+          "pattern": "^msg_[A-Za-z0-9]{6,40}$",
+          "description": "FK chat_message"
+        },
+        "intent": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/IntentRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Advisory interpretation; null when the provider failed"
+        },
+        "proposal_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^prp_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Proposal created this turn"
+        },
+        "safe_state": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/SafeState"
+            }
+          ],
+          "description": "NONE unless a fail-closed state applied"
+        },
+        "correlation_id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Turn correlation id (links audit events)"
+        },
+        "tool_call_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Executed tool calls this turn, <= TOOL_CALL_CAP_PER_TURN"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "chat_turn",
+      "x-primary-key": "turn_id"
+    },
+    "Proposal": {
+      "type": "object",
+      "description": "A deterministic, customer-visible proposal awaiting explicit confirmation (D-041). Created by services, never by the LLM directly.",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "conversation_id",
+        "case_id",
+        "customer_id",
+        "account_id",
+        "kind",
+        "status",
+        "terms",
+        "terms_hash",
+        "summary",
+        "simulated",
+        "record_version",
+        "policy_version",
+        "created_at",
+        "expires_at",
+        "confirmed_at",
+        "resulting_resource_id"
+      ],
+      "properties": {
+        "proposal_id": {
+          "type": "string",
+          "pattern": "^prp_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "conversation_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^conv_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "FK conversation (null for reviewer MODIFY proposals tied to a case)"
+        },
+        "case_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^esc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Case that produced it (MODIFY)"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ProposalKind"
+            }
+          ],
+          "description": "PTP, PAYMENT, ARRANGEMENT or EXCEPTION_REQUEST"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ProposalStatus"
+            }
+          ],
+          "description": "PENDING_CONFIRMATION, CONFIRMED, CANCELLED, EXPIRED, INVALIDATED"
+        },
+        "terms": {
+          "type": "object",
+          "description": "PtpTerms, PaymentTerms, ArrangementTerms or ExceptionRequestTerms (discriminated by kind)"
+        },
+        "terms_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of canonical terms; echoed by the confirm request"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Templated summary from service output"
+        },
+        "simulated": {
+          "type": "boolean",
+          "description": "True for PAYMENT"
+        },
+        "record_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "DelinquencyRecord version it is valid for"
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "PolicyRuleSet version used"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "After this Clock time the proposal is EXPIRED"
+        },
+        "confirmed_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set on CONFIRMED"
+        },
+        "resulting_resource_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ptp_, pay_, arr_ or esc_ id created on confirmation"
+        }
+      },
+      "x-table": "proposal",
+      "x-primary-key": "proposal_id"
+    },
+    "Recommendation": {
+      "type": "object",
+      "description": "A stored AI next-best-action, always labelled AI-generated. May be a TEMPLATE-only fallback. Never changes financial state.",
+      "additionalProperties": false,
+      "required": [
+        "recommendation_id",
+        "account_id",
+        "customer_id",
+        "action",
+        "rationale",
+        "referenced_factor_ids",
+        "status",
+        "content_source",
+        "model_id",
+        "prompt_version",
+        "policy_version",
+        "record_version",
+        "correlation_id",
+        "created_at",
+        "audit_event_id",
+        "officer_decision",
+        "officer_decision_reason",
+        "officer_chosen_action",
+        "decided_by_persona",
+        "decided_at"
+      ],
+      "properties": {
+        "recommendation_id": {
+          "type": "string",
+          "pattern": "^rec_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^acc_[A-Za-z0-9]{6,40}$",
+          "description": "FK account"
+        },
+        "customer_id": {
+          "type": "string",
+          "pattern": "^cus_[A-Za-z0-9]{6,40}$",
+          "description": "Owning customer"
+        },
+        "action": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/NbaAction"
+            }
+          ],
+          "description": "Allowed action"
+        },
+        "rationale": {
+          "type": "string",
+          "maxLength": 1500,
+          "description": "Grounded rationale text"
+        },
+        "referenced_factor_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Factor ids relied on"
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/RecommendationStatus"
+            }
+          ],
+          "description": "GENERATED, SAFE_FALLBACK or HUMAN_REVIEW_ONLY (AI_UNAVAILABLE and NOT_GENERATED are response states and are not stored)"
+        },
+        "content_source": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ContentSource"
+            }
+          ],
+          "description": "MODEL or TEMPLATE"
+        },
+        "model_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for TEMPLATE-only"
+        },
+        "prompt_version": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Prompt template version"
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "PolicyRuleSet version"
+        },
+        "record_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Record version generated against"
+        },
+        "correlation_id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Correlation id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "audit_event_id": {
+          "type": "string",
+          "pattern": "^aud_[A-Za-z0-9]{6,40}$",
+          "description": "Audit event that governs it"
+        },
+        "officer_decision": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/RecommendationDecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "ACCEPTED or OVERRIDDEN"
+        },
+        "officer_decision_reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mandatory when OVERRIDDEN"
+        },
+        "officer_chosen_action": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/NbaAction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Officer's own action when OVERRIDDEN"
+        },
+        "decided_by_persona": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/Persona"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "COLLECTIONS_OFFICER"
+        },
+        "decided_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Clock time"
+        }
+      },
+      "x-table": "recommendation",
+      "x-primary-key": "recommendation_id"
+    },
+    "AuditEvent": {
+      "type": "object",
+      "description": "Immutable, append-only audit record, written in the same transaction as the state transition it describes. The application DB role has INSERT and SELECT only.",
+      "additionalProperties": false,
+      "required": [
+        "audit_event_id",
+        "sequence",
+        "timestamp",
+        "correlation_id",
+        "stage",
+        "event_type",
+        "actor_kind",
+        "actor_persona",
+        "customer_id",
+        "account_id",
+        "capability",
+        "provider",
+        "provider_mode",
+        "model_id",
+        "prompt_version",
+        "policy_version",
+        "input_ref",
+        "ai_output",
+        "tool_calls",
+        "rule_results",
+        "human_override",
+        "final_action",
+        "reason_code",
+        "resource_type",
+        "resource_id",
+        "latency",
+        "token_usage"
+      ],
+      "properties": {
+        "audit_event_id": {
+          "type": "string",
+          "pattern": "^aud_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic identity column for stable ordering"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Injected Clock time"
+        },
+        "correlation_id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Correlation id"
+        },
+        "stage": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/AuditStage"
+            }
+          ],
+          "description": "Decision-chain stage"
+        },
+        "event_type": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Catalogued event type"
+        },
+        "actor_kind": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ActorKind"
+            }
+          ],
+          "description": "CUSTOMER, STAFF, SYSTEM or AI"
+        },
+        "actor_persona": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/Persona"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Persona when applicable"
+        },
+        "customer_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^cus_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Customer reference (no FK; survives reseed)"
+        },
+        "account_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^acc_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Account reference (no FK; survives reseed)"
+        },
+        "capability": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "INTENT_CLASSIFICATION, CHAT_RESPONSE or NEXT_BEST_ACTION"
+        },
+        "provider": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "mock or anthropic"
+        },
+        "provider_mode": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/enums/ProviderMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "MOCK or LIVE"
+        },
+        "model_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Model identifier"
+        },
+        "prompt_version": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Prompt template version"
+        },
+        "policy_version": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "PolicyRuleSet version used"
+        },
+        "input_ref": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Redacted input reference"
+        },
+        "ai_output": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Redacted AI output; schema-invalid output is stored here too"
+        },
+        "tool_calls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ToolCallRecord"
+          },
+          "description": "Tool calls (empty array when none)"
+        },
+        "rule_results": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Business-rule results"
+        },
+        "human_override": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "{overrode_ai, reason}"
+        },
+        "final_action": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Final action or state"
+        },
+        "reason_code": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 60
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Reason code"
+        },
+        "resource_type": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Affected resource type"
+        },
+        "resource_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Affected resource id"
+        },
+        "latency": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/LatencyInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "provider_latency_ms, tool_call_duration_ms, interaction_duration_ms"
+        },
+        "token_usage": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/TokenUsage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tokens and estimated cost where available"
+        }
+      },
+      "x-table": "audit_event",
+      "x-primary-key": "audit_event_id"
+    },
+    "PolicyRuleSet": {
+      "type": "object",
+      "description": "Immutable, versioned rule set (specs/policy-ruleset-contract.md). Exactly one row is active. Older versions stay readable so any audit event resolves.",
+      "additionalProperties": false,
+      "required": [
+        "policy_version",
+        "parameters",
+        "content_hash",
+        "is_active",
+        "created_at",
+        "activated_at"
+      ],
+      "properties": {
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "PK, for example policy-v1"
+        },
+        "parameters": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/PolicyParameters"
+            }
+          ],
+          "description": "All contract parameters (contract section 3)"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of canonical parameters; detects tampering"
+        },
+        "is_active": {
+          "type": "boolean",
+          "description": "Exactly one true"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "activated_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When activated"
+        }
+      },
+      "x-table": "policy_rule_set",
+      "x-primary-key": "policy_version"
+    },
+    "DemoSession": {
+      "type": "object",
+      "description": "Demo persona session (NOT authentication). For CUSTOMER it binds the token to one seeded customer_id server-side.",
+      "additionalProperties": false,
+      "required": [
+        "session_token_hash",
+        "persona",
+        "customer_id",
+        "display_name",
+        "issued_at",
+        "last_seen_at"
+      ],
+      "properties": {
+        "session_token_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "PK, sha256 of the opaque token (the raw token is returned once and never stored)"
+        },
+        "persona": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/Persona"
+            }
+          ],
+          "description": "Persona"
+        },
+        "customer_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^cus_[A-Za-z0-9]{6,40}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Bound customer; required iff persona = CUSTOMER"
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Persona or customer display name"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "last_seen_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "demo_session",
+      "x-primary-key": "session_token_hash"
+    },
+    "IdempotencyRecord": {
+      "type": "object",
+      "description": "Stored result of an idempotent operation so replays return the original result (D-037).",
+      "additionalProperties": false,
+      "required": [
+        "idempotency_id",
+        "scope",
+        "idempotency_key",
+        "request_hash",
+        "response_status",
+        "response_body",
+        "resource_type",
+        "resource_id",
+        "created_at"
+      ],
+      "properties": {
+        "idempotency_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "PK identity"
+        },
+        "scope": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "persona + bound customer or session + endpoint template"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Client key, 8-128 chars [A-Za-z0-9_-]"
+        },
+        "request_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 of canonical request body; mismatch gives 409 IDEMPOTENCY_KEY_REUSED"
+        },
+        "response_status": {
+          "type": "integer",
+          "description": "HTTP status of the original response"
+        },
+        "response_body": {
+          "type": "object",
+          "description": "Stored response body"
+        },
+        "resource_type": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 40
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Created or affected resource type"
+        },
+        "resource_id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Created or affected resource id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        }
+      },
+      "x-table": "idempotency_record",
+      "x-primary-key": "idempotency_id"
+    },
+    "ClockState": {
+      "type": "object",
+      "description": "Singleton (id = 1) holding the simulated Clock when DEMO_CONTROLS_ENABLED. Absent or mode SYSTEM otherwise.",
+      "additionalProperties": false,
+      "required": [
+        "clock_state_id",
+        "mode",
+        "simulated_now",
+        "updated_at"
+      ],
+      "properties": {
+        "clock_state_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "PK, always 1"
+        },
+        "mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ClockMode"
+            }
+          ],
+          "description": "SYSTEM or SIMULATED"
+        },
+        "simulated_now": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Non-null iff SIMULATED"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Real time of last change"
+        }
+      },
+      "x-table": "clock_state",
+      "x-primary-key": "clock_state_id"
+    },
+    "EvalRun": {
+      "type": "object",
+      "description": "One evaluation run (MOCK or LIVE). MOCK and LIVE are never merged. Written by the evaluation package, read by the KPI service through the persistence layer.",
+      "additionalProperties": false,
+      "required": [
+        "eval_run_id",
+        "mode",
+        "dataset_version",
+        "dataset_provenance",
+        "model_id",
+        "prompt_version",
+        "policy_version",
+        "run_at",
+        "case_count",
+        "intent_accuracy",
+        "metrics",
+        "input_tokens",
+        "output_tokens",
+        "estimated_cost_usd",
+        "triggered_by"
+      ],
+      "properties": {
+        "eval_run_id": {
+          "type": "string",
+          "pattern": "^evr_[A-Za-z0-9]{6,40}$",
+          "description": "PK"
+        },
+        "mode": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/enums/ProviderMode"
+            }
+          ],
+          "description": "MOCK or LIVE"
+        },
+        "dataset_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Dataset version at run time"
+        },
+        "dataset_provenance": {
+          "type": "object",
+          "description": "authorship method and synthetic statement"
+        },
+        "model_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 120
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null for MOCK"
+        },
+        "prompt_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Prompt version"
+        },
+        "policy_version": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "PolicyRuleSet version"
+        },
+        "run_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Clock time"
+        },
+        "case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cases executed"
+        },
+        "intent_accuracy": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d{4}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Overall accuracy 0..1; never compared to targets for MOCK"
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Per-category TP, FN, recall, escalation precision and recall, structured-output compliance, grounding, safety-set results"
+        },
+        "input_tokens": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where available"
+        },
+        "output_tokens": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where available"
+        },
+        "estimated_cost_usd": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Where available"
+        },
+        "triggered_by": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "CLI user or CI job name; LIVE is refused in CI"
+        }
+      },
+      "x-table": "eval_run",
+      "x-primary-key": "eval_run_id"
+    },
+    "EvalCaseResult": {
+      "type": "object",
+      "description": "Per-case result of an EvalRun. Internal; no API exposure in the MVP.",
+      "additionalProperties": false,
+      "required": [
+        "eval_case_result_id",
+        "eval_run_id",
+        "case_id",
+        "category",
+        "expected",
+        "actual",
+        "passed",
+        "critical_policy_violation"
+      ],
+      "properties": {
+        "eval_case_result_id": {
+          "type": "string",
+          "pattern": "^evc_[A-Za-z0-9]{6,40}$",
+          "description": "PK (internal prefix evc_)"
+        },
+        "eval_run_id": {
+          "type": "string",
+          "pattern": "^evr_[A-Za-z0-9]{6,40}$",
+          "description": "FK eval_run"
+        },
+        "case_id": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Case id inside the dataset file"
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "Intent or scenario category"
+        },
+        "expected": {
+          "type": "object",
+          "description": "Expected intent, safety signals, escalation reason"
+        },
+        "actual": {
+          "type": "object",
+          "description": "Actual structured output"
+        },
+        "passed": {
+          "type": "boolean",
+          "description": "Pass or fail"
+        },
+        "critical_policy_violation": {
+          "type": "boolean",
+          "description": "True for a missed vulnerable-customer escalation or any BRD 4.2 violation"
+        }
+      },
+      "x-table": "eval_case_result",
+      "x-primary-key": "eval_case_result_id"
+    }
+  }
+}

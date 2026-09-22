@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E4-S2 Customer 360 - CollectAI mockup</title>
+<!--
+  Mockup for story E4-S2: Customer 360
+  Self-contained: inline CSS and vanilla JS only, no CDN, no web fonts, no network calls.
+  Synthetic data only (fictional names, example.com, +1-555-01xx). Payments are simulated.
+  Field names, enums and shapes follow specs/design/api-contracts.md (snake_case, money as 2dp strings).
+  Contract gaps noted while building this mockup:
+  - PtpValidateRequest has no record_version or snapshot_as_of (unlike PtpCreateRequest), so a dry run cannot report STALE_DATA.
+  - PtpCreateRequest.snapshot_as_of is a required timestamp but SnapshotInfo.as_of can be null (freshness UNKNOWN); the contract does not say what to send.
+  - POST /api/customers/{account_id}/refresh returns only SnapshotInfo, so the screen must re-read GET /api/customers/{account_id}/360 to refresh figures.
+  - PtpValidationResult.alternatives is an untyped object (valid_amount_range, valid_date_range are documented in prose only).
+  - No documented API field for the cancel or amend of a pending PTP from Customer 360 UI (POST /api/ptps/{ptp_id}/cancel exists but is not in the E4-S2 story API list); not mocked.
+-->
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f8;--surface:#ffffff;--surface2:#eaeff4;--text:#14202b;--muted:#4a5a69;--line:#c3cfda;--brand:#0b4a6f;--brand-ink:#ffffff;--ai:#5b3fa6;--ai-bg:#f3effc;--rule:#0b4a6f;--rule-bg:#e9f2f9;--warn:#7d4a00;--warn-bg:#fff3d9;--danger:#a3201d;--danger-bg:#fdecea;--ok:#0f6a3a;--ok-bg:#e6f5ec;--sim:#6b3d00;--sim-bg:#ffefd2;--focus:#0a58ca;--shadow:0 1px 2px rgba(20,32,43,.08),0 4px 14px rgba(20,32,43,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none}}
+:root[data-theme=dark]{--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+h1{font-size:1.45rem;margin:.2rem 0 .6rem;line-height:1.25}h2{font-size:1.1rem;margin:0 0 .5rem}h3{font-size:.98rem;margin:.8rem 0 .3rem}
+p{margin:.3rem 0 .6rem}a{color:var(--brand)}
+code,.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;font-size:.86em}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:8px;top:-60px;background:var(--brand);color:var(--brand-ink);padding:8px 12px;border-radius:6px;z-index:100}.skip:focus{top:8px}
+.mockbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:8px 14px;background:repeating-linear-gradient(135deg,var(--surface2),var(--surface2) 10px,var(--bg) 10px,var(--bg) 20px);border-bottom:2px dashed var(--line);font-size:.82rem}
+.mockbar strong{font-weight:700}.mockbar label{display:flex;gap:6px;align-items:center}
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.02em;color:var(--brand)}.brand .env{font-weight:600;font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:6px}
+.appbar nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.appbar nav a{padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);border:1px solid transparent}
+.appbar nav a:hover{background:var(--surface2)}.appbar nav a[aria-current=page]{background:var(--rule-bg);color:var(--rule);border-color:var(--rule);font-weight:700}
+.who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.85rem}
+main{max-width:1240px;margin:0 auto;padding:16px}
+main:focus{outline:none}
+.pagehead{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+.muted{color:var(--muted)}.small{font-size:.82rem}.right{text-align:right}.num{font-variant-numeric:tabular-nums;text-align:right}
+.api{display:inline-block;font:600 .72rem/1.3 ui-monospace,Consolas,monospace;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;vertical-align:middle;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);min-width:0}
+.panel>.ph{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel>.ph h2{margin:0}
+.panel.ai{border:2px dashed var(--ai);background:var(--ai-bg)}
+.panel.rules{border-left:5px solid var(--rule)}
+.panel.sim{border-left:5px solid var(--sim)}
+.tag{display:inline-flex;gap:5px;align-items:center;font-size:.74rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid currentColor}
+.tag.rules{color:var(--rule);background:var(--rule-bg)}.tag.ai{color:var(--ai);background:var(--ai-bg)}.tag.sim{color:var(--sim);background:var(--sim-bg)}.tag.rec{color:var(--muted);background:var(--surface2)}
+.chip{display:inline-flex;gap:4px;align-items:center;font-size:.76rem;font-weight:700;border-radius:99px;padding:1px 9px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}.chip.warn{color:var(--warn);background:var(--warn-bg)}.chip.danger{color:var(--danger);background:var(--danger-bg)}.chip.info{color:var(--rule);background:var(--rule-bg)}.chip.ai{color:var(--ai);background:var(--ai-bg)}.chip.neutral{color:var(--muted);background:var(--surface2)}.chip.sim{color:var(--sim);background:var(--sim-bg)}
+.chip.demo{color:var(--warn);background:var(--warn-bg);border-style:dashed}
+.banner{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border:1px solid currentColor;border-radius:8px;padding:10px 12px;margin:8px 0}
+.banner.warn{color:var(--warn);background:var(--warn-bg)}.banner.danger{color:var(--danger);background:var(--danger-bg)}.banner.info{color:var(--rule);background:var(--rule-bg)}.banner.ok{color:var(--ok);background:var(--ok-bg)}.banner.ai{color:var(--ai);background:var(--ai-bg)}
+.banner>div{flex:1;min-width:200px;color:var(--text)}.banner .bi{font-weight:800}
+.btn{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:7px 13px;cursor:pointer;min-height:36px}
+.btn.secondary{background:var(--surface);color:var(--brand)}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn.danger{color:#1b0605}}:root[data-theme=dark] .btn.danger{color:#1b0605}
+.btn:hover:not([disabled]){filter:brightness(1.08)}
+.btn[disabled],.btn[aria-disabled=true]{opacity:.55;cursor:not-allowed;filter:none}
+.btn.link{background:none;border:none;color:var(--brand);text-decoration:underline;padding:2px 4px;min-height:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.g2,.g3{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:.85rem;min-width:0}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--muted);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%}
+textarea{width:100%;min-height:76px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:8px 10px}legend{font-weight:700;font-size:.85rem;padding:0 4px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px}.checks label{display:flex;gap:5px;align-items:center;font-weight:500}
+.tablewrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td.num,th.num{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--surface2)}
+th button.sort{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center;font:inherit;text-transform:inherit;letter-spacing:inherit;font-weight:700}
+th button.sort:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+dl.kv{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:4px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:.83rem}dl.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.stat{display:flex;flex-direction:column;gap:2px}.stat .v{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}.stat .l{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.overlay{position:fixed;inset:0;background:rgba(5,12,20,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
+.dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dialog:focus{outline:none}.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:60;max-width:92vw}
+.toast[hidden]{display:none}
+.forbidden{max-width:640px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:26px}
+.forbidden h1{color:var(--danger)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.bar{display:inline-block;height:8px;background:var(--rule);border-radius:4px;vertical-align:middle;min-width:2px}
+ul.plain{list-style:none;padding:0;margin:0}
+.footnote{font-size:.8rem;color:var(--muted);margin-top:10px}
+@media (max-width:600px){main{padding:10px}.appbar{padding:8px 10px}.mockbar{padding:6px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+
+.cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;align-items:start}
+.cols>div{display:grid;gap:14px;min-width:0}
+@media (max-width:1000px){.cols{grid-template-columns:minmax(0,1fr)}}
+.jump{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.85rem;margin:6px 0 12px}
+.tight th,.tight td{padding:6px 8px}
+section[tabindex="-1"]:focus{outline:3px solid var(--focus);outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.kpis .panel{padding:10px}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="mockbar" data-bg>
+  <strong>Mockup E4-S2</strong><span class="muted">controls below are not part of the product UI</span>
+  <label>State: <select id="mock-state" aria-label="Mockup state toggle">
+<option value="happy">Happy path: fresh, AI recommendation</option>
+<option value="ai_down">AI provider unavailable</option>
+<option value="stale">Snapshot STALE (refresh banner)</option>
+<option value="escalated">Escalated + hardship + dispute</option>
+<option value="policy">Error: POLICY_UNAVAILABLE</option>
+<option value="notfound">Error: 404 NOT_FOUND</option>
+  </select></label>
+  <button type="button" class="btn secondary" id="theme-btn" style="min-height:28px;padding:2px 10px">Theme: toggle light/dark</button>
+</div>
+<div id="root" data-bg>
+  <header class="appbar" id="appbar"></header>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="sr-live" class="sr" aria-live="polite" aria-atomic="true"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+/* ---- shared mockup helpers (inlined per file; no external deps) ---- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=l=>`<span class="api" data-api="${esc(l)}" title="API call">${esc(l)}</span>`;
+const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}$${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
+const cents=s=>{const m=String(s).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);return m?BigInt(m[1])*100n+BigInt((m[2]||'').padEnd(2,'0')||'0'):null};
+const fromCents=c=>{const n=c<0n?-c:c;const s=n.toString().padStart(3,'0');return (c<0n?'-':'')+s.slice(0,-2)+'.'+s.slice(-2)};
+const pct4=v=>{if(v==null)return '-';const [i,f='']=String(v).split('.');const n=BigInt(i+f.padEnd(4,'0').slice(0,4));const s=n.toString().padStart(3,'0');return s.slice(0,-2)+'.'+s.slice(-2)+'%'};
+const fmtDT=t=>t?esc(String(t).replace('T',' ').replace(/:\d\dZ$/,' UTC')):'-';
+const PN={CUSTOMER:'Customer',COLLECTIONS_OFFICER:'Collections Officer',COLLECTIONS_MANAGER:'Collections Manager',COMPLIANCE_RISK:'Compliance and Risk'};
+const NAV={CUSTOMER:[['Chat','/chat']],COLLECTIONS_OFFICER:[['Portfolio','/portfolio'],['Customer 360','/customers/acc_000123'],['Escalations','/escalations'],['Review queues','/review-queues'],['Demo controls','/demo-controls',true]],COLLECTIONS_MANAGER:[['Dashboard','/dashboard']],COMPLIANCE_RISK:[['Audit Trail','/audit'],['Compliance review queue','/compliance-review']]};
+const chip=(t,c,i)=>`<span class="chip ${c}">${i?`<span aria-hidden="true">${i}</span>`:''}${esc(t)}</span>`;
+const bandChip=b=>({HIGH:chip('HIGH priority','danger','▲'),MEDIUM:chip('MEDIUM priority','warn','◆'),LOW:chip('LOW priority','ok','▼')}[b]);
+const TAGS={rules:['▦','Rules engine'],ai:['✦','AI-generated'],sim:['◇','Simulated'],rec:['▤','System record']};
+const tag=k=>`<span class="tag ${k}"><span aria-hidden="true">${TAGS[k][0]}</span>${TAGS[k][1]}</span>`;
+const banner=(k,html,icon,role)=>`<div class="banner ${k}" ${role===false?'':`role="${role||(k==='danger'?'alert':'status')}"`}><span class="bi" aria-hidden="true">${icon||({warn:'⚠',danger:'✖',info:'ℹ',ok:'✔',ai:'✦'}[k])}</span><div>${html}</div></div>`;
+const errBox=(status,code,reason,msg,extra)=>banner('danger',`<strong>${status} ${esc(code)}${reason?' / '+esc(reason):''}</strong><br>${esc(msg)}${extra?'<br>'+extra:''}<br><span class="small muted">correlation_id: <code>c0ffee1234abcd</code></span>`);
+function announce(msg){const l=$('#sr-live');l.textContent='';setTimeout(()=>{l.textContent=msg},40)}
+let _tt;function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(_tt);_tt=setTimeout(()=>{t.hidden=true},3200);announce(msg)}
+function setShell(persona,current,opts={}){
+  const layout=persona==='CUSTOMER'?'Customer':'Internal';
+  const nav=(NAV[persona]||[]).filter(n=>!n[2]||opts.demoFlag);
+  $('#appbar').innerHTML=`<div class="brand"><span aria-hidden="true">◈</span> CollectAI <span class="env">${layout} layout</span></div>
+  <nav aria-label="Main navigation">${nav.map(n=>`<a href="${n[1]}" data-route="${n[1]}" ${n[0]===current?'aria-current="page"':''}>${n[0]}</a>`).join('')}</nav>
+  <div class="who"><span class="chip demo">Demo persona - not real authentication</span><span id="persona-chip" role="status" aria-live="polite">Current persona: <strong>${PN[persona]}</strong> <code>${persona}</code></span></div>`;
+}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-route]');if(a){e.preventDefault();if(window.onRoute)window.onRoute(a.dataset.route,a.textContent);else toast('Mockup: would navigate to '+a.dataset.route)}});
+const forbiddenPage=(persona,route)=>`<section class="forbidden" role="alert" aria-labelledby="fh"><h1 id="fh"><span aria-hidden="true">⛔</span> 403 - Forbidden</h1><p>The persona <strong>${esc(persona)}</strong> cannot open <code>${esc(route)}</code>.</p><p class="muted">No restricted data was requested or rendered. The API would answer <code>403 FORBIDDEN</code> and write an <code>ACCESS_DENIED</code> audit event.</p>${api('403 FORBIDDEN (no data fetched)')}</section>`;
+function openDialog({title,body,trigger,restore,focusSel,onMount}){
+  const prev=trigger||document.activeElement;
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t" tabindex="-1"><h2 id="dlg-t">${title}</h2><div>${body}</div></div>`;
+  document.body.appendChild(ov);const dlg=ov.firstElementChild;
+  const bg=$$('[data-bg]');bg.forEach(e=>{e.inert=true;e.setAttribute('aria-hidden','true')});
+  const foc=()=>$$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',dlg).filter(e=>!e.hidden);
+  function close(){document.removeEventListener('keydown',key,true);ov.remove();bg.forEach(e=>{e.inert=false;e.removeAttribute('aria-hidden')});
+    const t=document.contains(prev)?prev:(restore?$(restore):null);if(t&&t.focus)t.focus()}
+  function key(e){
+    if(e.key==='Escape'){e.stopPropagation();close();return}
+    if(e.key==='Tab'){const f=foc();if(!f.length){e.preventDefault();return}const a=document.activeElement;
+      if(e.shiftKey&&(a===f[0]||!dlg.contains(a))){e.preventDefault();f[f.length-1].focus()}
+      else if(!e.shiftKey&&(a===f[f.length-1]||!dlg.contains(a))){e.preventDefault();f[0].focus()}}}
+  document.addEventListener('keydown',key,true);
+  if(onMount)onMount(dlg,close);
+  const fi=(focusSel&&$(focusSel,dlg))||foc()[0]||dlg;fi.focus();
+  return close;
+}
+function initMockbar(){
+  const t=$('#theme-btn');t.addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark';t.textContent='Theme: '+(dark?'light':'dark')+' (toggle)'});
+}
+
+/* ---- page script: E4-S2 ---- */
+/* E4-S2 Customer 360. Shape: Customer360 (api-contracts.md 3.4 and section 4). Clock now = 2026-10-01T14:30:00Z. */
+
+const CLOCK_NOW='2026-10-01T14:30:00Z',TODAY='2026-10-01',WINDOW_LAST='2026-10-31';
+const ACT={CONTACT_CUSTOMER:'Contact customer',REQUEST_PAYMENT:'Request payment',OFFER_ELIGIBLE_ARRANGEMENT:'Offer eligible arrangement',FOLLOW_UP_PTP:'Follow up on promise to pay',REFER_TO_HARDSHIP_WORKFLOW:'Refer to hardship workflow',ESCALATE_TO_HUMAN_REVIEW:'Escalate to human review'};
+const BUCKET_L={CURRENT:'Current',DPD_1_29:'1-29 DPD',DPD_30_59:'30-59 DPD',DPD_60_89:'60-89 DPD',DPD_90_PLUS:'90+ DPD'};
+const REASON_MSG={ZERO_AMOUNT:'Amount must be greater than 0.00.',NEGATIVE_AMOUNT:'Amount cannot be negative.',OVER_PRECISION:'At most 2 decimal places are allowed.',BELOW_MIN_AMOUNT:'Amount is below the minimum of 20.00.',OVER_BALANCE:'Amount is more than the undisputed overdue amount.',PAST_DATE:'Date is in the past.',OUTSIDE_WINDOW:'Date is outside the permitted window.',CONFLICTING_ACTIVE_ITEM:'An active PENDING promise already exists. Cancel or amend it first.',DISPUTED_ITEM:'The promise touches an item under active dispute.',FIELD_INVALID:'Enter a decimal amount and a YYYY-MM-DD date.'};
+const ptp=(id,amt,date,status,paid,src,created)=>({ptp_id:id,account_id:'acc_000123',promised_amount:amt,promised_date:date,status,cumulative_paid:paid,remaining_amount:fromCents(cents(amt)-cents(paid)>0n?cents(amt)-cents(paid):0n),interaction_reference:null,source:src,created_by_persona:src==='OFFICER_MANUAL'?'COLLECTIONS_OFFICER':'CUSTOMER',created_at:created,updated_at:created,kept_at:null,broken_at:status==='BROKEN'?date+'T00:05:00Z':null,cancelled_at:null,cancel_reason:null,policy_version:'policy-v1',version:status==='PENDING'?1:2});
+function build(st){
+  const rec={recommendation_id:'rec_01J8ZK5D2M',account_id:'acc_000123',source:'ai',action:'REQUEST_PAYMENT',rationale:'Priority is HIGH (score 79.70), driven mainly by 47 days past due and 2 broken promises. The payable overdue amount from the rules engine is $612.40 and contact policy allows another attempt. Requesting the overdue amount is the best next step.',referenced_factor_ids:['dpd','broken_ptp_count'],status:'GENERATED',content_source:'MODEL',model_id:'example-model-2026-06',prompt_version:'nba-v3',policy_version:'policy-v1',record_version:7,created_at:'2026-10-01T14:05:00Z',audit_event_id:'aud_01J8ZK5D30',officer_decision:null};
+  const c={account_id:'acc_000123',generated_at:CLOCK_NOW,
+   snapshot:{as_of:'2026-10-01T09:00:00Z',record_version:7,freshness:'FRESH',freshness_reason_code:null,max_age_minutes:240},
+   profile:{customer_id:'cus_0041',display_name:'Priya Raman',email:'priya.raman@example.com',phone:'+1-555-0142',vulnerability_flag:false,vulnerability_category:null},
+   account:{account_id:'acc_000123',account_type:'CARD',product_name:'Everyday Rewards Card',currency:'USD',opened_on:'2021-03-12',outstanding_balance:'4820.35',overdue_amount:'612.40',undisputed_overdue_amount:'612.40',dpd:47,bucket:'DPD_30_59',collection_status:'IN_PROGRESS',product_attributes:{credit_limit:'6000.00',minimum_payment_due:'165.00'}},
+   items:[{item_id:'itm_01J8ZK2A01',kind:'STATEMENT_CYCLE',label:'Statement cycle Aug 2026',amount_outstanding:'412.40',due_date:'2026-08-15',status:'OPEN',disputed:false},{item_id:'itm_01J8ZK2A02',kind:'STATEMENT_CYCLE',label:'Statement cycle Sep 2026 (minimum due)',amount_outstanding:'165.00',due_date:'2026-09-15',status:'OPEN',disputed:false},{item_id:'itm_01J8ZK2A03',kind:'FEE_OR_CHARGE',label:'Late payment fee',amount_outstanding:'35.00',due_date:'2026-09-20',status:'OPEN',disputed:false}],
+   deterministic:{source:'deterministic',label:'Rules engine',policy_version:'policy-v1',status:'OK',
+    priority:{score:'79.70',band:'HIGH',policy_version:'policy-v1',factors:[
+     {factor_id:'dpd',attribute:'dpd',value:'47',normalized_value:'0.7833',weight:'0.40',contribution:'31.33'},
+     {factor_id:'broken_ptp_count',attribute:'broken_ptp_count',value:'2',normalized_value:'1.0000',weight:'0.20',contribution:'20.00'},
+     {factor_id:'overdue_amount',attribute:'overdue_amount',value:'612.40',normalized_value:'0.6124',weight:'0.30',contribution:'18.37'},
+     {factor_id:'recent_contact_outcome',attribute:'recent_contact_outcome',value:'NO_CONTACT',normalized_value:'1.0000',weight:'0.10',contribution:'10.00'}]},
+    treatment:{human_treatment:false,automated_treatment_suppressed:false,suppressions:[]},
+    contact_policy:{contact_allowed:true,reason_code:null,next_allowed_at:null,attempts_in_period:2},
+    payable_options:[{option:'OVERDUE_AMOUNT',amount:'612.40'},{option:'FULL_BALANCE',amount:'4820.35'}],
+    record_check:{consistent:true,reason_code:null}},
+   ai:{source:'ai',label:'AI-generated',status:'GENERATED',recommendation:rec},
+   interactions:[
+    {interaction_id:'int_01J8ZK3B04',channel:'SIMULATED_OUTBOUND_MESSAGE',direction:'OUTBOUND',outcome:'NO_CONTACT',occurred_at:'2026-09-29T15:10:00Z',summary:'Reminder message sent; no reply received.',counts_as_attempt:true,conversation_id:null},
+    {interaction_id:'int_01J8ZK3B03',channel:'SIMULATED_OUTBOUND_CALL',direction:'OUTBOUND',outcome:'CONTACT_NO_COMMITMENT',occurred_at:'2026-09-18T13:00:00Z',summary:'Call answered; customer asked for more time.',counts_as_attempt:true,conversation_id:null},
+    {interaction_id:'int_01J8ZK3B02',channel:'SYSTEM_EVENT',direction:'INTERNAL',outcome:'PTP_BROKEN',occurred_at:'2026-09-06T00:05:00Z',summary:'Promise ptp_01J8ZK1B01 marked BROKEN: no qualifying payment.',counts_as_attempt:false,conversation_id:null},
+    {interaction_id:'int_01J8ZK3B01',channel:'SIMULATED_CHAT',direction:'INBOUND',outcome:'PTP_MADE',occurred_at:'2026-09-02T10:20:00Z',summary:'Customer promised 200.00 by 2026-09-05 in chat.',counts_as_attempt:false,conversation_id:'conv_01J8ZK0A11'}],
+   ptp_history:[ptp('ptp_01J8ZK1B02','150.00','2026-09-19','BROKEN','50.00','OFFICER_MANUAL','2026-09-12T11:00:00Z'),ptp('ptp_01J8ZK1B01','200.00','2026-09-05','BROKEN','0.00','CUSTOMER_CHAT','2026-09-02T10:20:00Z')],
+   payment_events:[
+    {payment_event_id:'pay_01J8ZK1C02',account_id:'acc_000123',amount:'50.00',outcome:'SUCCEEDED',source:'CUSTOMER_CHAT',simulated:true,simulated_label:'Simulated payment',occurred_at:'2026-09-24T16:42:00Z',balance_after:'4820.35',applied_to_ptp_id:null},
+    {payment_event_id:'pay_01J8ZK1C01',account_id:'acc_000123',amount:'50.00',outcome:'SUCCEEDED',source:'CUSTOMER_CHAT',simulated:true,simulated_label:'Simulated payment',occurred_at:'2026-09-17T09:12:00Z',balance_after:'4870.35',applied_to_ptp_id:'ptp_01J8ZK1B02'}],
+   arrangements:[],hardship_cases:[],disputes:[],escalation:{badge:null,has_open_case:false,cases:[]}};
+  if(st==='ai_down'){c.ai={source:'ai',label:'AI-generated',status:'AI_UNAVAILABLE',recommendation:null}}
+  if(st==='stale'){c.snapshot={as_of:'2026-09-30T06:00:00Z',record_version:6,freshness:'STALE',freshness_reason_code:'STALE_DATA',max_age_minutes:240}}
+  if(st==='policy'){c.deterministic={...c.deterministic,policy_version:null,status:'POLICY_UNAVAILABLE',priority:null,contact_policy:null,payable_options:[]};c.ai={source:'ai',label:'AI-generated',status:'NOT_GENERATED',recommendation:null}}
+  if(st==='escalated'){
+    c.profile.vulnerability_flag=true;c.profile.vulnerability_category='BEREAVEMENT';
+    c.items[2].disputed=true;c.account.undisputed_overdue_amount='577.40';c.account.collection_status='ESCALATED';
+    c.deterministic.treatment={human_treatment:true,automated_treatment_suppressed:true,suppressions:[{source_type:'ESCALATION',source_id:'esc_01J8ZK6E1A',scope:'ACCOUNT',item_id:null},{source_type:'HARDSHIP',source_id:'hsp_01J8ZK6D01',scope:'ACCOUNT',item_id:null},{source_type:'DISPUTE',source_id:'dsp_01J8ZK6D02',scope:'ITEM',item_id:'itm_01J8ZK2A03'},{source_type:'VULNERABLE',source_id:'cus_0041',scope:'ACCOUNT',item_id:null}]};
+    c.deterministic.payable_options=[];
+    c.ai={source:'ai',label:'AI-generated',status:'HUMAN_REVIEW_ONLY',recommendation:{...rec,recommendation_id:'rec_01J8ZK6F9Z',action:'ESCALATE_TO_HUMAN_REVIEW',rationale:'This account is under hardship, dispute and vulnerable-customer treatment, so the rules engine requires human review. No automated collection step is recommended.',referenced_factor_ids:[],status:'HUMAN_REVIEW_ONLY',content_source:'TEMPLATE',model_id:null,prompt_version:null}};
+    c.escalation={badge:'Escalated - human review',has_open_case:true,cases:[{case_id:'esc_01J8ZK6E1A',reason:'FINANCIAL_HARDSHIP',status:'OPEN',priority:'URGENT',queue:'HARDSHIP_REVIEW',created_at:'2026-10-01T13:50:00Z'}]};
+    c.hardship_cases=[{hardship_case_id:'hsp_01J8ZK6D01',account_id:'acc_000123',customer_id:'cus_0041',conversation_id:'conv_01J8ZK6A22',status:'OPEN',indicators:[{indicator_type:'JOB_LOSS',customer_statement:'I lost my job last month and my income has stopped.'},{indicator_type:'MEDICAL_OR_FAMILY_EMERGENCY',customer_statement:'There has also been a death in the family.'}],escalation_case_id:'esc_01J8ZK6E1A',created_at:'2026-10-01T13:48:00Z',decided_at:null}];
+    c.disputes=[{dispute_id:'dsp_01J8ZK6D02',account_id:'acc_000123',customer_id:'cus_0041',item_id:'itm_01J8ZK2A03',category:'FEE_OR_INTEREST_DISPUTE',customer_reason:'The late fee was charged although my payment had already cleared.',status:'OPEN',outcome:null,resolution_reason:null,conversation_id:'conv_01J8ZK6A22',escalation_case_id:null,created_at:'2026-10-01T13:49:00Z',resolved_at:null,version:1}];
+  }
+  return c;
+}
+let C=null,UI={};
+function resetState(){C=build($('#mock-state').value);UI={draft:{amount:'250.00',date:'2026-10-15',ref:''},result:'',key:1,ovr:false}}
+function validatePtp(amt,date){
+  const r=[];const s=String(amt).trim();const max=cents(C.account.undisputed_overdue_amount);
+  if(!/^-?\d+(\.\d+)?$/.test(s))r.push('FIELD_INVALID');
+  else if(s[0]==='-')r.push('NEGATIVE_AMOUNT');
+  else if((s.split('.')[1]||'').length>2)r.push('OVER_PRECISION');
+  else{const c=cents(s);if(c===0n)r.push('ZERO_AMOUNT');else{if(c<2000n)r.push('BELOW_MIN_AMOUNT');if(c>max)r.push('OVER_BALANCE')}}
+  if(!/^\d{4}-\d\d-\d\d$/.test(date))r.push('FIELD_INVALID');else if(date<TODAY)r.push('PAST_DATE');else if(date>WINDOW_LAST)r.push('OUTSIDE_WINDOW');
+  if(C.ptp_history.some(p=>p.status==='PENDING'))r.push('CONFLICTING_ACTIVE_ITEM');
+  return {valid:!r.length,reason_codes:[...new Set(r)],alternatives:r.length?{valid_amount_range:{min:'20.00',max:C.account.undisputed_overdue_amount},valid_date_range:{earliest:TODAY,latest:WINDOW_LAST}}:null,policy_version:'policy-v1'};
+}
+const freshChip=f=>({FRESH:chip('FRESH','ok','✔'),STALE:chip('STALE','warn','⚠'),UNKNOWN:chip('UNKNOWN','danger','?')}[f]);
+const panel=(id,title,kind,inner,extra,apis)=>`<section class="panel ${kind==='ai'?'ai':kind==='rules'?'rules':kind==='sim'?'sim':''}" id="p-${id}" aria-labelledby="h-${id}" tabindex="-1"><div class="ph"><h2 id="h-${id}">${title}</h2><span>${tag(kind)} ${apis||''}</span></div>${extra||''}${inner}</section>`;
+function render(){
+  if(!C)resetState();
+  const st=$('#mock-state').value;
+  setShell('COLLECTIONS_OFFICER','Customer 360',{demoFlag:true});
+  if(st==='notfound'){$('#main').innerHTML=`<h1>Customer 360</h1>${errBox(404,'NOT_FOUND',null,'Account not found. The same body is returned for unknown and not-owned ids.',api('GET /api/customers/acc_999999/360'))}<p><a href="/portfolio" data-route="/portfolio">Back to portfolio</a></p>`;return}
+  const d=C.deterministic,a=C.account,s=C.snapshot,p=C.profile,esc_=C.escalation;
+  const stale=s.freshness!=='FRESH';
+  const badges=[esc_.badge?chip(esc_.badge,'danger','⚑'):'',p.vulnerability_flag?chip('Vulnerable customer flag: '+p.vulnerability_category,'danger','⚠'):'',stale?chip('Snapshot '+s.freshness,'warn','⚠'):''].join(' ');
+  const activePtp=C.ptp_history.find(x=>x.status==='PENDING'),activeArr=C.arrangements.find(x=>x.status==='ACTIVE');
+  let html=`<div class="pagehead"><div><h1>${esc(p.display_name)} <span class="muted small mono">${a.account_id}</span></h1><p class="muted" style="margin:0">${esc(a.product_name)} &middot; opened ${a.opened_on} &middot; ${esc(p.email)} &middot; ${esc(p.phone)}</p><div class="row" style="margin-top:6px">${badges}</div></div><div>${api('GET /api/customers/'+a.account_id+'/360')}</div></div>
+   <nav class="jump" aria-label="Jump to panel"><span class="muted">Jump to:</span> ${[['snap','Snapshot'],['acct','Account'],['prio','Priority'],['ai','AI recommendation'],['case','Escalation, hardship, dispute'],['treat','Treatment and contact'],['ptp','Promise to pay'],['pay','Payments'],['int','Interactions']].map(x=>`<a href="#p-${x[0]}" data-jump="p-${x[0]}">${x[1]}</a>`).join('')}</nav>`;
+  if(stale)html+=banner('warn',`<strong>Stale data.</strong> Snapshot freshness is <strong>${s.freshness}</strong> (${esc(s.freshness_reason_code||'MISSING_AS_OF')}); as of ${fmtDT(s.as_of)}, max age ${s.max_age_minutes} minutes. Figures may be out of date; recording a promise is blocked until refreshed. <button type="button" class="btn secondary" id="refresh-b">Refresh snapshot</button> ${api('POST /api/customers/'+a.account_id+'/refresh')}`);
+  if(C.ai.status==='AI_UNAVAILABLE')html+=banner('ai',`<strong>AI unavailable - manual workflow available.</strong> No recommendation is shown and none is invented. All rules-engine data and manual actions below still work.`);
+  if(d.status==='POLICY_UNAVAILABLE')html+=banner('danger',`<strong>Rules engine unavailable (POLICY_UNAVAILABLE).</strong> No priority or eligibility is granted (fails closed). Account facts and manual work remain available; recording a promise returns 503.`);
+  const kp=`<div class="kpis"><div class="panel stat"><span class="l">Overdue amount</span><span class="v">${money(a.overdue_amount)}</span><span class="small muted">${tag('rules')}</span></div><div class="panel stat"><span class="l">Days past due</span><span class="v">${a.dpd}</span><span class="small muted">Bucket ${BUCKET_L[a.bucket]}</span></div><div class="panel stat"><span class="l">Priority</span><span class="v">${d.priority?d.priority.band:'n/a'}</span><span class="small">${d.priority?bandChip(d.priority.band):chip('Not available','neutral','-')}</span></div><div class="panel stat"><span class="l">Status</span><span class="v" style="font-size:1.05rem">${a.collection_status.replace(/_/g,' ')}</span><span class="small muted">${activePtp?'Active PTP '+money(activePtp.promised_amount):activeArr?'Active arrangement':'No active PTP or arrangement'}</span></div></div>`;
+  html+=kp;
+  // ---- left column
+  const snap=panel('snap','Snapshot','rec',`<dl class="kv"><dt>as_of</dt><dd>${fmtDT(s.as_of)}</dd><dt>record_version</dt><dd>${s.record_version}</dd><dt>freshness</dt><dd>${freshChip(s.freshness)}</dd><dt>generated_at</dt><dd>${fmtDT(C.generated_at)}</dd></dl><div class="row" style="margin-top:8px"><button type="button" class="btn secondary" id="refresh-a">Refresh snapshot</button>${api('POST /api/customers/'+a.account_id+'/refresh')}</div>`,'',api('GET .../360'));
+  const acct=panel('acct','Account','rules',`<div class="grid g2" style="gap:8px"><dl class="kv"><dt>outstanding_balance</dt><dd>${money(a.outstanding_balance)}</dd><dt>overdue_amount</dt><dd>${money(a.overdue_amount)}</dd><dt>undisputed_overdue_amount</dt><dd>${money(a.undisputed_overdue_amount)}</dd><dt>dpd / bucket</dt><dd>${a.dpd} / ${a.bucket}</dd></dl><dl class="kv"><dt>collection_status</dt><dd>${a.collection_status}</dd><dt>credit_limit</dt><dd>${money(a.product_attributes.credit_limit)}</dd><dt>minimum_payment_due</dt><dd>${money(a.product_attributes.minimum_payment_due)}</dd><dt>record_check</dt><dd>${d.record_check.consistent?chip('Consistent','ok','✔'):chip('INCONSISTENT_RECORD','danger','✖')}</dd></dl></div>
+   <h3>Delinquent items</h3><div class="tablewrap"><table class="tight"><thead><tr><th>Item</th><th>Due</th><th class="num">Outstanding</th><th>State</th></tr></thead><tbody>${C.items.map(i=>`<tr><td>${esc(i.label)}<br><span class="small muted mono">${i.item_id} &middot; ${i.kind}</span></td><td>${i.due_date}</td><td class="num">${money(i.amount_outstanding)}</td><td>${i.disputed?chip('Disputed','danger','⚑'):chip(i.status,'neutral')}</td></tr>`).join('')}</tbody></table></div>`,'',api('GET .../360'));
+  let prio;
+  if(d.priority){const pr=d.priority;prio=panel('prio','Collections priority','rules',`<div class="row" style="margin-bottom:6px">${bandChip(pr.band)}<strong>Score ${pr.score}</strong><span class="muted small">System-calculated by policy ${esc(pr.policy_version)}. Contributions sum exactly to the score.</span></div><div class="tablewrap"><table class="tight"><caption class="sr">Contributing factors</caption><thead><tr><th>Factor</th><th>Value</th><th class="num">Normalized</th><th class="num">Weight</th><th class="num">Contribution</th></tr></thead><tbody>${pr.factors.map(f=>`<tr><td><code>${f.factor_id}</code></td><td>${esc(f.value)}</td><td class="num">${f.normalized_value}</td><td class="num">${f.weight}</td><td class="num"><span class="bar" style="width:${Number(cents(f.contribution)*100n/cents(pr.score))*0.6}px" aria-hidden="true"></span> <strong>${f.contribution}</strong></td></tr>`).join('')}</tbody></table></div>`,'',api('GET .../360'))}
+  else prio=panel('prio','Collections priority','rules',`<p>${chip('Priority not available','danger','✖')} Status <code>POLICY_UNAVAILABLE</code>; priority is null and no eligibility is granted.</p>`,'',api('GET .../360'));
+  // PTP + form
+  const ptpRows=C.ptp_history.length?`<div class="tablewrap"><table class="tight"><thead><tr><th>Promise</th><th class="num">Amount</th><th>Date</th><th>Status</th><th class="num">Paid</th><th class="num">Remaining</th></tr></thead><tbody>${C.ptp_history.map(x=>`<tr><td class="mono small">${x.ptp_id}<br><span class="muted">${x.source}</span></td><td class="num">${money(x.promised_amount)}</td><td>${x.promised_date}</td><td>${chip(x.status,x.status==='PENDING'?'info':x.status==='KEPT'?'ok':x.status==='BROKEN'?'danger':'neutral',x.status==='PENDING'?'○':x.status==='KEPT'?'✔':x.status==='BROKEN'?'✖':'-')}</td><td class="num">${money(x.cumulative_paid)}</td><td class="num">${money(x.remaining_amount)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No promises recorded.</p>';
+  const key='ptp-acc000123-20261001-'+String(UI.key).padStart(2,'0');
+  const form=`<form id="ptpf" class="panel" style="margin-top:12px;background:var(--surface2)" novalidate aria-labelledby="ptph"><h3 id="ptph" style="margin-top:0">Record Promise-to-Pay (manual)</h3><p class="small muted">Works with the AI provider down. The rules engine validates amount and date; the AI is never involved.</p>
+   <div class="row" style="align-items:flex-start"><label class="f">promised_amount (USD)<input id="f-amt" inputmode="decimal" autocomplete="off" value="${esc(UI.draft.amount)}" style="width:130px" aria-describedby="f-hint"></label><label class="f">promised_date<input id="f-date" type="date" value="${esc(UI.draft.date)}"></label><label class="f">interaction_reference (optional)<select id="f-ref"><option value="">None</option>${C.interactions.map(i=>`<option value="${i.interaction_id}" ${UI.draft.ref===i.interaction_id?'selected':''}>${i.interaction_id} - ${esc(i.outcome||i.channel)}</option>`).join('')}</select></label></div>
+   <p id="f-hint" class="small muted">Allowed: 20.00 to ${money(a.undisputed_overdue_amount)} (undisputed overdue), ${TODAY} to ${WINDOW_LAST}. Sent with record_version <strong>${s.record_version}</strong> and snapshot_as_of <code>${esc(s.as_of)}</code>.</p>
+   <div class="row"><button type="button" class="btn secondary" id="f-validate">Validate (dry run)</button><button type="submit" class="btn" id="f-record">Record PTP</button></div>
+   <p class="small muted" style="margin:6px 0 0">${api('POST /api/ptps/validate')} ${api('POST /api/ptps')} <span class="mono small">Idempotency-Key: ${key}</span></p><div id="ptpres" role="status" aria-live="polite">${UI.result}</div></form>`;
+  const ptpP=panel('ptp','Promise to pay and arrangements','rec',`<p><strong>Active:</strong> ${activePtp?`PTP ${money(activePtp.promised_amount)} due ${activePtp.promised_date} (${activePtp.ptp_id})`:activeArr?'Arrangement '+activeArr.arrangement_id:'none - no active PTP or arrangement'}</p><h3>History (newest first)</h3>${ptpRows}${form}`,'',api('GET .../360'));
+  const pay=panel('pay','Payment history','sim',`<p class="small">${chip('Simulated','sim','◇')} No real payment ever occurs. Every event below is simulated.</p><div class="tablewrap"><table class="tight"><thead><tr><th>When</th><th class="num">Amount</th><th>Outcome</th><th>Source</th><th class="num">Balance after</th></tr></thead><tbody>${C.payment_events.map(e=>`<tr><td>${fmtDT(e.occurred_at)}</td><td class="num">${money(e.amount)}</td><td>${chip(e.outcome,e.outcome==='SUCCEEDED'?'ok':'danger',e.outcome==='SUCCEEDED'?'✔':'✖')}</td><td>${e.source}<br>${chip(e.simulated_label,'sim','◇')}</td><td class="num">${money(e.balance_after)}</td></tr>`).join('')}</tbody></table></div>`,'',api('GET .../360'));
+  const inter=panel('int','Recent interactions','rec',`<ul class="plain grid" style="gap:8px">${C.interactions.map(i=>`<li><strong>${fmtDT(i.occurred_at)}</strong> &middot; ${i.channel.replace(/_/g,' ').toLowerCase()} &middot; ${i.direction.toLowerCase()} ${i.outcome?chip(i.outcome,'neutral'):''}<br><span class="muted">${esc(i.summary)}</span> <span class="small muted mono">${i.interaction_id}${i.counts_as_attempt?' &middot; counts as attempt':''}</span></li>`).join('')}</ul>`,'',api('GET .../360'));
+  // ---- right column
+  const r=C.ai.recommendation;let aiBody;
+  if(C.ai.status==='AI_UNAVAILABLE')aiBody=`<p><strong>No recommendation available.</strong> Nothing has been generated or invented.</p><button type="button" class="btn secondary" id="gen">Retry generating recommendation</button> ${api('POST /api/accounts/'+a.account_id+'/recommendation')}`;
+  else if(C.ai.status==='NOT_GENERATED')aiBody=`<p class="muted">No recommendation generated (rules engine unavailable).</p>`;
+  else{aiBody=`<p class="row" style="margin:0 0 6px"><span class="chip ai"><span aria-hidden="true">✦</span>${C.ai.status}</span><strong>${ACT[r.action]}</strong></p><p>${esc(r.rationale)}</p>${r.referenced_factor_ids.length?`<p class="small muted">Relies on factors: ${r.referenced_factor_ids.map(f=>`<code>${f}</code>`).join(', ')}. Figures come from the rules engine, not the model.</p>`:''}
+   <dl class="kv small"><dt>content_source</dt><dd>${r.content_source}</dd><dt>model_id</dt><dd>${r.model_id||'null (template)'}</dd><dt>prompt_version</dt><dd>${r.prompt_version||'null'}</dd><dt>policy_version</dt><dd>${r.policy_version}</dd><dt>record_version</dt><dd>${r.record_version}</dd><dt>created_at</dt><dd>${fmtDT(r.created_at)}</dd><dt>audit_event_id</dt><dd>${r.audit_event_id}</dd></dl>
+   ${C.ai.status==='HUMAN_REVIEW_ONLY'?banner('info','Forced by the rules engine: human treatment applies, so the model output is ignored.',null,false):''}
+   ${r.officer_decision?`<p>${chip('Officer decision: '+r.officer_decision,'ok','✔')} <span class="small muted">The AI only recommends; a human decides.</span></p>`:`<div class="row"><button type="button" class="btn" id="accept">Accept recommendation</button><button type="button" class="btn secondary" id="override">Override...</button></div><p class="small muted" style="margin:4px 0 0">${api('POST .../recommendation/'+r.recommendation_id+'/decision')} Idempotency-Key required. Override needs a reason.</p>`}
+   <div class="row" style="margin-top:8px"><button type="button" class="btn link" id="gen">Regenerate</button>${api('POST /api/accounts/'+a.account_id+'/recommendation')}</div>`}
+  const ai=panel('ai','Next-best-action','ai',aiBody,'',api('GET /api/accounts/{id}/recommendation'));
+  let caseB=esc_.has_open_case?banner('danger',`<strong>${esc(esc_.badge)}</strong> Automated treatment is paused until a human decides.`,'⚑'):'<p>'+chip('No open escalation','ok','✔')+'</p>';
+  caseB+=esc_.cases.map(cs=>`<p class="small"><span class="mono">${cs.case_id}</span> &middot; ${cs.reason} &middot; ${chip(cs.status,'warn')} ${chip(cs.priority,'danger')} &middot; queue ${cs.queue} &middot; ${fmtDT(cs.created_at)}</p>`).join('');
+  caseB+=`<h3>Hardship</h3>`+(C.hardship_cases.length?C.hardship_cases.map(h=>`<p>${chip('Hardship '+h.status,'warn','⚠')} <span class="mono small">${h.hardship_case_id}</span></p><ul>${h.indicators.map(i=>`<li><strong>${i.indicator_type}</strong>: <span class="muted">"${esc(i.customer_statement)}"</span></li>`).join('')}</ul>`).join(''):'<p class="muted">No hardship indicators.</p>');
+  caseB+=`<h3>Disputes</h3>`+(C.disputes.length?C.disputes.map(x=>`<p>${chip('Dispute '+x.status,'danger','⚑')} <span class="mono small">${x.dispute_id}</span><br>${x.category} on item <span class="mono small">${x.item_id||'whole overdue amount'}</span><br><span class="muted">"${esc(x.customer_reason)}"</span></p>`).join(''):'<p class="muted">No disputes.</p>');
+  const cases=panel('case','Escalation, hardship and dispute','rec',caseB,'',api('GET .../360'));
+  const tr=d.treatment,cp=d.contact_policy;
+  const treat=panel('treat','Treatment, contact policy and payable amounts','rules',`<dl class="kv"><dt>human_treatment</dt><dd>${tr.human_treatment?chip('Yes','info','☺'):'No'}</dd><dt>automated suppressed</dt><dd>${tr.automated_treatment_suppressed?chip('Suppressed','warn','⚠'):'No'}</dd><dt>suppressions</dt><dd>${tr.suppressions.length?tr.suppressions.map(x=>`<span class="chip neutral" style="margin:2px">${x.source_type} / ${x.scope}</span>`).join(' '):'none'}</dd><dt>contact policy</dt><dd>${cp?(cp.contact_allowed?chip('Contact allowed','ok','✔'):chip('Blocked '+cp.reason_code,'danger','✖'))+' <span class="small muted">'+cp.attempts_in_period+' attempts in period</span>':'n/a'}</dd><dt>payable options</dt><dd>${d.payable_options.length?d.payable_options.map(o=>`${o.option}: ${money(o.amount)}`).join('<br>'):'none (suppressed or unavailable)'}</dd></dl><p class="small muted">System-calculated. The AI may never change these values.</p>`,'',api('GET .../360'));
+  html+=`<div class="cols"><div>${snap}${acct}${prio}${ptpP}${pay}${inter}</div><div>${ai}${cases}${treat}</div></div><p class="footnote">Legend: ${tag('rules')} deterministic data from the rules engine &middot; ${tag('ai')} model-generated, advisory only &middot; ${tag('rec')} stored system record &middot; ${tag('sim')} simulated payment data.</p>`;
+  $('#main').innerHTML=html;wire();
+}
+function keep(id){const e=$(id);if(e)e.focus()}
+function wire(){
+  $$('a[data-jump]').forEach(a=>a.onclick=e=>{e.preventDefault();const t=$('#'+a.dataset.jump);if(t){t.scrollIntoView({block:'start'});t.focus()}});
+  const refresh=()=>{C.snapshot={as_of:CLOCK_NOW,record_version:C.snapshot.record_version+1,freshness:'FRESH',freshness_reason_code:null,max_age_minutes:240};UI.result='';render();announce('Snapshot refreshed. record_version is now '+C.snapshot.record_version+'. Pending customer proposals for this account are invalidated.');keep('#refresh-a')};
+  ['#refresh-a','#refresh-b'].forEach(i=>{const b=$(i);if(b)b.onclick=refresh});
+  const gen=$('#gen');if(gen)gen.onclick=()=>{if(C.ai.status==='AI_UNAVAILABLE'){toast('AI still unavailable (200 AI_UNAVAILABLE). Nothing fabricated.')}else{C.ai.recommendation.created_at=CLOCK_NOW;C.ai.recommendation.officer_decision=null;render();announce('Recommendation regenerated');keep('#gen')}};
+  const acc=$('#accept');if(acc)acc.onclick=()=>{C.ai.recommendation.officer_decision='ACCEPTED';render();announce('Recommendation accepted by officer');keep('#gen')};
+  const ov=$('#override');if(ov)ov.onclick=()=>{
+    openDialog({title:'Override AI recommendation',trigger:ov,restore:'#override,#gen',focusSel:'#o-reason',body:`<p class="small muted">Your reason is recorded in the audit trail and counts toward the human override rate. ${api('POST .../recommendation/'+C.ai.recommendation.recommendation_id+'/decision')} <span class="mono small">decision: OVERRIDDEN</span></p>
+     <label class="f">chosen_action (your action)<select id="o-act">${Object.keys(ACT).filter(k=>k!==C.ai.recommendation.action).map(k=>`<option value="${k}">${ACT[k]}</option>`).join('')}</select></label>
+     <label class="f" style="margin-top:8px">reason (required, 1-1000 characters)<textarea id="o-reason" aria-required="true" aria-describedby="o-err"></textarea></label><p id="o-err" class="small" style="color:var(--danger)" role="alert"></p>
+     <div class="dlg-actions"><button type="button" class="btn secondary" id="o-cancel">Cancel</button><button type="button" class="btn" id="o-ok" disabled>Record override</button></div>`,
+     onMount:(dlg,close)=>{const t=$('#o-reason',dlg),ok=$('#o-ok',dlg);t.addEventListener('input',()=>{ok.disabled=!t.value.trim();$('#o-err',dlg).textContent=t.value.trim()?'':'REASON_REQUIRED: a reason is mandatory.'});$('#o-cancel',dlg).onclick=close;ok.onclick=()=>{C.ai.recommendation.officer_decision='OVERRIDDEN';close();render();announce('Override recorded');keep('#gen')}}})};
+  const f=$('#ptpf');
+  const draft=()=>{UI.draft={amount:$('#f-amt').value,date:$('#f-date').value,ref:$('#f-ref').value}};
+  const show=html=>{$('#ptpres').innerHTML=html};
+  $('#f-validate').onclick=()=>{draft();UI.result='';
+    if(C.deterministic.status==='POLICY_UNAVAILABLE'){UI.result=errBox(503,'POLICY_UNAVAILABLE',null,'No valid active PolicyRuleSet. Validation fails closed.');show(UI.result);return}
+    const v=validatePtp(UI.draft.amount,UI.draft.date);
+    UI.result=v.valid?banner('ok',`<strong>Valid (dry run).</strong> Nothing recorded. ${api('200 PtpValidationResult')} valid=true, policy_version ${v.policy_version}.`):banner('warn',`<strong>Not valid.</strong> ${v.reason_codes.map(c=>`<code>${c}</code> ${esc(REASON_MSG[c])}`).join('<br>')}<br><span class="small">Alternatives: amount ${money(v.alternatives.valid_amount_range.min)} to ${money(v.alternatives.valid_amount_range.max)}; date ${v.alternatives.valid_date_range.earliest} to ${v.alternatives.valid_date_range.latest}. ${api('200 PtpValidationResult')}</span>`);
+    show(UI.result);announce(v.valid?'Validation passed':'Validation failed: '+v.reason_codes.join(', '))};
+  f.addEventListener('submit',e=>{e.preventDefault();draft();
+    if(C.deterministic.status==='POLICY_UNAVAILABLE'){UI.result=errBox(503,'POLICY_UNAVAILABLE',null,'No valid active PolicyRuleSet. Nothing recorded (fail closed).');show(UI.result);return}
+    if(C.snapshot.freshness!=='FRESH'){UI.result=errBox(409,'CONFLICT','STALE_DATA','The snapshot is stale. Refresh it and review the figures before recording.','context.refreshed_context would be returned.');show(UI.result);announce('Recording blocked: stale data');return}
+    const v=validatePtp(UI.draft.amount,UI.draft.date);
+    if(!v.valid){const conflict=v.reason_codes.includes('CONFLICTING_ACTIVE_ITEM');UI.result=errBox(conflict?409:422,conflict?'CONFLICT':'BUSINESS_RULE_VIOLATION',v.reason_codes[0],REASON_MSG[v.reason_codes[0]],v.reason_codes.map(c=>`<code>${c}</code>`).join(' ')+(conflict?'<br>context.permitted_paths: cancel, amend':`<br>alternatives: ${money(v.alternatives.valid_amount_range.min)}-${money(v.alternatives.valid_amount_range.max)}, ${v.alternatives.valid_date_range.earliest} to ${v.alternatives.valid_date_range.latest}`));show(UI.result);announce('Not recorded: '+v.reason_codes[0]);return}
+    const n=ptp('ptp_01J8ZK7'+String(UI.key).padStart(3,'0'),fromCents(cents(UI.draft.amount)),UI.draft.date,'PENDING','0.00','OFFICER_MANUAL',CLOCK_NOW);n.interaction_reference=UI.draft.ref||null;
+    C.ptp_history.unshift(n);C.account.collection_status='PTP_PENDING';UI.key++;
+    UI.result=banner('ok',`<strong>201 Created.</strong> ${n.ptp_id} recorded as PENDING (source OFFICER_MANUAL) for ${money(n.promised_amount)} due ${n.promised_date}. ${api('POST /api/ptps')}`);
+    render();announce('Promise to pay recorded');keep('#f-amt')});
+}
+
+initMockbar();
+$('#mock-state').addEventListener('change',()=>{if(typeof resetState==='function')resetState();render()});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CollectAI UI mockups - index</title>
+<style>
+body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:#f2f5f8;color:#1b2733;line-height:1.45}
+header{background:#123047;color:#fff;padding:1rem}
+main{max-width:1100px;margin:0 auto;padding:1rem}
+a{color:#0a58a8}a:focus-visible{outline:3px solid #b35c00;outline-offset:2px}
+table{border-collapse:collapse;width:100%;background:#fff;border:1px solid #c3ccd6}
+th,td{padding:.55rem .7rem;border-bottom:1px solid #dde3e9;text-align:left;vertical-align:top}
+th{background:#eef2f6}
+.wrap{overflow-x:auto}
+code{font:.85rem Consolas,"Courier New",monospace;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<header><h1 style="margin:0;font-size:1.3rem">CollectAI UI mockups</h1><p style="margin:.3rem 0 0">Static, self-contained, synthetic data. Every screen has a "Mockup state" toggle (happy path plus empty or error states) and a persona switcher. Field names follow specs/design/api-contracts.md.</p></header>
+<main>
+<div class="wrap"><table>
+<caption class="sr" style="position:absolute;left:-999px">Mockups</caption>
+<thead><tr><th scope="col">Story</th><th scope="col">Screen</th><th scope="col">Persona</th><th scope="col">API calls</th></tr></thead>
+<tbody>
+<tr><th scope="row">E3-S3</th><td><a href="E3-S3.html">Delinquent Portfolio</a></td><td>COLLECTIONS_OFFICER</td><td><code>GET /api/portfolio</code></td></tr>
+<tr><th scope="row">E3-S4</th><td><a href="E3-S4.html">Persona switcher and role-based navigation</a></td><td>All</td><td><code>GET /api/session/options</code>, <code>POST /api/session</code>, <code>GET /api/session/me</code></td></tr>
+<tr><th scope="row">E4-S2</th><td><a href="E4-S2.html">Customer 360</a></td><td>COLLECTIONS_OFFICER</td><td><code>GET /api/customers/{account_id}/360</code>, <code>POST /api/customers/{account_id}/refresh</code>, recommendation + decision, <code>POST /api/ptps/validate</code>, <code>POST /api/ptps</code></td></tr>
+<tr><th scope="row">E6-S5</th><td><a href="E6-S5.html">AI Collections Chat</a></td><td>CUSTOMER</td><td><code>POST /api/chat/conversations</code>, <code>.../messages</code>, <code>.../proposals/{id}/confirm|cancel</code>, <code>.../handoff</code></td></tr>
+<tr><th scope="row">E7-S3</th><td><a href="E7-S3.html">Escalation and Review Queue</a></td><td>COLLECTIONS_OFFICER, COMPLIANCE_RISK</td><td><code>GET /api/escalations</code>, <code>GET /api/escalations/{case_id}</code>, <code>POST .../decisions</code>, <code>POST .../compliance-decision</code></td></tr>
+<tr><th scope="row">E7-S6</th><td><a href="E7-S6.html">Minimal escalation list</a></td><td>COLLECTIONS_OFFICER</td><td><code>GET /api/escalations</code></td></tr>
+<tr><th scope="row">E9-S2</th><td><a href="E9-S2.html">Audit Trail Viewer</a></td><td>COMPLIANCE_RISK</td><td><code>GET /api/audit/chains</code>, <code>GET /api/audit</code></td></tr>
+<tr><th scope="row">E9-S3</th><td><a href="E9-S3.html">Dev and demo controls</a></td><td>COLLECTIONS_OFFICER (flag)</td><td><code>GET /api/demo-controls/state</code>, <code>POST /api/demo-controls/*</code></td></tr>
+<tr><th scope="row">E10-S4</th><td><a href="E10-S4.html">Collections and AI Performance Dashboard</a></td><td>COLLECTIONS_MANAGER</td><td><code>GET /api/kpis</code>, <code>GET /api/kpis/eval-runs</code></td></tr>
+<tr><th scope="row">E11-S5</th><td><a href="E11-S5.html">Accessibility verification report</a></td><td>COLLECTIONS_OFFICER (flag)</td><td>none: reads CI artifact <code>reports/a11y/summary.json</code></td></tr>
+</tbody></table></div>
+</main>
+</body>
+</html>

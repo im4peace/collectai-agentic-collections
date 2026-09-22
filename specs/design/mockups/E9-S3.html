@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E9-S3 Dev and demo controls - CollectAI mockup</title>
+<!--
+  Mockup for story E9-S3: Dev and demo controls
+  Self-contained: inline CSS and vanilla JS only, no CDN, no web fonts, no network calls.
+  Synthetic data only (fictional names, example.com, +1-555-01xx). Payments are simulated.
+  Field names, enums and shapes follow specs/design/api-contracts.md (snake_case, money as 2dp strings).
+  Contract gaps noted while building this mockup:
+  - Only DEMO_CLOCK_ADVANCED and DEMO_RESEED are named audit events; the lifecycle run and simulated payment event types (PTP_LIFECYCLE_RUN, DEMO_PAYMENT_SIMULATED) are assumed names.
+  - DemoState does not list seeded accounts for the simulate-payment account picker, so two accounts are hardcoded.
+  - The audit panel shows events written by the controls, but only COMPLIANCE_RISK may call GET /api/audit; the officer-visible list is a mockup convenience with no API behind it.
+  - ReseedResult returns only customers, accounts and policy_version; no ptp or payment counts.
+-->
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f8;--surface:#ffffff;--surface2:#eaeff4;--text:#14202b;--muted:#4a5a69;--line:#c3cfda;--brand:#0b4a6f;--brand-ink:#ffffff;--ai:#5b3fa6;--ai-bg:#f3effc;--rule:#0b4a6f;--rule-bg:#e9f2f9;--warn:#7d4a00;--warn-bg:#fff3d9;--danger:#a3201d;--danger-bg:#fdecea;--ok:#0f6a3a;--ok-bg:#e6f5ec;--sim:#6b3d00;--sim-bg:#ffefd2;--focus:#0a58ca;--shadow:0 1px 2px rgba(20,32,43,.08),0 4px 14px rgba(20,32,43,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none}}
+:root[data-theme=dark]{--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+h1{font-size:1.45rem;margin:.2rem 0 .6rem;line-height:1.25}h2{font-size:1.1rem;margin:0 0 .5rem}h3{font-size:.98rem;margin:.8rem 0 .3rem}
+p{margin:.3rem 0 .6rem}a{color:var(--brand)}
+code,.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;font-size:.86em}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:8px;top:-60px;background:var(--brand);color:var(--brand-ink);padding:8px 12px;border-radius:6px;z-index:100}.skip:focus{top:8px}
+.mockbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:8px 14px;background:repeating-linear-gradient(135deg,var(--surface2),var(--surface2) 10px,var(--bg) 10px,var(--bg) 20px);border-bottom:2px dashed var(--line);font-size:.82rem}
+.mockbar strong{font-weight:700}.mockbar label{display:flex;gap:6px;align-items:center}
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.02em;color:var(--brand)}.brand .env{font-weight:600;font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:6px}
+.appbar nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.appbar nav a{padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);border:1px solid transparent}
+.appbar nav a:hover{background:var(--surface2)}.appbar nav a[aria-current=page]{background:var(--rule-bg);color:var(--rule);border-color:var(--rule);font-weight:700}
+.who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.85rem}
+main{max-width:1240px;margin:0 auto;padding:16px}
+main:focus{outline:none}
+.pagehead{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+.muted{color:var(--muted)}.small{font-size:.82rem}.right{text-align:right}.num{font-variant-numeric:tabular-nums;text-align:right}
+.api{display:inline-block;font:600 .72rem/1.3 ui-monospace,Consolas,monospace;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;vertical-align:middle;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);min-width:0}
+.panel>.ph{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel>.ph h2{margin:0}
+.panel.ai{border:2px dashed var(--ai);background:var(--ai-bg)}
+.panel.rules{border-left:5px solid var(--rule)}
+.panel.sim{border-left:5px solid var(--sim)}
+.tag{display:inline-flex;gap:5px;align-items:center;font-size:.74rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid currentColor}
+.tag.rules{color:var(--rule);background:var(--rule-bg)}.tag.ai{color:var(--ai);background:var(--ai-bg)}.tag.sim{color:var(--sim);background:var(--sim-bg)}.tag.rec{color:var(--muted);background:var(--surface2)}
+.chip{display:inline-flex;gap:4px;align-items:center;font-size:.76rem;font-weight:700;border-radius:99px;padding:1px 9px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}.chip.warn{color:var(--warn);background:var(--warn-bg)}.chip.danger{color:var(--danger);background:var(--danger-bg)}.chip.info{color:var(--rule);background:var(--rule-bg)}.chip.ai{color:var(--ai);background:var(--ai-bg)}.chip.neutral{color:var(--muted);background:var(--surface2)}.chip.sim{color:var(--sim);background:var(--sim-bg)}
+.chip.demo{color:var(--warn);background:var(--warn-bg);border-style:dashed}
+.banner{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border:1px solid currentColor;border-radius:8px;padding:10px 12px;margin:8px 0}
+.banner.warn{color:var(--warn);background:var(--warn-bg)}.banner.danger{color:var(--danger);background:var(--danger-bg)}.banner.info{color:var(--rule);background:var(--rule-bg)}.banner.ok{color:var(--ok);background:var(--ok-bg)}.banner.ai{color:var(--ai);background:var(--ai-bg)}
+.banner>div{flex:1;min-width:200px;color:var(--text)}.banner .bi{font-weight:800}
+.btn{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:7px 13px;cursor:pointer;min-height:36px}
+.btn.secondary{background:var(--surface);color:var(--brand)}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn.danger{color:#1b0605}}:root[data-theme=dark] .btn.danger{color:#1b0605}
+.btn:hover:not([disabled]){filter:brightness(1.08)}
+.btn[disabled],.btn[aria-disabled=true]{opacity:.55;cursor:not-allowed;filter:none}
+.btn.link{background:none;border:none;color:var(--brand);text-decoration:underline;padding:2px 4px;min-height:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.g2,.g3{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:.85rem;min-width:0}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--muted);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%}
+textarea{width:100%;min-height:76px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:8px 10px}legend{font-weight:700;font-size:.85rem;padding:0 4px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px}.checks label{display:flex;gap:5px;align-items:center;font-weight:500}
+.tablewrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td.num,th.num{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--surface2)}
+th button.sort{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center;font:inherit;text-transform:inherit;letter-spacing:inherit;font-weight:700}
+th button.sort:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+dl.kv{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:4px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:.83rem}dl.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.stat{display:flex;flex-direction:column;gap:2px}.stat .v{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}.stat .l{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.overlay{position:fixed;inset:0;background:rgba(5,12,20,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
+.dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dialog:focus{outline:none}.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:60;max-width:92vw}
+.toast[hidden]{display:none}
+.forbidden{max-width:640px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:26px}
+.forbidden h1{color:var(--danger)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.bar{display:inline-block;height:8px;background:var(--rule);border-radius:4px;vertical-align:middle;min-width:2px}
+ul.plain{list-style:none;padding:0;margin:0}
+.footnote{font-size:.8rem;color:var(--muted);margin-top:10px}
+@media (max-width:600px){main{padding:10px}.appbar{padding:8px 10px}.mockbar{padding:6px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+
+.big{font-size:1.8rem;font-weight:800;letter-spacing:.06em}
+.cgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.cgrid{grid-template-columns:minmax(0,1fr)}}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="mockbar" data-bg>
+  <strong>Mockup E9-S3</strong><span class="muted">controls below are not part of the product UI</span>
+  <label>State: <select id="mock-state" aria-label="Mockup state toggle">
+<option value="on_mock">Flag ON, mode MOCK</option>
+<option value="on_live">Flag ON, mode LIVE</option>
+<option value="off">Flag OFF: routes 404, panel not rendered</option>
+<option value="audit_down">Flag ON: 503 AUDIT_UNAVAILABLE on actions</option>
+<option value="forbidden">Flag ON: persona COLLECTIONS_MANAGER (403)</option>
+  </select></label>
+  <button type="button" class="btn secondary" id="theme-btn" style="min-height:28px;padding:2px 10px">Theme: toggle light/dark</button>
+</div>
+<div id="root" data-bg>
+  <header class="appbar" id="appbar"></header>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="sr-live" class="sr" aria-live="polite" aria-atomic="true"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+/* ---- shared mockup helpers (inlined per file; no external deps) ---- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=l=>`<span class="api" data-api="${esc(l)}" title="API call">${esc(l)}</span>`;
+const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}$${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
+const cents=s=>{const m=String(s).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);return m?BigInt(m[1])*100n+BigInt((m[2]||'').padEnd(2,'0')||'0'):null};
+const fromCents=c=>{const n=c<0n?-c:c;const s=n.toString().padStart(3,'0');return (c<0n?'-':'')+s.slice(0,-2)+'.'+s.slice(-2)};
+const pct4=v=>{if(v==null)return '-';const [i,f='']=String(v).split('.');const n=BigInt(i+f.padEnd(4,'0').slice(0,4));const s=n.toString().padStart(3,'0');return s.slice(0,-2)+'.'+s.slice(-2)+'%'};
+const fmtDT=t=>t?esc(String(t).replace('T',' ').replace(/:\d\dZ$/,' UTC')):'-';
+const PN={CUSTOMER:'Customer',COLLECTIONS_OFFICER:'Collections Officer',COLLECTIONS_MANAGER:'Collections Manager',COMPLIANCE_RISK:'Compliance and Risk'};
+const NAV={CUSTOMER:[['Chat','/chat']],COLLECTIONS_OFFICER:[['Portfolio','/portfolio'],['Customer 360','/customers/acc_000123'],['Escalations','/escalations'],['Review queues','/review-queues'],['Demo controls','/demo-controls',true]],COLLECTIONS_MANAGER:[['Dashboard','/dashboard']],COMPLIANCE_RISK:[['Audit Trail','/audit'],['Compliance review queue','/compliance-review']]};
+const chip=(t,c,i)=>`<span class="chip ${c}">${i?`<span aria-hidden="true">${i}</span>`:''}${esc(t)}</span>`;
+const bandChip=b=>({HIGH:chip('HIGH priority','danger','▲'),MEDIUM:chip('MEDIUM priority','warn','◆'),LOW:chip('LOW priority','ok','▼')}[b]);
+const TAGS={rules:['▦','Rules engine'],ai:['✦','AI-generated'],sim:['◇','Simulated'],rec:['▤','System record']};
+const tag=k=>`<span class="tag ${k}"><span aria-hidden="true">${TAGS[k][0]}</span>${TAGS[k][1]}</span>`;
+const banner=(k,html,icon,role)=>`<div class="banner ${k}" ${role===false?'':`role="${role||(k==='danger'?'alert':'status')}"`}><span class="bi" aria-hidden="true">${icon||({warn:'⚠',danger:'✖',info:'ℹ',ok:'✔',ai:'✦'}[k])}</span><div>${html}</div></div>`;
+const errBox=(status,code,reason,msg,extra)=>banner('danger',`<strong>${status} ${esc(code)}${reason?' / '+esc(reason):''}</strong><br>${esc(msg)}${extra?'<br>'+extra:''}<br><span class="small muted">correlation_id: <code>c0ffee1234abcd</code></span>`);
+function announce(msg){const l=$('#sr-live');l.textContent='';setTimeout(()=>{l.textContent=msg},40)}
+let _tt;function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(_tt);_tt=setTimeout(()=>{t.hidden=true},3200);announce(msg)}
+function setShell(persona,current,opts={}){
+  const layout=persona==='CUSTOMER'?'Customer':'Internal';
+  const nav=(NAV[persona]||[]).filter(n=>!n[2]||opts.demoFlag);
+  $('#appbar').innerHTML=`<div class="brand"><span aria-hidden="true">◈</span> CollectAI <span class="env">${layout} layout</span></div>
+  <nav aria-label="Main navigation">${nav.map(n=>`<a href="${n[1]}" data-route="${n[1]}" ${n[0]===current?'aria-current="page"':''}>${n[0]}</a>`).join('')}</nav>
+  <div class="who"><span class="chip demo">Demo persona - not real authentication</span><span id="persona-chip" role="status" aria-live="polite">Current persona: <strong>${PN[persona]}</strong> <code>${persona}</code></span></div>`;
+}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-route]');if(a){e.preventDefault();if(window.onRoute)window.onRoute(a.dataset.route,a.textContent);else toast('Mockup: would navigate to '+a.dataset.route)}});
+const forbiddenPage=(persona,route)=>`<section class="forbidden" role="alert" aria-labelledby="fh"><h1 id="fh"><span aria-hidden="true">⛔</span> 403 - Forbidden</h1><p>The persona <strong>${esc(persona)}</strong> cannot open <code>${esc(route)}</code>.</p><p class="muted">No restricted data was requested or rendered. The API would answer <code>403 FORBIDDEN</code> and write an <code>ACCESS_DENIED</code> audit event.</p>${api('403 FORBIDDEN (no data fetched)')}</section>`;
+function openDialog({title,body,trigger,restore,focusSel,onMount}){
+  const prev=trigger||document.activeElement;
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t" tabindex="-1"><h2 id="dlg-t">${title}</h2><div>${body}</div></div>`;
+  document.body.appendChild(ov);const dlg=ov.firstElementChild;
+  const bg=$$('[data-bg]');bg.forEach(e=>{e.inert=true;e.setAttribute('aria-hidden','true')});
+  const foc=()=>$$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',dlg).filter(e=>!e.hidden);
+  function close(){document.removeEventListener('keydown',key,true);ov.remove();bg.forEach(e=>{e.inert=false;e.removeAttribute('aria-hidden')});
+    const t=document.contains(prev)?prev:(restore?$(restore):null);if(t&&t.focus)t.focus()}
+  function key(e){
+    if(e.key==='Escape'){e.stopPropagation();close();return}
+    if(e.key==='Tab'){const f=foc();if(!f.length){e.preventDefault();return}const a=document.activeElement;
+      if(e.shiftKey&&(a===f[0]||!dlg.contains(a))){e.preventDefault();f[f.length-1].focus()}
+      else if(!e.shiftKey&&(a===f[f.length-1]||!dlg.contains(a))){e.preventDefault();f[0].focus()}}}
+  document.addEventListener('keydown',key,true);
+  if(onMount)onMount(dlg,close);
+  const fi=(focusSel&&$(focusSel,dlg))||foc()[0]||dlg;fi.focus();
+  return close;
+}
+function initMockbar(){
+  const t=$('#theme-btn');t.addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark';t.textContent='Theme: '+(dark?'light':'dark')+' (toggle)'});
+}
+
+/* ---- page script: E9-S3 ---- */
+/* E9-S3 Dev and demo controls. Shapes: DemoState, ClockAdvanceRequest/Result, LifecycleRunResult, SimulatePaymentRequest/Result, ReseedRequest/Result (api-contracts.md 3.14, section 4). */
+
+const INIT=()=>({clock:'2026-10-01T14:30:00Z',balance:'4820.35',ptp:{ptp_id:'ptp_01J8ZK7001',promised_amount:'250.00',promised_date:'2026-10-15',status:'PENDING',cumulative_paid:'0.00',remaining_amount:'250.00'}});
+let D=INIT(),AUDIT=[],res={},key=1,seq=1;
+const addDays=(iso,d)=>{const t=new Date(iso);t.setUTCDate(t.getUTCDate()+d);return t.toISOString().replace(/\.\d{3}Z$/,'Z')};
+function resetState(){D=INIT();AUDIT=[];res={};key=1;seq=1}
+function audit(type,detail){AUDIT.unshift({audit_event_id:'aud_01J8ZN'+String(seq++).padStart(3,'0'),timestamp:D.clock,event_type:type,actor_persona:'COLLECTIONS_OFFICER',correlation_id:'demo'+Math.random().toString(16).slice(2,8),detail})}
+const mode=()=>$('#mock-state').value==='on_live'?'LIVE':'MOCK';
+function down(panelId){ if($('#mock-state').value==='audit_down'){res[panelId]=errBox(503,'AUDIT_UNAVAILABLE',null,'The audit write failed, so the change was rolled back. Nothing was changed.');render();announce('Action failed: audit unavailable');return true}return false}
+function render(){
+  const st=$('#mock-state').value;
+  if(st==='off'){
+    setShell('COLLECTIONS_OFFICER','',{demoFlag:false});
+    $('#main').innerHTML=`<section class="forbidden" style="border-color:var(--line)" aria-labelledby="nf"><h1 id="nf" style="color:var(--text)">404 - Page not found</h1><p>The demo controls are turned off, so this route does not exist and the panel is not rendered. There is no link to it in the navigation.</p></section>
+     <section class="panel" style="max-width:720px;margin:0 auto"><div class="ph"><h2>Developer trace (not part of the product UI)</h2></div><p class="small muted">With <code>DEMO_CONTROLS_ENABLED=false</code> every demo-controls route answers 404 before persona checks.</p><ul class="plain grid" style="gap:4px">${['GET /api/demo-controls/state','POST /api/demo-controls/clock/advance','POST /api/demo-controls/ptp-lifecycle/run','POST /api/demo-controls/payments/simulate','POST /api/demo-controls/reseed'].map(x=>`<li>${api(x)} <span class="chip neutral">404 NOT_FOUND</span></li>`).join('')}</ul></section>`;return}
+  if(st==='forbidden'){setShell('COLLECTIONS_MANAGER','');$('#main').innerHTML=forbiddenPage('COLLECTIONS_MANAGER','/demo-controls');return}
+  setShell('COLLECTIONS_OFFICER','Demo controls',{demoFlag:true});
+  const m=mode();const p=D.ptp;
+  const state=`<section class="panel" aria-labelledby="sh"><div class="ph"><h2 id="sh">Demo state</h2>${api('GET /api/demo-controls/state')}</div><div class="grid g3" style="gap:10px"><div class="stat"><span class="l">llm_mode</span><span class="big" id="modeText">${m}</span><span class="small muted">${m==='MOCK'?'Scripted provider, no real model calls':'Real model provider in use'}</span></div><div class="stat"><span class="l">clock.now (${'SIMULATED'})</span><span class="v" style="font-size:1.15rem" id="clockNow">${fmtDT(D.clock)}</span><span class="small muted">clock.mode SIMULATED</span></div><div class="stat"><span class="l">flag / policy</span><span class="v" style="font-size:1.15rem">DEMO_CONTROLS_ENABLED=true</span><span class="small muted">policy_version policy-v1</span></div></div></section>`;
+  const scen=`<section class="panel rules" aria-labelledby="sc"><div class="ph"><h2 id="sc">Seeded scenario: acc_000123</h2>${tag('rules')}</div><dl class="kv"><dt>outstanding_balance</dt><dd>${money(D.balance)}</dd><dt>PTP</dt><dd><span class="mono small">${p.ptp_id}</span> ${money(p.promised_amount)} due ${p.promised_date}</dd><dt>status</dt><dd>${chip(p.status,p.status==='PENDING'?'info':p.status==='KEPT'?'ok':'danger',p.status==='PENDING'?'○':p.status==='KEPT'?'✔':'✖')} <span class="small muted">system-calculated by the lifecycle job</span></dd><dt>cumulative_paid / remaining</dt><dd>${money(p.cumulative_paid)} / ${money(p.remaining_amount)}</dd></dl></section>`;
+  const clock=`<section class="panel" aria-labelledby="ck"><div class="ph"><h2 id="ck">1. Advance clock</h2>${api('POST /api/demo-controls/clock/advance')}</div><form id="fclock" novalidate><div class="row" style="align-items:flex-end"><label class="f">days (1-365)<input id="days" type="number" min="1" max="365" value="20" style="width:90px"></label><label class="checks"><input type="checkbox" id="refr" checked> refresh_snapshots</label><button type="submit" class="btn">Advance clock</button></div></form><div id="r-clock" role="status" aria-live="polite">${res.clock||''}</div></section>`;
+  const life=`<section class="panel" aria-labelledby="lf"><div class="ph"><h2 id="lf">2. Run PTP lifecycle (breakage) job</h2>${api('POST /api/demo-controls/ptp-lifecycle/run')}</div><p class="small muted">Marks due promises BROKEN (or KEPT when paid) using the current simulated clock. Safe to rerun.</p><button type="button" class="btn" id="run">Run job now</button><div id="r-life" role="status" aria-live="polite">${res.life||''}</div></section>`;
+  const pay=`<section class="panel sim" aria-labelledby="py"><div class="ph"><h2 id="py">3. Simulate a payment</h2><span>${tag('sim')} ${api('POST /api/demo-controls/payments/simulate')}</span></div><form id="fpay" novalidate><div class="row" style="align-items:flex-end"><label class="f">account_id<select id="acc"><option value="acc_000123">acc_000123 - Priya Raman</option><option value="acc_000164">acc_000164 - Amara Nwosu</option></select></label><label class="f">amount (USD)<input id="amt" inputmode="decimal" value="250.00" style="width:110px" autocomplete="off"></label><label class="f">outcome<select id="out"><option>SUCCEEDED</option><option>FAILED</option></select></label><button type="submit" class="btn">Record simulated payment</button></div><p class="small muted mono" style="margin:4px 0 0">Idempotency-Key: demo-pay-${String(key).padStart(2,'0')}</p></form><div id="r-pay" role="status" aria-live="polite">${res.pay||''}</div></section>`;
+  const rs=`<section class="panel" aria-labelledby="rs"><div class="ph"><h2 id="rs">4. Reseed data</h2>${api('POST /api/demo-controls/reseed')}</div><p class="small muted">Restores the seeded dataset. Audit rows are never deleted.</p><button type="button" class="btn danger" id="reseed">Reseed...</button><div id="r-seed" role="status" aria-live="polite">${res.seed||''}</div></section>`;
+  const au=`<section class="panel" aria-labelledby="au"><div class="ph"><h2 id="au">Audit events written by these controls</h2>${chip('Read-only','neutral','▣')}</div>${AUDIT.length?`<div class="tablewrap"><table class="tight"><thead><tr><th>Time (clock)</th><th>event_type</th><th>Persona</th><th>Detail</th></tr></thead><tbody>${AUDIT.map(a=>`<tr><td>${fmtDT(a.timestamp)}</td><td><code>${a.event_type}</code><br><span class="small muted mono">${a.audit_event_id}</span></td><td>${a.actor_persona}</td><td class="small">${esc(a.detail)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No control actions yet. Every action below writes one audit event.</p>'}</section>`;
+  $('#main').innerHTML=`<div class="pagehead"><div><h1>Demo controls</h1><p class="muted">For demos and development only. Disabled by default and never part of a production path.</p></div>${chip('Demo only','warn','⚠')}</div>${banner('warn','<strong>Everything here is simulated.</strong> No real payment occurs. Each action is audited.',null,false)}${state}<div class="cgrid" style="margin-top:14px">${scen}${au}${clock}${life}${pay}${rs}</div>`;
+  wire();
+}
+function wire(){
+  $('#fclock').addEventListener('submit',e=>{e.preventDefault();const n=+$('#days').value;
+    if(!(n>=1&&n<=365)){res.clock=errBox(422,'VALIDATION_ERROR','FIELD_INVALID','days must be a whole number from 1 to 365.');render();$('#days').focus();return}
+    if(down('clock'))return;
+    D.clock=addDays(D.clock,n);const ref=$('#refr').checked;audit('DEMO_CLOCK_ADVANCED',`+${n} days, refresh_snapshots ${ref}`);
+    res.clock=banner('ok',`<strong>200 ClockAdvanceResult.</strong> clock.now is now ${fmtDT(D.clock)} (SIMULATED). snapshots_refreshed: ${ref?1000:0}.`,null,false);render();announce('Clock advanced by '+n+' days');const b=$('#fclock button');if(b)b.focus()});
+  $('#run').onclick=()=>{if(down('life'))return;const p=D.ptp;let kept=0,broken=0,unch=0,ev=0;
+    if(p.status==='PENDING'){ev=1;if(cents(p.cumulative_paid)>=cents(p.promised_amount)){p.status='KEPT';kept=1}else if(D.clock.slice(0,10)>p.promised_date){p.status='BROKEN';broken=1}else unch=1}
+    audit('PTP_LIFECYCLE_RUN',`evaluated ${ev}, kept ${kept}, broken ${broken}`);
+    res.life=banner('ok',`<strong>200 LifecycleRunResult.</strong> evaluated ${ev}, kept ${kept}, <strong>broken ${broken}</strong>, unchanged ${unch}.${ev===0?' (Already final; rerunning writes no duplicate transition.)':''}`,null,false);render();announce('Lifecycle run: '+broken+' broken, '+kept+' kept');$('#run').focus()};
+  $('#fpay').addEventListener('submit',e=>{e.preventDefault();const s=$('#amt').value.trim(),acc=$('#acc').value,out=$('#out').value;
+    const bal=acc==='acc_000123'?D.balance:'7120.45';
+    let err=null;
+    if(!/^-?\d+(\.\d+)?$/.test(s))err=['FIELD_INVALID','Enter a decimal amount.'];
+    else if(s[0]==='-')err=['NEGATIVE_AMOUNT','Amount cannot be negative.'];
+    else if((s.split('.')[1]||'').length>2)err=['OVER_PRECISION','At most 2 decimal places.'];
+    else if(cents(s)===0n)err=['ZERO_AMOUNT','Amount must be greater than 0.00.'];
+    else if(cents(s)>cents(bal))err=['OVER_BALANCE','Amount is more than the outstanding balance of '+money(bal)+'.'];
+    if(err){res.pay=errBox(422,'BUSINESS_RULE_VIOLATION',err[0],err[1]);render();$('#amt').focus();return}
+    if(down('pay'))return;
+    const amt=fromCents(cents(s));let ptp=null,after=bal;
+    if(out==='SUCCEEDED'){after=fromCents(cents(bal)-cents(amt));if(acc==='acc_000123'){D.balance=after;if(D.ptp.status==='PENDING'){D.ptp.cumulative_paid=fromCents(cents(D.ptp.cumulative_paid)+cents(amt));const rem=cents(D.ptp.promised_amount)-cents(D.ptp.cumulative_paid);D.ptp.remaining_amount=fromCents(rem>0n?rem:0n);ptp=D.ptp}}}
+    const pe={payment_event_id:'pay_01J8ZM'+String(key).padStart(3,'0'),account_id:acc,amount:amt,outcome:out,source:'DEMO_CONTROL',simulated:true,simulated_label:'Simulated payment',occurred_at:D.clock,balance_after:after,applied_to_ptp_id:ptp?ptp.ptp_id:null};
+    audit('DEMO_PAYMENT_SIMULATED',`${pe.payment_event_id} ${amt} ${out}`);key++;
+    res.pay=banner('ok',`<strong>201 SimulatePaymentResult.</strong> ${chip('Simulated payment','sim','◇')}<dl class="kv small" style="margin-top:6px"><dt>payment_event_id</dt><dd>${pe.payment_event_id}</dd><dt>source</dt><dd>${pe.source}</dd><dt>simulated</dt><dd>${pe.simulated}</dd><dt>amount / outcome</dt><dd>${money(pe.amount)} / ${pe.outcome}</dd><dt>balance_after</dt><dd>${money(pe.balance_after)}</dd><dt>applied_to_ptp_id</dt><dd>${pe.applied_to_ptp_id||'null'}</dd></dl>`,null,false);
+    render();announce('Simulated payment recorded');$('#amt').focus()});
+  $('#reseed').onclick=()=>{
+    openDialog({title:'Reseed the demo data?',trigger:$('#reseed'),restore:'#reseed',focusSel:'#cf',body:`<p>This restores the seeded dataset (${api('POST /api/demo-controls/reseed')}). Audit rows are never deleted.</p><label class="checks"><input type="checkbox" id="cf"> confirm: true (required)</label><div id="rs-err" role="alert"></div><div class="dlg-actions"><button type="button" class="btn secondary" id="rc">Cancel</button><button type="button" class="btn danger" id="ro" disabled>Reseed now</button></div>`,
+     onMount:(dlg,close)=>{const cf=$('#cf',dlg),ro=$('#ro',dlg);cf.addEventListener('change',()=>{ro.disabled=!cf.checked});$('#rc',dlg).onclick=close;
+      ro.onclick=()=>{if($('#mock-state').value==='audit_down'){$('#rs-err',dlg).innerHTML=errBox(503,'AUDIT_UNAVAILABLE',null,'The audit write failed, so the reseed was rolled back.');return}
+        D=INIT();res={};audit('DEMO_RESEED','customers 800, accounts 1000');
+        res.seed=banner('ok','<strong>200 ReseedResult.</strong> customers 800, accounts 1000, policy_version policy-v1. Dataset restored; earlier audit rows kept.',null,false);close();render();announce('Data reseeded')}}})};
+}
+
+initMockbar();
+$('#mock-state').addEventListener('change',()=>{if(typeof resetState==='function')resetState();render()});
+render();
+</script>
+</body>
+</html>

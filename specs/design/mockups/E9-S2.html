@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E9-S2 Audit Trail Viewer - CollectAI mockup</title>
+<!--
+  Mockup for story E9-S2: Audit Trail Viewer
+  Self-contained: inline CSS and vanilla JS only, no CDN, no web fonts, no network calls.
+  Synthetic data only (fictional names, example.com, +1-555-01xx). Payments are simulated.
+  Field names, enums and shapes follow specs/design/api-contracts.md (snake_case, money as 2dp strings).
+  Contract gaps noted while building this mockup:
+  - AuditEvent.event_type is a free string with no catalogue, so stage labels come from the AuditStage enum only.
+  - The viewer needs two calls (GET /api/audit/chains then GET /api/audit?correlation_id=); AuditChainSummary has no customer name.
+  - AuditEvent.human_override and rule_results are untyped objects, so the mockup shows them as redacted JSON.
+-->
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f8;--surface:#ffffff;--surface2:#eaeff4;--text:#14202b;--muted:#4a5a69;--line:#c3cfda;--brand:#0b4a6f;--brand-ink:#ffffff;--ai:#5b3fa6;--ai-bg:#f3effc;--rule:#0b4a6f;--rule-bg:#e9f2f9;--warn:#7d4a00;--warn-bg:#fff3d9;--danger:#a3201d;--danger-bg:#fdecea;--ok:#0f6a3a;--ok-bg:#e6f5ec;--sim:#6b3d00;--sim-bg:#ffefd2;--focus:#0a58ca;--shadow:0 1px 2px rgba(20,32,43,.08),0 4px 14px rgba(20,32,43,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none}}
+:root[data-theme=dark]{--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+h1{font-size:1.45rem;margin:.2rem 0 .6rem;line-height:1.25}h2{font-size:1.1rem;margin:0 0 .5rem}h3{font-size:.98rem;margin:.8rem 0 .3rem}
+p{margin:.3rem 0 .6rem}a{color:var(--brand)}
+code,.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;font-size:.86em}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:8px;top:-60px;background:var(--brand);color:var(--brand-ink);padding:8px 12px;border-radius:6px;z-index:100}.skip:focus{top:8px}
+.mockbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:8px 14px;background:repeating-linear-gradient(135deg,var(--surface2),var(--surface2) 10px,var(--bg) 10px,var(--bg) 20px);border-bottom:2px dashed var(--line);font-size:.82rem}
+.mockbar strong{font-weight:700}.mockbar label{display:flex;gap:6px;align-items:center}
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.02em;color:var(--brand)}.brand .env{font-weight:600;font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:6px}
+.appbar nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.appbar nav a{padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);border:1px solid transparent}
+.appbar nav a:hover{background:var(--surface2)}.appbar nav a[aria-current=page]{background:var(--rule-bg);color:var(--rule);border-color:var(--rule);font-weight:700}
+.who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.85rem}
+main{max-width:1240px;margin:0 auto;padding:16px}
+main:focus{outline:none}
+.pagehead{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+.muted{color:var(--muted)}.small{font-size:.82rem}.right{text-align:right}.num{font-variant-numeric:tabular-nums;text-align:right}
+.api{display:inline-block;font:600 .72rem/1.3 ui-monospace,Consolas,monospace;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;vertical-align:middle;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);min-width:0}
+.panel>.ph{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel>.ph h2{margin:0}
+.panel.ai{border:2px dashed var(--ai);background:var(--ai-bg)}
+.panel.rules{border-left:5px solid var(--rule)}
+.panel.sim{border-left:5px solid var(--sim)}
+.tag{display:inline-flex;gap:5px;align-items:center;font-size:.74rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid currentColor}
+.tag.rules{color:var(--rule);background:var(--rule-bg)}.tag.ai{color:var(--ai);background:var(--ai-bg)}.tag.sim{color:var(--sim);background:var(--sim-bg)}.tag.rec{color:var(--muted);background:var(--surface2)}
+.chip{display:inline-flex;gap:4px;align-items:center;font-size:.76rem;font-weight:700;border-radius:99px;padding:1px 9px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}.chip.warn{color:var(--warn);background:var(--warn-bg)}.chip.danger{color:var(--danger);background:var(--danger-bg)}.chip.info{color:var(--rule);background:var(--rule-bg)}.chip.ai{color:var(--ai);background:var(--ai-bg)}.chip.neutral{color:var(--muted);background:var(--surface2)}.chip.sim{color:var(--sim);background:var(--sim-bg)}
+.chip.demo{color:var(--warn);background:var(--warn-bg);border-style:dashed}
+.banner{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border:1px solid currentColor;border-radius:8px;padding:10px 12px;margin:8px 0}
+.banner.warn{color:var(--warn);background:var(--warn-bg)}.banner.danger{color:var(--danger);background:var(--danger-bg)}.banner.info{color:var(--rule);background:var(--rule-bg)}.banner.ok{color:var(--ok);background:var(--ok-bg)}.banner.ai{color:var(--ai);background:var(--ai-bg)}
+.banner>div{flex:1;min-width:200px;color:var(--text)}.banner .bi{font-weight:800}
+.btn{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:7px 13px;cursor:pointer;min-height:36px}
+.btn.secondary{background:var(--surface);color:var(--brand)}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn.danger{color:#1b0605}}:root[data-theme=dark] .btn.danger{color:#1b0605}
+.btn:hover:not([disabled]){filter:brightness(1.08)}
+.btn[disabled],.btn[aria-disabled=true]{opacity:.55;cursor:not-allowed;filter:none}
+.btn.link{background:none;border:none;color:var(--brand);text-decoration:underline;padding:2px 4px;min-height:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.g2,.g3{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:.85rem;min-width:0}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--muted);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%}
+textarea{width:100%;min-height:76px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:8px 10px}legend{font-weight:700;font-size:.85rem;padding:0 4px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px}.checks label{display:flex;gap:5px;align-items:center;font-weight:500}
+.tablewrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td.num,th.num{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--surface2)}
+th button.sort{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center;font:inherit;text-transform:inherit;letter-spacing:inherit;font-weight:700}
+th button.sort:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+dl.kv{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:4px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:.83rem}dl.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.stat{display:flex;flex-direction:column;gap:2px}.stat .v{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}.stat .l{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.overlay{position:fixed;inset:0;background:rgba(5,12,20,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
+.dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dialog:focus{outline:none}.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:60;max-width:92vw}
+.toast[hidden]{display:none}
+.forbidden{max-width:640px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:26px}
+.forbidden h1{color:var(--danger)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.bar{display:inline-block;height:8px;background:var(--rule);border-radius:4px;vertical-align:middle;min-width:2px}
+ul.plain{list-style:none;padding:0;margin:0}
+.footnote{font-size:.8rem;color:var(--muted);margin-top:10px}
+@media (max-width:600px){main{padding:10px}.appbar{padding:8px 10px}.mockbar{padding:6px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+
+ol.tl{list-style:none;margin:0;padding:0 0 0 6px;border-left:3px solid var(--line)}
+ol.tl>li{position:relative;margin:0 0 14px 18px;padding:0}
+ol.tl>li::before{content:"";position:absolute;left:-29px;top:14px;width:15px;height:15px;border-radius:50%;background:var(--surface);border:3px solid var(--rule)}
+ol.tl>li.miss::before{border-style:dashed;border-color:var(--muted)}
+.sh{all:unset;box-sizing:border-box;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;width:100%;cursor:pointer;padding:8px 10px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;font-weight:700}
+.sh:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.ev{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:8px;background:var(--surface)}
+.ev.ai{border:2px dashed var(--ai);background:var(--ai-bg)}
+.ver{display:flex;flex-wrap:wrap;gap:6px}.ver span{border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--surface);font-size:.82rem}
+pre{margin:6px 0 0;padding:8px;background:var(--surface2);border:1px solid var(--line);border-radius:6px;overflow-x:auto;font-size:.78rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.miss .sh{border-style:dashed;color:var(--muted);cursor:default}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="mockbar" data-bg>
+  <strong>Mockup E9-S2</strong><span class="muted">controls below are not part of the product UI</span>
+  <label>State: <select id="mock-state" aria-label="Mockup state toggle">
+<option value="happy">Happy path: chains found</option>
+<option value="empty">Empty: no chains match</option>
+<option value="error">Error: 500 INTERNAL_ERROR on read</option>
+<option value="forbidden">Forbidden: persona COLLECTIONS_OFFICER</option>
+  </select></label>
+  <button type="button" class="btn secondary" id="theme-btn" style="min-height:28px;padding:2px 10px">Theme: toggle light/dark</button>
+</div>
+<div id="root" data-bg>
+  <header class="appbar" id="appbar"></header>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="sr-live" class="sr" aria-live="polite" aria-atomic="true"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+/* ---- shared mockup helpers (inlined per file; no external deps) ---- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=l=>`<span class="api" data-api="${esc(l)}" title="API call">${esc(l)}</span>`;
+const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}$${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
+const cents=s=>{const m=String(s).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);return m?BigInt(m[1])*100n+BigInt((m[2]||'').padEnd(2,'0')||'0'):null};
+const fromCents=c=>{const n=c<0n?-c:c;const s=n.toString().padStart(3,'0');return (c<0n?'-':'')+s.slice(0,-2)+'.'+s.slice(-2)};
+const pct4=v=>{if(v==null)return '-';const [i,f='']=String(v).split('.');const n=BigInt(i+f.padEnd(4,'0').slice(0,4));const s=n.toString().padStart(3,'0');return s.slice(0,-2)+'.'+s.slice(-2)+'%'};
+const fmtDT=t=>t?esc(String(t).replace('T',' ').replace(/:\d\dZ$/,' UTC')):'-';
+const PN={CUSTOMER:'Customer',COLLECTIONS_OFFICER:'Collections Officer',COLLECTIONS_MANAGER:'Collections Manager',COMPLIANCE_RISK:'Compliance and Risk'};
+const NAV={CUSTOMER:[['Chat','/chat']],COLLECTIONS_OFFICER:[['Portfolio','/portfolio'],['Customer 360','/customers/acc_000123'],['Escalations','/escalations'],['Review queues','/review-queues'],['Demo controls','/demo-controls',true]],COLLECTIONS_MANAGER:[['Dashboard','/dashboard']],COMPLIANCE_RISK:[['Audit Trail','/audit'],['Compliance review queue','/compliance-review']]};
+const chip=(t,c,i)=>`<span class="chip ${c}">${i?`<span aria-hidden="true">${i}</span>`:''}${esc(t)}</span>`;
+const bandChip=b=>({HIGH:chip('HIGH priority','danger','▲'),MEDIUM:chip('MEDIUM priority','warn','◆'),LOW:chip('LOW priority','ok','▼')}[b]);
+const TAGS={rules:['▦','Rules engine'],ai:['✦','AI-generated'],sim:['◇','Simulated'],rec:['▤','System record']};
+const tag=k=>`<span class="tag ${k}"><span aria-hidden="true">${TAGS[k][0]}</span>${TAGS[k][1]}</span>`;
+const banner=(k,html,icon,role)=>`<div class="banner ${k}" ${role===false?'':`role="${role||(k==='danger'?'alert':'status')}"`}><span class="bi" aria-hidden="true">${icon||({warn:'⚠',danger:'✖',info:'ℹ',ok:'✔',ai:'✦'}[k])}</span><div>${html}</div></div>`;
+const errBox=(status,code,reason,msg,extra)=>banner('danger',`<strong>${status} ${esc(code)}${reason?' / '+esc(reason):''}</strong><br>${esc(msg)}${extra?'<br>'+extra:''}<br><span class="small muted">correlation_id: <code>c0ffee1234abcd</code></span>`);
+function announce(msg){const l=$('#sr-live');l.textContent='';setTimeout(()=>{l.textContent=msg},40)}
+let _tt;function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(_tt);_tt=setTimeout(()=>{t.hidden=true},3200);announce(msg)}
+function setShell(persona,current,opts={}){
+  const layout=persona==='CUSTOMER'?'Customer':'Internal';
+  const nav=(NAV[persona]||[]).filter(n=>!n[2]||opts.demoFlag);
+  $('#appbar').innerHTML=`<div class="brand"><span aria-hidden="true">◈</span> CollectAI <span class="env">${layout} layout</span></div>
+  <nav aria-label="Main navigation">${nav.map(n=>`<a href="${n[1]}" data-route="${n[1]}" ${n[0]===current?'aria-current="page"':''}>${n[0]}</a>`).join('')}</nav>
+  <div class="who"><span class="chip demo">Demo persona - not real authentication</span><span id="persona-chip" role="status" aria-live="polite">Current persona: <strong>${PN[persona]}</strong> <code>${persona}</code></span></div>`;
+}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-route]');if(a){e.preventDefault();if(window.onRoute)window.onRoute(a.dataset.route,a.textContent);else toast('Mockup: would navigate to '+a.dataset.route)}});
+const forbiddenPage=(persona,route)=>`<section class="forbidden" role="alert" aria-labelledby="fh"><h1 id="fh"><span aria-hidden="true">⛔</span> 403 - Forbidden</h1><p>The persona <strong>${esc(persona)}</strong> cannot open <code>${esc(route)}</code>.</p><p class="muted">No restricted data was requested or rendered. The API would answer <code>403 FORBIDDEN</code> and write an <code>ACCESS_DENIED</code> audit event.</p>${api('403 FORBIDDEN (no data fetched)')}</section>`;
+function openDialog({title,body,trigger,restore,focusSel,onMount}){
+  const prev=trigger||document.activeElement;
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t" tabindex="-1"><h2 id="dlg-t">${title}</h2><div>${body}</div></div>`;
+  document.body.appendChild(ov);const dlg=ov.firstElementChild;
+  const bg=$$('[data-bg]');bg.forEach(e=>{e.inert=true;e.setAttribute('aria-hidden','true')});
+  const foc=()=>$$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',dlg).filter(e=>!e.hidden);
+  function close(){document.removeEventListener('keydown',key,true);ov.remove();bg.forEach(e=>{e.inert=false;e.removeAttribute('aria-hidden')});
+    const t=document.contains(prev)?prev:(restore?$(restore):null);if(t&&t.focus)t.focus()}
+  function key(e){
+    if(e.key==='Escape'){e.stopPropagation();close();return}
+    if(e.key==='Tab'){const f=foc();if(!f.length){e.preventDefault();return}const a=document.activeElement;
+      if(e.shiftKey&&(a===f[0]||!dlg.contains(a))){e.preventDefault();f[f.length-1].focus()}
+      else if(!e.shiftKey&&(a===f[f.length-1]||!dlg.contains(a))){e.preventDefault();f[0].focus()}}}
+  document.addEventListener('keydown',key,true);
+  if(onMount)onMount(dlg,close);
+  const fi=(focusSel&&$(focusSel,dlg))||foc()[0]||dlg;fi.focus();
+  return close;
+}
+function initMockbar(){
+  const t=$('#theme-btn');t.addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark';t.textContent='Theme: '+(dark?'light':'dark')+' (toggle)'});
+}
+
+/* ---- page script: E9-S2 ---- */
+/* E9-S2 Audit Trail Viewer. Shapes: AuditEvent, AuditPage, AuditChainSummary, AuditChainPage (api-contracts.md 3.12, section 4). Read-only. */
+
+const STAGES=[['INPUT','Input','↓'],['AI_INTERPRETATION','AI interpretation','✦'],['PROPOSAL','Proposal','✉'],['RULE_VALIDATION','Rule validation','▦'],['HUMAN_DECISION','Human decision','☺'],['FINAL_STATE','Final state','⚑']];
+const ev=(seq,ts,corr,stage,type,ak,ap,acc,o)=>({audit_event_id:'aud_01J8ZM'+seq,sequence:seq,timestamp:ts,correlation_id:corr,stage,event_type:type,actor_kind:ak,actor_persona:ap,customer_id:acc==='acc_000206'?'cus_0115':'cus_0041',account_id:acc,capability:null,provider:null,provider_mode:null,model_id:null,prompt_version:null,policy_version:null,input_ref:null,ai_output:null,tool_calls:[],rule_results:null,human_override:null,final_action:null,reason_code:null,resource_type:null,resource_id:null,latency:null,token_usage:null,...o});
+const A='c0ffee1234abcd',B='9d41aa07be22',Cc='a7b2e9d05c31';
+const EVENTS=[
+ ev(1041,'2026-10-01T14:31:02Z',A,'INPUT','CUSTOMER_MESSAGE_RECEIVED','CUSTOMER','CUSTOMER','acc_000123',{input_ref:'msg_01J8ZK4B01 (content redacted)',resource_type:'ChatMessage',resource_id:'msg_01J8ZK4B01'}),
+ ev(1042,'2026-10-01T14:31:03Z',A,'AI_INTERPRETATION','INTENT_CLASSIFIED','AI',null,'acc_000123',{capability:'INTENT_CLASSIFICATION',provider:'mock',provider_mode:'MOCK',model_id:'mock-intent-1',prompt_version:'intent-v2',policy_version:'policy-v1',ai_output:{label:'PROMISE_TO_PAY',confidence:'0.93',vulnerability_detected:false,special_request:'NONE'},latency:{provider_latency_ms:412,tool_call_duration_ms:null,interaction_duration_ms:430},token_usage:{input_tokens:312,output_tokens:41,estimated_cost_usd:'0.000000'}}),
+ ev(1043,'2026-10-01T14:31:03Z',A,'AI_INTERPRETATION','CHAT_RESPONSE_GENERATED','AI',null,'acc_000123',{capability:'CHAT_RESPONSE',provider:'mock',provider_mode:'MOCK',model_id:'mock-chat-1',prompt_version:'chat-v4',policy_version:'policy-v1',ai_output:{content_source:'TEMPLATE',grounded:true},tool_calls:[{tool_name:'get_payable_amounts',tool_type:'READ',arguments:{account_id:'acc_000123'},result_status:'EXECUTED',idempotency_key:null,duration_ms:12},{tool_name:'propose_ptp',tool_type:'PROPOSE',arguments:{promised_amount:'250.00',promised_date:'2026-10-15'},result_status:'EXECUTED',idempotency_key:'derived-7f31',duration_ms:9}],latency:{provider_latency_ms:380,tool_call_duration_ms:21,interaction_duration_ms:441},token_usage:{input_tokens:604,output_tokens:66,estimated_cost_usd:'0.000000'}}),
+ ev(1044,'2026-10-01T14:31:03Z',A,'PROPOSAL','PTP_PROPOSAL_CREATED','SYSTEM',null,'acc_000123',{policy_version:'policy-v1',final_action:'PENDING_CONFIRMATION',resource_type:'Proposal',resource_id:'prp_01J8ZK4C7D'}),
+ ev(1045,'2026-10-01T14:31:03Z',A,'RULE_VALIDATION','PTP_TERMS_VALIDATED','SYSTEM',null,'acc_000123',{policy_version:'policy-v1',rule_results:{valid:true,reason_codes:[],valid_amount_range:{min:'20.00',max:'612.40'},valid_date_range:{earliest:'2026-10-01',latest:'2026-10-31'}}}),
+ ev(1046,'2026-10-01T14:32:40Z',A,'HUMAN_DECISION','PROPOSAL_CONFIRMED_BY_CUSTOMER','CUSTOMER','CUSTOMER','acc_000123',{policy_version:'policy-v1',final_action:'CONFIRMED',resource_type:'Proposal',resource_id:'prp_01J8ZK4C7D'}),
+ ev(1047,'2026-10-01T14:32:41Z',A,'FINAL_STATE','PTP_CREATED','SYSTEM',null,'acc_000123',{policy_version:'policy-v1',final_action:'PTP_PENDING',resource_type:'PromiseToPay',resource_id:'ptp_01J8ZK7001'}),
+ ev(1031,'2026-10-01T14:05:00Z',B,'INPUT','RECOMMENDATION_REQUESTED','STAFF','COLLECTIONS_OFFICER','acc_000123',{input_ref:'acc_000123 record_version 7',resource_type:'Account',resource_id:'acc_000123'}),
+ ev(1032,'2026-10-01T14:05:02Z',B,'AI_INTERPRETATION','NEXT_BEST_ACTION_GENERATED','AI',null,'acc_000123',{capability:'NEXT_BEST_ACTION',provider:'anthropic',provider_mode:'LIVE',model_id:'example-model-2026-06',prompt_version:'nba-v3',policy_version:'policy-v1',ai_output:{action:'REQUEST_PAYMENT',referenced_factor_ids:['dpd','broken_ptp_count'],content_source:'MODEL'},latency:{provider_latency_ms:1820,tool_call_duration_ms:null,interaction_duration_ms:1870},token_usage:{input_tokens:1204,output_tokens:188,estimated_cost_usd:'0.004120'}}),
+ ev(1033,'2026-10-01T14:05:02Z',B,'RULE_VALIDATION','RECOMMENDATION_GROUNDING_CHECKED','SYSTEM',null,'acc_000123',{policy_version:'policy-v1',rule_results:{grounded:true,action_allowed:true}}),
+ ev(1034,'2026-10-01T14:20:11Z',B,'HUMAN_DECISION','RECOMMENDATION_OVERRIDDEN','STAFF','COLLECTIONS_OFFICER','acc_000123',{policy_version:'policy-v1',human_override:{overrode_ai:true,reason:'Customer asked for a call-back tomorrow; following up by phone first.'},final_action:'CONTACT_CUSTOMER',resource_type:'Recommendation',resource_id:'rec_01J8ZK5D2M'}),
+ ev(1035,'2026-10-01T14:20:11Z',B,'FINAL_STATE','RECOMMENDATION_DECISION_RECORDED','SYSTEM',null,'acc_000123',{policy_version:'policy-v1',final_action:'OVERRIDDEN',resource_type:'Recommendation',resource_id:'rec_01J8ZK5D2M'}),
+ ev(1021,'2026-09-30T10:02:10Z',Cc,'INPUT','CUSTOMER_MESSAGE_RECEIVED','CUSTOMER','CUSTOMER','acc_000206',{input_ref:'msg_01J8ZK3A11 (content redacted)',resource_type:'ChatMessage',resource_id:'msg_01J8ZK3A11'}),
+ ev(1022,'2026-09-30T10:02:14Z',Cc,'AI_INTERPRETATION','INTENT_CLASSIFICATION_FAILED','AI',null,'acc_000206',{capability:'INTENT_CLASSIFICATION',provider:'anthropic',provider_mode:'LIVE',model_id:'example-model-2026-06',prompt_version:'intent-v2',policy_version:'policy-v1',ai_output:{error:'schema_invalid_after_retry'},reason_code:'AI_UNAVAILABLE',latency:{provider_latency_ms:3900,tool_call_duration_ms:null,interaction_duration_ms:4010},token_usage:{input_tokens:298,output_tokens:12,estimated_cost_usd:'0.000740'}}),
+ ev(1023,'2026-09-30T10:02:14Z',Cc,'FINAL_STATE','AI_FAILURE_ESCALATION_CREATED','SYSTEM',null,'acc_000206',{policy_version:'policy-v1',final_action:'ESCALATED_TO_HUMAN_REVIEW',reason_code:'AI_FAILURE_FALLBACK',resource_type:'EscalationCase',resource_id:'esc_01J8ZK9A02'})];
+const chainsOf=arr=>{const m={};arr.forEach(e=>{(m[e.correlation_id]=m[e.correlation_id]||[]).push(e)});return Object.keys(m).map(k=>{const es=m[k].sort((a,b)=>a.sequence-b.sequence);const ai=es.find(e=>e.stage==='AI_INTERPRETATION');const last=es[es.length-1];return {correlation_id:k,account_id:es[0].account_id,started_at:es[0].timestamp,last_event_at:last.timestamp,event_count:es.length,stages_present:[...new Set(es.map(e=>e.stage))],final_action:last.final_action,policy_version:'policy-v1',model_id:ai?ai.model_id:null,prompt_version:ai?ai.prompt_version:null}}).sort((a,b)=>a.started_at<b.started_at?1:-1)};
+let Q={by:'account_id',val:'acc_000123',searched:true,chain:null,err:null},open={};
+function resetState(){Q={by:'account_id',val:'acc_000123',searched:true,chain:null,err:null};open={}}
+const actorChip=e=>e.actor_kind==='AI'?chip('AI','ai','✦'):e.actor_kind==='STAFF'?chip('Staff: '+e.actor_persona,'info','☺'):e.actor_kind==='CUSTOMER'?chip('Customer','neutral','☺'):chip('System','neutral','⚙');
+function render(){
+  const st=$('#mock-state').value;
+  if(st==='forbidden'){setShell('COLLECTIONS_OFFICER','');$('#main').innerHTML=forbiddenPage('COLLECTIONS_OFFICER','/audit');return}
+  setShell('COMPLIANCE_RISK','Audit Trail',{demoFlag:true});
+  const head=`<div class="pagehead"><div><h1>Audit trail</h1><p class="muted">Follow one decision from the customer's message to the final state. Read-only: audit records cannot be edited or deleted, and the API has no write route for them.</p></div><div>${api('GET /api/audit/chains')} ${api('GET /api/audit')}<br>${chip('Read-only','neutral','▣')}</div></div>`;
+  const form=`<form class="panel" id="sf" novalidate><div class="ph"><h2>Find a decision chain</h2></div><div class="row" style="align-items:flex-end"><label class="f">Search by<select id="by"><option value="account_id" ${Q.by==='account_id'?'selected':''}>Account id (account_id)</option><option value="correlation_id" ${Q.by==='correlation_id'?'selected':''}>Correlation id (correlation_id)</option></select></label><label class="f" style="flex:1;min-width:220px">Value<input id="val" value="${esc(Q.val)}" autocomplete="off" placeholder="acc_000123 or c0ffee1234abcd"></label><button type="submit" class="btn">Search</button></div><p class="small muted" style="margin:6px 0 0">Try <code>acc_000123</code>, <code>acc_000206</code> or correlation id <code>c0ffee1234abcd</code>. Requests: <code>GET /api/audit/chains?account_id=...</code> then <code>GET /api/audit?correlation_id=...</code></p></form>`;
+  let body='';
+  if(Q.err)body=Q.err;
+  else if(Q.searched){
+    let chains=st==='empty'?[]:chainsOf(EVENTS);
+    if(st==='error')body=errBox(500,'INTERNAL_ERROR',null,'The audit read failed. No events are shown; nothing was changed.','<button type="button" class="btn secondary" id="retry">Retry</button>');
+    else{
+      if(Q.by==='account_id')chains=chains.filter(c=>c.account_id===Q.val.trim());else chains=chains.filter(c=>c.correlation_id===Q.val.trim());
+      if(!chains.length)body=`<div class="empty" role="status"><strong>No decision chains found for ${esc(Q.val)}.</strong><p>Check the id, or search by the other field.</p></div>`;
+      else{
+        if(!Q.chain||!chains.find(c=>c.correlation_id===Q.chain))Q.chain=chains[0].correlation_id;
+        body=`<section class="panel" aria-labelledby="ch" style="margin:14px 0"><div class="ph"><h2 id="ch">Chains (${chains.length})</h2>${api('GET /api/audit/chains')}</div><div class="tablewrap"><table class="tight"><caption class="sr">Decision chains. Select one to view its timeline.</caption><thead><tr><th scope="col">Correlation id</th><th scope="col">Started</th><th scope="col" class="num">Events</th><th scope="col">Stages present</th><th scope="col">Final action</th></tr></thead><tbody>${chains.map(c=>`<tr ${Q.chain===c.correlation_id?'aria-current="true"':''}><td><button type="button" class="btn link" data-chain="${c.correlation_id}"><code>${c.correlation_id}</code></button></td><td>${fmtDT(c.started_at)}</td><td class="num">${c.event_count}</td><td class="small">${c.stages_present.map(s=>STAGES.find(x=>x[0]===s)[1]).join(', ')}</td><td>${esc(c.final_action||'-')}</td></tr>`).join('')}</tbody></table></div></section>`;
+        if(Q.chain)body+=timeline(Q.chain);else body+='<p class="muted">Select a chain to see its timeline.</p>';
+      }
+    }
+  }
+  $('#main').innerHTML=head+form+`<div id="res" aria-live="polite">${body}</div>`;
+  wire();
+}
+function timeline(corr){
+  const es=EVENTS.filter(e=>e.correlation_id===corr).sort((a,b)=>a.sequence-b.sequence);
+  const items=STAGES.map((s,i)=>{
+    const list=es.filter(e=>e.stage===s[0]);const id='st-'+s[0];
+    if(!list.length)return `<li class="miss"><div class="sh" role="group" aria-label="Stage ${i+1}: ${s[1]}, not present in this chain"><span aria-hidden="true">${s[2]}</span> Stage ${i+1}: ${s[1]} <span class="chip neutral">Not present in this chain</span></div></li>`;
+    const isOpen=open[corr+s[0]]!==false;
+    return `<li><h3 style="margin:0"><button type="button" class="sh" aria-expanded="${isOpen}" aria-controls="${id}" data-stage="${corr+s[0]}"><span aria-hidden="true">${s[2]}</span> Stage ${i+1}: ${s[1]} <span class="chip neutral">${list.length} event${list.length>1?'s':''}</span></button></h3><div id="${id}" ${isOpen?'':'hidden'}>${list.map(evHtml).join('')}</div></li>`}).join('');
+  return `<section class="panel" aria-labelledby="th"><div class="ph"><h2 id="th">Decision chain <code>${corr}</code></h2>${api('GET /api/audit?correlation_id='+corr)}</div><p class="small muted">Ordered by timestamp, then sequence. Six stages, always shown in this order. Use Tab to move between stages, Up/Down arrows also work, Enter or Space expands a stage.</p><ol class="tl" aria-label="Decision chain, six stages">${items}</ol></section>`;
+}
+function evHtml(e){
+  const ai=e.actor_kind==='AI';
+  const ver=ai?`<div class="ver" aria-label="Versions used by this AI step"><span><strong>model_id</strong> ${esc(e.model_id||'null')}</span><span><strong>prompt_version</strong> ${esc(e.prompt_version||'null')}</span><span><strong>PolicyRuleSet</strong> ${esc(e.policy_version||'null')}</span><span><strong>mode</strong> ${e.provider_mode||'-'}</span></div>`:(e.policy_version?`<div class="ver"><span><strong>PolicyRuleSet</strong> ${esc(e.policy_version)}</span></div>`:'');
+  const extra={};['capability','provider','ai_output','tool_calls','rule_results','human_override','input_ref','final_action','reason_code','resource_type','resource_id','latency','token_usage'].forEach(k=>{const v=e[k];if(v!==null&&!(Array.isArray(v)&&!v.length))extra[k]=v});
+  return `<article class="ev ${ai?'ai':''}" aria-label="${esc(e.event_type)}"><div class="row" style="justify-content:space-between"><strong>${esc(e.event_type)}</strong><span>${ai?tag('ai'):e.stage==='RULE_VALIDATION'?tag('rules'):''} ${actorChip(e)}</span></div><div class="small muted">${fmtDT(e.timestamp)} &middot; seq ${e.sequence} &middot; <span class="mono">${e.audit_event_id}</span></div>${ver}${e.human_override?`<p style="margin:6px 0 0"><strong>Human override:</strong> ${esc(e.human_override.reason)}</p>`:''}<details style="margin-top:6px"><summary>Redacted details (read-only)</summary><pre>${esc(JSON.stringify(extra,null,2))}</pre></details></article>`;
+}
+function wire(){
+  $('#sf').addEventListener('submit',e=>{e.preventDefault();Q.by=$('#by').value;Q.val=$('#val').value;Q.chain=null;open={};
+    if(!Q.val.trim()){Q.err=errBox(422,'VALIDATION_ERROR','FILTER_REQUIRED','At least one of correlation_id or account_id is required.');Q.searched=true}else{Q.err=null;Q.searched=true}
+    render();const r=$('#res');announce(Q.err?'Search needs a value':'Search complete');const b=$('button[data-chain]');});
+  $$('button[data-chain]').forEach(b=>b.onclick=()=>{Q.chain=b.dataset.chain;render();const t=$('#th');if(t){t.setAttribute('tabindex','-1');t.focus()}announce('Timeline loaded for '+Q.chain)});
+  $$('button[data-stage]').forEach(b=>{b.onclick=()=>{const k=b.dataset.stage;open[k]=!(open[k]!==false);render();const n=$(`button[data-stage="${k}"]`);if(n)n.focus()};
+    b.addEventListener('keydown',e=>{const all=$$('button[data-stage]');const i=all.indexOf(b);let n=null;if(e.key==='ArrowDown')n=all[i+1];else if(e.key==='ArrowUp')n=all[i-1];else if(e.key==='Home')n=all[0];else if(e.key==='End')n=all[all.length-1];if(n){e.preventDefault();n.focus()}})});
+  const r=$('#retry');if(r)r.onclick=()=>toast('Mockup: retry would call GET /api/audit');
+}
+
+initMockbar();
+$('#mock-state').addEventListener('change',()=>{if(typeof resetState==='function')resetState();render()});
+render();
+</script>
+</body>
+</html>

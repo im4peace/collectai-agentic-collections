@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E7-S3 Escalation and Review Queue - CollectAI mockup</title>
+<!--
+  Mockup for story E7-S3: Escalation and Review Queue
+  Self-contained: inline CSS and vanilla JS only, no CDN, no web fonts, no network calls.
+  Synthetic data only (fictional names, example.com, +1-555-01xx). Payments are simulated.
+  Field names, enums and shapes follow specs/design/api-contracts.md (snake_case, money as 2dp strings).
+  Contract gaps noted while building this mockup:
+  - AC3 (buttons disabled until a reason is entered) and AC7 (dialog focuses the reason field) overlap; the mockup gates the dialog submit button on the reason and lists REJECT, MODIFY, ESCALATE as normal buttons that open the dialog.
+  - The contract does not say how a reviewer supplies the requested information when a case is AWAITING_INFORMATION (only start-review resumes it).
+  - VERSION_CONFLICT returns context.current_version only, so the UI must re-GET /api/escalations/{case_id} to reload the case.
+  - ComplianceOutcome values have no descriptions in the contract, so the compliance dialog shows raw enum names.
+  - allowed_escalate_reasons (routing.reviewer_escalation_reasons) values are not enumerated; the mockup assumes HIGH_RISK_COMPLIANCE, POLICY_EXCEPTION, VULNERABLE_CUSTOMER.
+-->
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f8;--surface:#ffffff;--surface2:#eaeff4;--text:#14202b;--muted:#4a5a69;--line:#c3cfda;--brand:#0b4a6f;--brand-ink:#ffffff;--ai:#5b3fa6;--ai-bg:#f3effc;--rule:#0b4a6f;--rule-bg:#e9f2f9;--warn:#7d4a00;--warn-bg:#fff3d9;--danger:#a3201d;--danger-bg:#fdecea;--ok:#0f6a3a;--ok-bg:#e6f5ec;--sim:#6b3d00;--sim-bg:#ffefd2;--focus:#0a58ca;--shadow:0 1px 2px rgba(20,32,43,.08),0 4px 14px rgba(20,32,43,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none}}
+:root[data-theme=dark]{--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+h1{font-size:1.45rem;margin:.2rem 0 .6rem;line-height:1.25}h2{font-size:1.1rem;margin:0 0 .5rem}h3{font-size:.98rem;margin:.8rem 0 .3rem}
+p{margin:.3rem 0 .6rem}a{color:var(--brand)}
+code,.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;font-size:.86em}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:8px;top:-60px;background:var(--brand);color:var(--brand-ink);padding:8px 12px;border-radius:6px;z-index:100}.skip:focus{top:8px}
+.mockbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:8px 14px;background:repeating-linear-gradient(135deg,var(--surface2),var(--surface2) 10px,var(--bg) 10px,var(--bg) 20px);border-bottom:2px dashed var(--line);font-size:.82rem}
+.mockbar strong{font-weight:700}.mockbar label{display:flex;gap:6px;align-items:center}
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.02em;color:var(--brand)}.brand .env{font-weight:600;font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:6px}
+.appbar nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.appbar nav a{padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);border:1px solid transparent}
+.appbar nav a:hover{background:var(--surface2)}.appbar nav a[aria-current=page]{background:var(--rule-bg);color:var(--rule);border-color:var(--rule);font-weight:700}
+.who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.85rem}
+main{max-width:1240px;margin:0 auto;padding:16px}
+main:focus{outline:none}
+.pagehead{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+.muted{color:var(--muted)}.small{font-size:.82rem}.right{text-align:right}.num{font-variant-numeric:tabular-nums;text-align:right}
+.api{display:inline-block;font:600 .72rem/1.3 ui-monospace,Consolas,monospace;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;vertical-align:middle;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);min-width:0}
+.panel>.ph{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel>.ph h2{margin:0}
+.panel.ai{border:2px dashed var(--ai);background:var(--ai-bg)}
+.panel.rules{border-left:5px solid var(--rule)}
+.panel.sim{border-left:5px solid var(--sim)}
+.tag{display:inline-flex;gap:5px;align-items:center;font-size:.74rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid currentColor}
+.tag.rules{color:var(--rule);background:var(--rule-bg)}.tag.ai{color:var(--ai);background:var(--ai-bg)}.tag.sim{color:var(--sim);background:var(--sim-bg)}.tag.rec{color:var(--muted);background:var(--surface2)}
+.chip{display:inline-flex;gap:4px;align-items:center;font-size:.76rem;font-weight:700;border-radius:99px;padding:1px 9px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}.chip.warn{color:var(--warn);background:var(--warn-bg)}.chip.danger{color:var(--danger);background:var(--danger-bg)}.chip.info{color:var(--rule);background:var(--rule-bg)}.chip.ai{color:var(--ai);background:var(--ai-bg)}.chip.neutral{color:var(--muted);background:var(--surface2)}.chip.sim{color:var(--sim);background:var(--sim-bg)}
+.chip.demo{color:var(--warn);background:var(--warn-bg);border-style:dashed}
+.banner{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border:1px solid currentColor;border-radius:8px;padding:10px 12px;margin:8px 0}
+.banner.warn{color:var(--warn);background:var(--warn-bg)}.banner.danger{color:var(--danger);background:var(--danger-bg)}.banner.info{color:var(--rule);background:var(--rule-bg)}.banner.ok{color:var(--ok);background:var(--ok-bg)}.banner.ai{color:var(--ai);background:var(--ai-bg)}
+.banner>div{flex:1;min-width:200px;color:var(--text)}.banner .bi{font-weight:800}
+.btn{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:7px 13px;cursor:pointer;min-height:36px}
+.btn.secondary{background:var(--surface);color:var(--brand)}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn.danger{color:#1b0605}}:root[data-theme=dark] .btn.danger{color:#1b0605}
+.btn:hover:not([disabled]){filter:brightness(1.08)}
+.btn[disabled],.btn[aria-disabled=true]{opacity:.55;cursor:not-allowed;filter:none}
+.btn.link{background:none;border:none;color:var(--brand);text-decoration:underline;padding:2px 4px;min-height:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.g2,.g3{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:.85rem;min-width:0}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--muted);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%}
+textarea{width:100%;min-height:76px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:8px 10px}legend{font-weight:700;font-size:.85rem;padding:0 4px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px}.checks label{display:flex;gap:5px;align-items:center;font-weight:500}
+.tablewrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td.num,th.num{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--surface2)}
+th button.sort{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center;font:inherit;text-transform:inherit;letter-spacing:inherit;font-weight:700}
+th button.sort:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+dl.kv{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:4px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:.83rem}dl.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.stat{display:flex;flex-direction:column;gap:2px}.stat .v{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}.stat .l{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.overlay{position:fixed;inset:0;background:rgba(5,12,20,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
+.dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dialog:focus{outline:none}.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:60;max-width:92vw}
+.toast[hidden]{display:none}
+.forbidden{max-width:640px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:26px}
+.forbidden h1{color:var(--danger)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.bar{display:inline-block;height:8px;background:var(--rule);border-radius:4px;vertical-align:middle;min-width:2px}
+ul.plain{list-style:none;padding:0;margin:0}
+.footnote{font-size:.8rem;color:var(--muted);margin-top:10px}
+@media (max-width:600px){main{padding:10px}.appbar{padding:8px 10px}.mockbar{padding:6px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+
+.qbtn{all:unset;cursor:pointer;color:var(--brand);text-decoration:underline;font-weight:700}.qbtn:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.qbtn[aria-pressed=true]{color:var(--text);text-decoration:none;background:var(--rule-bg);padding:2px 6px;border-radius:4px;border:1px solid var(--rule)}
+tr[aria-current=true] td{background:var(--rule-bg)}
+.cbtn{all:unset;cursor:pointer;font-weight:700;color:var(--brand);text-decoration:underline}.cbtn:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.transcript{display:grid;gap:6px}.transcript div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)}
+.transcript .a{background:var(--ai-bg);border-color:var(--ai)}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="mockbar" data-bg>
+  <strong>Mockup E7-S3</strong><span class="muted">controls below are not part of the product UI</span>
+  <label>State: <select id="mock-state" aria-label="Mockup state toggle">
+<option value="officer">Officer: queue and reviewer actions</option>
+<option value="officer_empty">Officer: empty queue filter</option>
+<option value="conflict">Officer: stale version (409 VERSION_CONFLICT on next action)</option>
+<option value="compliance">COMPLIANCE_RISK: compliance queue</option>
+<option value="error">Error: 503 AUDIT_UNAVAILABLE on next action</option>
+  </select></label>
+  <button type="button" class="btn secondary" id="theme-btn" style="min-height:28px;padding:2px 10px">Theme: toggle light/dark</button>
+</div>
+<div id="root" data-bg>
+  <header class="appbar" id="appbar"></header>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="sr-live" class="sr" aria-live="polite" aria-atomic="true"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+/* ---- shared mockup helpers (inlined per file; no external deps) ---- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=l=>`<span class="api" data-api="${esc(l)}" title="API call">${esc(l)}</span>`;
+const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}$${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
+const cents=s=>{const m=String(s).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);return m?BigInt(m[1])*100n+BigInt((m[2]||'').padEnd(2,'0')||'0'):null};
+const fromCents=c=>{const n=c<0n?-c:c;const s=n.toString().padStart(3,'0');return (c<0n?'-':'')+s.slice(0,-2)+'.'+s.slice(-2)};
+const pct4=v=>{if(v==null)return '-';const [i,f='']=String(v).split('.');const n=BigInt(i+f.padEnd(4,'0').slice(0,4));const s=n.toString().padStart(3,'0');return s.slice(0,-2)+'.'+s.slice(-2)+'%'};
+const fmtDT=t=>t?esc(String(t).replace('T',' ').replace(/:\d\dZ$/,' UTC')):'-';
+const PN={CUSTOMER:'Customer',COLLECTIONS_OFFICER:'Collections Officer',COLLECTIONS_MANAGER:'Collections Manager',COMPLIANCE_RISK:'Compliance and Risk'};
+const NAV={CUSTOMER:[['Chat','/chat']],COLLECTIONS_OFFICER:[['Portfolio','/portfolio'],['Customer 360','/customers/acc_000123'],['Escalations','/escalations'],['Review queues','/review-queues'],['Demo controls','/demo-controls',true]],COLLECTIONS_MANAGER:[['Dashboard','/dashboard']],COMPLIANCE_RISK:[['Audit Trail','/audit'],['Compliance review queue','/compliance-review']]};
+const chip=(t,c,i)=>`<span class="chip ${c}">${i?`<span aria-hidden="true">${i}</span>`:''}${esc(t)}</span>`;
+const bandChip=b=>({HIGH:chip('HIGH priority','danger','▲'),MEDIUM:chip('MEDIUM priority','warn','◆'),LOW:chip('LOW priority','ok','▼')}[b]);
+const TAGS={rules:['▦','Rules engine'],ai:['✦','AI-generated'],sim:['◇','Simulated'],rec:['▤','System record']};
+const tag=k=>`<span class="tag ${k}"><span aria-hidden="true">${TAGS[k][0]}</span>${TAGS[k][1]}</span>`;
+const banner=(k,html,icon,role)=>`<div class="banner ${k}" ${role===false?'':`role="${role||(k==='danger'?'alert':'status')}"`}><span class="bi" aria-hidden="true">${icon||({warn:'⚠',danger:'✖',info:'ℹ',ok:'✔',ai:'✦'}[k])}</span><div>${html}</div></div>`;
+const errBox=(status,code,reason,msg,extra)=>banner('danger',`<strong>${status} ${esc(code)}${reason?' / '+esc(reason):''}</strong><br>${esc(msg)}${extra?'<br>'+extra:''}<br><span class="small muted">correlation_id: <code>c0ffee1234abcd</code></span>`);
+function announce(msg){const l=$('#sr-live');l.textContent='';setTimeout(()=>{l.textContent=msg},40)}
+let _tt;function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(_tt);_tt=setTimeout(()=>{t.hidden=true},3200);announce(msg)}
+function setShell(persona,current,opts={}){
+  const layout=persona==='CUSTOMER'?'Customer':'Internal';
+  const nav=(NAV[persona]||[]).filter(n=>!n[2]||opts.demoFlag);
+  $('#appbar').innerHTML=`<div class="brand"><span aria-hidden="true">◈</span> CollectAI <span class="env">${layout} layout</span></div>
+  <nav aria-label="Main navigation">${nav.map(n=>`<a href="${n[1]}" data-route="${n[1]}" ${n[0]===current?'aria-current="page"':''}>${n[0]}</a>`).join('')}</nav>
+  <div class="who"><span class="chip demo">Demo persona - not real authentication</span><span id="persona-chip" role="status" aria-live="polite">Current persona: <strong>${PN[persona]}</strong> <code>${persona}</code></span></div>`;
+}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-route]');if(a){e.preventDefault();if(window.onRoute)window.onRoute(a.dataset.route,a.textContent);else toast('Mockup: would navigate to '+a.dataset.route)}});
+const forbiddenPage=(persona,route)=>`<section class="forbidden" role="alert" aria-labelledby="fh"><h1 id="fh"><span aria-hidden="true">⛔</span> 403 - Forbidden</h1><p>The persona <strong>${esc(persona)}</strong> cannot open <code>${esc(route)}</code>.</p><p class="muted">No restricted data was requested or rendered. The API would answer <code>403 FORBIDDEN</code> and write an <code>ACCESS_DENIED</code> audit event.</p>${api('403 FORBIDDEN (no data fetched)')}</section>`;
+function openDialog({title,body,trigger,restore,focusSel,onMount}){
+  const prev=trigger||document.activeElement;
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t" tabindex="-1"><h2 id="dlg-t">${title}</h2><div>${body}</div></div>`;
+  document.body.appendChild(ov);const dlg=ov.firstElementChild;
+  const bg=$$('[data-bg]');bg.forEach(e=>{e.inert=true;e.setAttribute('aria-hidden','true')});
+  const foc=()=>$$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',dlg).filter(e=>!e.hidden);
+  function close(){document.removeEventListener('keydown',key,true);ov.remove();bg.forEach(e=>{e.inert=false;e.removeAttribute('aria-hidden')});
+    const t=document.contains(prev)?prev:(restore?$(restore):null);if(t&&t.focus)t.focus()}
+  function key(e){
+    if(e.key==='Escape'){e.stopPropagation();close();return}
+    if(e.key==='Tab'){const f=foc();if(!f.length){e.preventDefault();return}const a=document.activeElement;
+      if(e.shiftKey&&(a===f[0]||!dlg.contains(a))){e.preventDefault();f[f.length-1].focus()}
+      else if(!e.shiftKey&&(a===f[f.length-1]||!dlg.contains(a))){e.preventDefault();f[0].focus()}}}
+  document.addEventListener('keydown',key,true);
+  if(onMount)onMount(dlg,close);
+  const fi=(focusSel&&$(focusSel,dlg))||foc()[0]||dlg;fi.focus();
+  return close;
+}
+function initMockbar(){
+  const t=$('#theme-btn');t.addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark';t.textContent='Theme: '+(dark?'light':'dark')+' (toggle)'});
+}
+
+/* ---- page script: E7-S3 ---- */
+/* E7-S3 Escalation and Review Queue. Shapes: EscalationPage, EscalationListItem, EscalationSummaryResponse, EscalationDetail, DecisionRequest, ComplianceDecisionRequest (api-contracts.md 3.9, section 4).
+   Note on AC3: the action buttons open a reason dialog; the dialog's submit button stays disabled until a reason (and any required option) is entered. */
+
+const ROLE_OF_QUEUE={COMPLIANCE_REVIEW:'COMPLIANCE_RISK'};
+const QUEUES=['COLLECTIONS_REVIEW','COLLECTIONS_EXCEPTION_REVIEW','HARDSHIP_REVIEW','DISPUTE_REVIEW','VULNERABLE_CUSTOMER_REVIEW','COMPLIANCE_REVIEW'];
+const AGING={URGENT:24,ELEVATED:24,NORMAL:48};
+const ACTIVE=['OPEN','IN_REVIEW','AWAITING_INFORMATION'];
+const PRI={URGENT:0,ELEVATED:1,NORMAL:2};
+const ESC_REASONS=['HIGH_RISK_COMPLIANCE','POLICY_EXCEPTION','VULNERABLE_CUSTOMER'];
+const ROUTE_Q={HIGH_RISK_COMPLIANCE:'COMPLIANCE_REVIEW',POLICY_EXCEPTION:'COLLECTIONS_EXCEPTION_REVIEW',VULNERABLE_CUSTOMER:'VULNERABLE_CUSTOMER_REVIEW'};
+const mk=(n,reason,queue,pri,status,src,age,cust,cid,acc,ver)=>({case_id:'esc_01J8ZK9A'+n,reason,queue,reviewer_role:queue==='COMPLIANCE_REVIEW'?'COMPLIANCE_RISK':'COLLECTIONS_OFFICER',priority:pri,status,source:src,created_at:'2026-10-01T14:30:00Z',age_hours:age,aging_warning:age>=AGING[pri],customer_id:cid,customer_name:cust,account_id:acc,customer_360_path:'/customers/'+acc,version:ver,decisions:[]});
+const T={
+ FINANCIAL_HARDSHIP:['I lost my job last month and I cannot keep up with the payments.',"I'm sorry to hear that. I have passed this to a colleague who can look at your options. A person will follow up with you."],
+ VULNERABLE_CUSTOMER:['My husband passed away in August and I am struggling to manage his accounts.',"I'm very sorry for your loss. I have asked a colleague to contact you personally and no automated reminders will be sent."],
+ EXCEPTIONAL_ARRANGEMENT:['Could I pay this off over a longer period, starting later?','That request needs human review and is not approved. I have sent it to a colleague, who will decide.'],
+ DISPUTE:['The late fee is wrong, my payment cleared on time.','Thank you for telling me. I have recorded your dispute and a colleague will review it. That item will not be chased in the meantime.'],
+ REQUEST_HUMAN:["I'd like to talk to someone, please.",'Of course. A human colleague will follow up with you.'],
+ AI_FAILURE_FALLBACK:['Can I pay 300 on Friday?',"I can't process that right now. Nothing has been changed, and a colleague will look at it."],
+ POLICY_EXCEPTION:['Could you make an exception to the usual rules for me?','That request needs human review and is not approved. A colleague will decide.'],
+ HIGH_RISK_COMPLIANCE:['If this is not fixed I am going to report it to the regulator.','I understand. I have passed your message to a colleague who reviews these matters. Nothing has been changed on your account.']};
+function mkOpt(n,total,first){const t=cents(total),base=t/BigInt(n),fin=t-base*BigInt(n-1);let [y,m,d]=first.split('-').map(Number);const sched=[];for(let i=0;i<n;i++){const mm=((m-1+i)%12)+1,yy=y+Math.floor((m-1+i)/12);sched.push({sequence:i+1,due_date:`${yy}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`,amount:fromCents(i===n-1?fin:base)})}return {option_id:`opt-${n}-${first}`,installment_count:n,installment_amount:fromCents(base),final_installment_amount:fromCents(fin),total_amount:total,first_installment_date:first,frequency:'MONTHLY',schedule:sched}}
+let inited=false,CASES=[],SEL=null,FILTER=null,NOTICE='',conflictPending=false,detailCache={},OUTCOME='';
+function resetState(){
+  const st=$('#mock-state').value;
+  CASES=st==='officer_empty'?[]:[
+   mk('01','FINANCIAL_HARDSHIP','HARDSHIP_REVIEW','URGENT','OPEN','AI',78,'Priya Raman','cus_0041','acc_000123',3),
+   mk('02','VULNERABLE_CUSTOMER','VULNERABLE_CUSTOMER_REVIEW','URGENT','OPEN','AI',30,'Hana Kobayashi','cus_0115','acc_000206',2),
+   mk('08','HIGH_RISK_COMPLIANCE','COMPLIANCE_REVIEW','URGENT','OPEN','SYSTEM',12,'Marcus Feldman','cus_0052','acc_000131',1),
+   mk('03','EXCEPTIONAL_ARRANGEMENT','COLLECTIONS_EXCEPTION_REVIEW','ELEVATED','IN_REVIEW','CUSTOMER',26,'Sofia Marchetti','cus_0094','acc_000185',4),
+   mk('09','HIGH_RISK_COMPLIANCE','COMPLIANCE_REVIEW','ELEVATED','IN_REVIEW','REVIEWER',40,'Kwame Adjei','cus_0156','acc_000245',5),
+   mk('05','DISPUTE','DISPUTE_REVIEW','ELEVATED','OPEN','CUSTOMER',20,'Amara Nwosu','cus_0081','acc_000164',1),
+   mk('04','EXCEPTIONAL_ARRANGEMENT','COLLECTIONS_EXCEPTION_REVIEW','ELEVATED','OPEN','CUSTOMER',9,'Rafael Quintero','cus_0140','acc_000230',1),
+   mk('07','AI_FAILURE_FALLBACK','COLLECTIONS_REVIEW','NORMAL','AWAITING_INFORMATION','SYSTEM',52,'Tobias Lindqvist','cus_0073','acc_000157',2),
+   mk('06','REQUEST_HUMAN','COLLECTIONS_REVIEW','NORMAL','OPEN','CUSTOMER',5,'Elena Vasquez','cus_0067','acc_000142',1)];
+  SEL=null;FILTER=null;NOTICE='';OUTCOME='';conflictPending=(st==='conflict');detailCache={};
+}
+const persona=()=>$('#mock-state').value==='compliance'?'COMPLIANCE_RISK':'COLLECTIONS_OFFICER';
+const isActive=c=>ACTIVE.includes(c.status);
+function visible(){let r=CASES.filter(isActive);if(persona()==='COMPLIANCE_RISK')r=r.filter(c=>c.queue==='COMPLIANCE_REVIEW');else if(FILTER)r=r.filter(c=>c.queue===FILTER);return r.sort((a,b)=>PRI[a.priority]-PRI[b.priority]||b.age_hours-a.age_hours)}
+function detailOf(c){
+  const ex=c.reason==='EXCEPTIONAL_ARRANGEMENT';const over=c.case_id.endsWith('04');
+  const total=c.case_id.endsWith('03')?'2225.00':'1460.00';
+  const d={case:c,summary:{FINANCIAL_HARDSHIP:'Customer reports job loss and asks for help.',VULNERABLE_CUSTOMER:'Possible bereavement; vulnerable-customer review.',EXCEPTIONAL_ARRANGEMENT:'Customer requests a longer arrangement than policy allows.',DISPUTE:'Customer disputes a late fee.',REQUEST_HUMAN:'Customer asked to speak to a person.',AI_FAILURE_FALLBACK:'AI provider failed during a chat turn; safe fallback used.',HIGH_RISK_COMPLIANCE:'Customer threatens a regulatory complaint; compliance review required.',POLICY_EXCEPTION:'Re-routed for a policy exception decision.'}[c.reason],
+   parent_case_id:null,rerouted_to_case_id:null,
+   conversation:{conversation:{conversation_id:'conv_01J8ZKA'+c.case_id.slice(-2),account_id:c.account_id,status:'HANDED_OFF',created_at:'2026-09-30T10:00:00Z',last_message_at:'2026-09-30T10:03:00Z'},messages:[{role:'CUSTOMER',content:T[c.reason][0],content_source:'CUSTOMER_INPUT',labels:[]},{role:'ASSISTANT',content:T[c.reason][1],content_source:'TEMPLATE',labels:['HUMAN_HANDOFF']}],pending_proposal:null,handoff:null},
+   ai_recommendation:null,
+   rule_results:{policy_version:'policy-v1',priority:{score:c.priority==='URGENT'?'88.40':'61.15',band:c.priority==='URGENT'?'HIGH':'MEDIUM',factors:[],policy_version:'policy-v1'},treatment:{human_treatment:true,automated_treatment_suppressed:true,suppressions:[{source_type:'ESCALATION',source_id:c.case_id,scope:'ACCOUNT',item_id:null}]},eligibility:null,exception_authority:null},
+   decisions:c.decisions,allowed_escalate_reasons:ESC_REASONS,compliance_outcomes:[]};
+  if(['FINANCIAL_HARDSHIP','VULNERABLE_CUSTOMER','EXCEPTIONAL_ARRANGEMENT'].includes(c.reason))d.ai_recommendation={recommendation_id:'rec_01J8ZKB'+c.case_id.slice(-2),account_id:c.account_id,source:'ai',action:'ESCALATE_TO_HUMAN_REVIEW',rationale:ex?'The request extends beyond standard arrangement terms, so it needs a human decision. Eligible standard options are listed under rule results.':'Signals of hardship or vulnerability were detected, so no automated collection step is recommended.',referenced_factor_ids:[],status:'HUMAN_REVIEW_ONLY',content_source:'TEMPLATE',model_id:null,prompt_version:null,policy_version:'policy-v1',record_version:7,created_at:'2026-09-30T10:03:00Z',audit_event_id:'aud_01J8ZKB0'+c.case_id.slice(-1),officer_decision:null};
+  if(c.reason==='AI_FAILURE_FALLBACK')d.ai_recommendation={recommendation_id:'rec_01J8ZKB07',account_id:c.account_id,source:'ai',action:'ESCALATE_TO_HUMAN_REVIEW',rationale:'Recommendation could not be generated: the AI provider was unavailable.',referenced_factor_ids:[],status:'SAFE_FALLBACK',content_source:'TEMPLATE',model_id:'example-model-2026-06',prompt_version:'nba-v3',policy_version:'policy-v1',record_version:5,created_at:'2026-09-29T09:10:00Z',audit_event_id:'aud_01J8ZKB07',officer_decision:null};
+  if(ex){const opts=total==='2225.00'?[mkOpt(6,total,'2026-10-15'),mkOpt(9,total,'2026-10-15')]:[mkOpt(3,total,'2026-10-15'),mkOpt(6,total,'2026-10-15')];
+    d.rule_results.eligibility={classification:'EXCEPTIONAL',reason_code:null,options:opts,requested_terms:over?{installment_count:18,first_installment_date:'2027-01-15',installment_amount:null}:{installment_count:12,first_installment_date:'2026-11-15',installment_amount:null},exception_types:over?['TERM','START_DATE']:['TERM'],within_reviewer_thresholds:!over};
+    d.rule_results.exception_authority={approve_permitted:!over,denied_reason_code:over?'EXCEEDS_THRESHOLD':null,permitted_types:['TERM','START_DATE'],max_overdue_amount:'2500.00'}}
+  if(c.reason==='DISPUTE')d.dispute={dispute_id:'dsp_01J8ZKC05',account_id:c.account_id,customer_id:c.customer_id,item_id:'itm_01J8ZK2C03',category:'FEE_OR_INTEREST_DISPUTE',customer_reason:'The late fee is wrong, my payment cleared on time.',status:'OPEN',outcome:null,resolution_reason:null,conversation_id:d.conversation.conversation.conversation_id,escalation_case_id:c.case_id,created_at:'2026-09-30T10:03:00Z',resolved_at:null,version:1};
+  if(c.reason==='FINANCIAL_HARDSHIP')d.hardship_case={hardship_case_id:'hsp_01J8ZKC01',account_id:c.account_id,customer_id:c.customer_id,conversation_id:d.conversation.conversation.conversation_id,status:'OPEN',indicators:[{indicator_type:'JOB_LOSS',customer_statement:'I lost my job last month.'}],escalation_case_id:c.case_id,created_at:'2026-09-30T10:03:00Z',decided_at:null};
+  d.available_actions=available(c,d);
+  if(persona()==='COMPLIANCE_RISK'&&c.queue==='COMPLIANCE_REVIEW'&&isActive(c))d.compliance_outcomes=['CLEARED','NOT_CLEARED','REMEDIATION_REQUIRED'];
+  return d;
+}
+function available(c,d){
+  const A=(action,ok,den,rr,rn)=>({action,permitted:ok,denied_reason_code:ok?null:den,requires_reason:!!rr,requires_note:!!rn});
+  const p=persona();
+  if(p==='COMPLIANCE_RISK')return [A('COMPLIANCE_DECISION',c.queue==='COMPLIANCE_REVIEW'&&isActive(c),'INVALID_STATE_TRANSITION',true)];
+  const all=['START_REVIEW','APPROVE','REJECT','MODIFY','REQUEST_MORE_INFORMATION','ESCALATE'];
+  if(c.reviewer_role==='COMPLIANCE_RISK')return all.map(a=>A(a,false,'WRONG_REVIEWER_ROLE'));
+  if(!isActive(c))return all.map(a=>A(a,false,'INVALID_STATE_TRANSITION'));
+  const ex=c.reason==='EXCEPTIONAL_ARRANGEMENT';
+  const appr=['FINANCIAL_HARDSHIP','VULNERABLE_CUSTOMER'].includes(c.reason)||(ex&&c.case_id.endsWith('03'));
+  return [A('START_REVIEW',c.status!=='IN_REVIEW','INVALID_STATE_TRANSITION'),A('APPROVE',appr,'NOT_PERMITTED_BY_POLICY',true),A('REJECT',true,null,true),A('MODIFY',ex,'NOT_PERMITTED_BY_POLICY',true),A('REQUEST_MORE_INFORMATION',true,null,false,true),A('ESCALATE',true,null,true)];
+}
+function summary(){const vis=persona()==='COMPLIANCE_RISK'?['COMPLIANCE_REVIEW']:QUEUES;return vis.map(q=>{const cs=CASES.filter(c=>c.queue===q&&isActive(c));return {queue:q,open_count:cs.filter(c=>c.status==='OPEN').length,in_review_count:cs.filter(c=>c.status==='IN_REVIEW').length,awaiting_information_count:cs.filter(c=>c.status==='AWAITING_INFORMATION').length,oldest_age_hours:cs.length?Math.max(...cs.map(c=>c.age_hours)):null,aging_warning_count:cs.filter(c=>c.aging_warning).length}})}
+const priChip=p=>({URGENT:chip('URGENT','danger','▲'),ELEVATED:chip('ELEVATED','warn','◆'),NORMAL:chip('NORMAL','neutral','●')}[p]);
+const ageHtml=c=>`${c.age_hours} h ${c.aging_warning?chip('Aging warning','danger','⏱'):chip('Within target','ok','✔')}`;
+function render(){
+  if(!inited){resetState();inited=true}
+  const p=persona();
+  setShell(p,p==='COMPLIANCE_RISK'?'Compliance review queue':'Review queues',{demoFlag:true});
+  const st=$('#mock-state').value;
+  const vis=visible();
+  if(SEL&&!CASES.find(c=>c.case_id===SEL))SEL=null;
+  const sum=summary();
+  let html=`<div class="pagehead"><div><h1>${p==='COMPLIANCE_RISK'?'Compliance review queue':'Escalation and review queues'}</h1><p class="muted">Sorted by priority (URGENT first), then age (oldest first). ${p==='COMPLIANCE_RISK'?'COMPLIANCE_RISK sees only COMPLIANCE_REVIEW.':'Active statuses only: OPEN, IN_REVIEW, AWAITING_INFORMATION.'}</p></div><div>${api('GET /api/escalations'+(FILTER&&p!=='COMPLIANCE_RISK'?'?queue='+FILTER:''))} ${api('GET /api/escalations/summary')}</div></div>`;
+  html+=`<div id="notice" aria-live="polite">${NOTICE}</div>`;
+  html+=`<section class="panel" aria-labelledby="qh"><div class="ph"><h2 id="qh">Queues</h2>${tag('rec')}</div><div class="tablewrap"><table class="tight"><caption class="sr">Queue summary. Select a queue name to filter the list.</caption><thead><tr><th scope="col">Queue</th><th scope="col" class="num">Open</th><th scope="col" class="num">In review</th><th scope="col" class="num">Awaiting info</th><th scope="col" class="num">Oldest (hours)</th><th scope="col" class="num">Aging warnings</th></tr></thead><tbody>
+   ${p==='COLLECTIONS_OFFICER'?`<tr><th scope="row"><button type="button" class="qbtn" data-q="" aria-pressed="${!FILTER}">All queues</button></th><td class="num muted" colspan="5">${vis.length} active cases</td></tr>`:''}
+   ${sum.map(s=>`<tr><th scope="row">${p==='COLLECTIONS_OFFICER'?`<button type="button" class="qbtn" data-q="${s.queue}" aria-pressed="${FILTER===s.queue}">${s.queue}</button>`:s.queue}${s.queue==='COMPLIANCE_REVIEW'&&p==='COLLECTIONS_OFFICER'?' <span class="chip neutral">Read-only</span>':''}</th><td class="num">${s.open_count}</td><td class="num">${s.in_review_count}</td><td class="num">${s.awaiting_information_count}</td><td class="num">${s.oldest_age_hours==null?'-':s.oldest_age_hours}</td><td class="num">${s.aging_warning_count?chip(String(s.aging_warning_count),'danger','⏱'):'0'}</td></tr>`).join('')}</tbody></table></div></section>`;
+  html+=`<h2 style="margin:16px 0 6px">Cases <span class="small muted">(${vis.length})</span></h2>`;
+  if(!vis.length)html+=`<div class="empty" role="status"><strong>No cases in this queue.</strong><p>Nothing needs review right now.</p></div>`;
+  else html+=`<div class="tablewrap"><table><caption class="sr">Escalation cases sorted by priority then age</caption><thead><tr><th scope="col">Case</th><th scope="col">Reason</th><th scope="col">Queue</th><th scope="col">Priority</th><th scope="col">Aging</th><th scope="col">Source</th><th scope="col">Status</th></tr></thead><tbody>${vis.map(c=>`<tr ${SEL===c.case_id?'aria-current="true"':''}><td><button type="button" class="cbtn" data-case="${c.case_id}">${esc(c.customer_name)}</button><br><span class="small muted mono">${c.case_id} &middot; ${c.account_id}</span></td><td>${c.reason.replace(/_/g,' ')}</td><td class="small">${c.queue}</td><td>${priChip(c.priority)}</td><td>${ageHtml(c)}</td><td>${c.source==='AI'?chip('AI','ai','✦'):chip(c.source,'neutral')}</td><td>${chip(c.status.replace(/_/g,' '),c.status==='OPEN'?'info':'warn')}</td></tr>`).join('')}</tbody></table></div>`;
+  const sel=CASES.find(c=>c.case_id===SEL);
+  html+=`<div id="detail" style="margin-top:16px">${sel?detailHtml(sel):'<p class="muted">Select a case to open its detail.</p>'}</div>`;
+  $('#main').innerHTML=html;wire();
+}
+function msgs(d){return `<div class="transcript">${d.conversation.messages.map(m=>m.role==='CUSTOMER'?`<div><strong>Customer</strong><br>${esc(m.content)}</div>`:`<div class="a"><strong>✦ AI assistant</strong> <span class="small muted">(${m.content_source.toLowerCase()} text)</span><br>${esc(m.content)}</div>`).join('')}</div>`}
+function detailHtml(c){
+  const d=detailOf(c);const p=persona();const rr=d.rule_results,rec=d.ai_recommendation,el=rr.eligibility,ea=rr.exception_authority;
+  const conv=`<section class="panel" aria-labelledby="dc"><div class="ph"><h2 id="dc">Conversation</h2>${tag('rec')}</div>${msgs(d)}<p class="small muted">${api('GET /api/conversations/'+d.conversation.conversation.conversation_id)} Source: customer and assistant text.</p></section>`;
+  const ai=`<section class="panel ai" aria-labelledby="da"><div class="ph"><h2 id="da">AI recommendation</h2>${tag('ai')}</div>${rec?`<p><span class="chip ai">${rec.status}</span> <strong>${rec.action.replace(/_/g,' ')}</strong></p><p>${esc(rec.rationale)}</p><dl class="kv small"><dt>content_source</dt><dd>${rec.content_source}</dd><dt>model_id</dt><dd>${rec.model_id||'null'}</dd><dt>prompt_version</dt><dd>${rec.prompt_version||'null'}</dd></dl><p class="small muted">Advisory only. The reviewer decides.</p>`:'<p class="muted">No AI recommendation for this case. The reviewer decides without one.</p>'}</section>`;
+  const rules=`<section class="panel rules" aria-labelledby="dr"><div class="ph"><h2 id="dr">Rule results</h2>${tag('rules')}</div><dl class="kv"><dt>policy_version</dt><dd>${rr.policy_version}</dd><dt>priority</dt><dd>${bandChip(rr.priority.band)} score ${rr.priority.score} (system-calculated)</dd><dt>treatment</dt><dd>${rr.treatment.automated_treatment_suppressed?chip('Automated treatment suppressed','warn','⚠'):'Not suppressed'}</dd>${el?`<dt>eligibility</dt><dd>${chip(el.classification,'warn','◆')} requested ${el.requested_terms.installment_count} installments from ${el.requested_terms.first_installment_date} (${el.exception_types.join(', ')})</dd><dt>eligible options</dt><dd>${el.options.map(o=>`${o.installment_count} x ${money(o.installment_amount)} (last ${money(o.final_installment_amount)})`).join('<br>')}</dd>`:''}${ea?`<dt>exception authority</dt><dd>${ea.approve_permitted?chip('Approve permitted','ok','✔'):chip('Approve not permitted: '+ea.denied_reason_code,'danger','✖')}<br><span class="small muted">max overdue ${money(ea.max_overdue_amount)}</span></dd>`:''}</dl>${d.hardship_case?`<p class="small">Hardship ${d.hardship_case.status}: ${d.hardship_case.indicators.map(i=>i.indicator_type).join(', ')}</p>`:''}${d.dispute?`<p class="small">Dispute ${d.dispute.status}: ${d.dispute.category}</p>`:''}</section>`;
+  const hist=d.decisions.length?`<h3>Decision history</h3><ul>${d.decisions.map(x=>`<li><code>${x.decision_id}</code> ${x.action||x.compliance_outcome} by ${x.reviewer_persona}: ${esc(x.reason||x.note||'')} <span class="small muted">(case version now ${x.case_version_after}${x.overrode_ai?', overrode AI':''})</span></li>`).join('')}</ul>`:'';
+  let actions='';
+  const av=d.available_actions;
+  if(p==='COMPLIANCE_RISK'){
+    actions=av[0]&&av[0].permitted?`<div class="row"><button type="button" class="btn" id="comp" data-action="COMPLIANCE_DECISION">Record compliance decision...</button>${api('POST /api/escalations/'+c.case_id+'/compliance-decision')}</div>`:'<p class="muted">This case is not open for a compliance decision.</p>';
+  }else if(c.reviewer_role==='COMPLIANCE_RISK'){
+    actions=banner('info','<strong>Read-only for COLLECTIONS_OFFICER.</strong> This case belongs to COMPLIANCE_REVIEW (<code>WRONG_REVIEWER_ROLE</code>). Compliance decision controls are shown only to COMPLIANCE_RISK.',null,false);
+  }else if(!isActive(c)){actions=banner('ok',`<strong>Case ${c.status}.</strong> No further actions.`,null,false)}
+  else{
+    const get=a=>av.find(x=>x.action===a);const btns=[];
+    if(get('START_REVIEW').permitted)btns.push(`<button type="button" class="btn secondary" id="start" data-action="START_REVIEW">Start review</button><span>${api('POST .../start-review')}</span>`);
+    if(get('APPROVE').permitted)btns.push(`<button type="button" class="btn" data-action="APPROVE">Approve...</button>`);
+    ['REJECT','MODIFY','ESCALATE','REQUEST_MORE_INFORMATION'].forEach(a=>{const x=get(a);const lab={REJECT:'Reject',MODIFY:'Modify',ESCALATE:'Escalate',REQUEST_MORE_INFORMATION:'Request more information'}[a];btns.push(x.permitted?`<button type="button" class="btn ${a==='REJECT'?'danger':'secondary'}" data-action="${a}">${lab}...</button>`:`<button type="button" class="btn secondary" disabled title="${x.denied_reason_code}">${lab}</button>`)});
+    actions=`<div class="row">${btns.join('')}</div><p class="small muted">${api('POST /api/escalations/'+c.case_id+'/decisions')} <span class="mono small">expected_version: ${c.version}; Idempotency-Key required</span></p>${get('APPROVE').permitted?'':'<p class="small muted">Approve is not available for this case (reported by the API: NOT_PERMITTED_BY_POLICY'+(ea&&ea.denied_reason_code?', '+ea.denied_reason_code:'')+').</p>'}<p class="small muted">Reject, Modify, Escalate and Request more information each need a reason (or note) before they can be submitted.</p>`;
+  }
+  return `<div class="panel" style="margin-bottom:12px"><div class="ph"><h2>Case ${c.case_id} <span class="small muted">version ${c.version}</span></h2><span>${api('GET /api/escalations/'+c.case_id)} <a href="${c.customer_360_path}" data-route="${c.customer_360_path}">Open Customer 360</a></span></div><p style="margin:0">${esc(c.customer_name)} &middot; ${c.account_id} &middot; ${c.reason.replace(/_/g,' ')} &middot; ${priChip(c.priority)} ${chip(c.status.replace(/_/g,' '),'info')} &middot; ${ageHtml(c)}</p><p class="muted">${esc(d.summary)}</p>${actions}${hist}</div><div class="grid g3">${conv}${ai}${rules}</div>`;
+}
+function wire(){
+  $$('button[data-q]').forEach(b=>b.onclick=()=>{FILTER=b.dataset.q||null;render();const n=$(`button[data-q="${b.dataset.q}"]`);if(n)n.focus();announce('Showing '+(FILTER||'all queues')+', '+visible().length+' cases')});
+  $$('button[data-case]').forEach(b=>b.onclick=()=>{SEL=b.dataset.case;NOTICE='';render();const n=$(`button[data-case="${SEL}"]`);if(n)n.focus();announce('Case opened')});
+  $$('button[data-action]').forEach(b=>b.onclick=()=>doAction(b.dataset.action,b));
+  const s=$('#start');if(s)s.onclick=()=>{const c=CASES.find(x=>x.case_id===SEL);if(checkConflict(c,'#start'))return;c.status='IN_REVIEW';c.version++;NOTICE=banner('ok','Review started. Case is now IN_REVIEW.',null,'status');render();const n=$('[data-action=REJECT]');if(n)n.focus();announce('Review started')};
+}
+function checkConflict(c,restore){
+  if(!conflictPending)return false;conflictPending=false;c.version++;
+  NOTICE=errBox(409,'CONFLICT','VERSION_CONFLICT','This case changed while you were reviewing it. The latest version has been reloaded. Please review it and try again.','context.current_version: '+c.version);render();announce('This case changed. Latest version reloaded.');return true;
+}
+function doAction(action,trigger){
+  const c=CASES.find(x=>x.case_id===SEL);const d=detailOf(c);
+  const meta={APPROVE:['Approve',true],REJECT:['Reject',true],MODIFY:['Modify',true],ESCALATE:['Escalate',true],REQUEST_MORE_INFORMATION:['Request more information',false],COMPLIANCE_DECISION:['Record compliance decision',true]}[action];
+  const isNote=action==='REQUEST_MORE_INFORMATION',lab=meta[0],comp=action==='COMPLIANCE_DECISION';
+  const el=d.rule_results.eligibility;
+  let extra='';
+  if(action==='MODIFY')extra=`<label class="f" style="margin-top:8px">Eligible option (option_id)<select id="a-opt"><option value="">Choose an option...</option>${el.options.map(o=>`<option value="${o.option_id}">${o.installment_count} x ${money(o.installment_amount)} (last ${money(o.final_installment_amount)}), first ${o.first_installment_date}</option>`).join('')}</select><span class="small muted">Only rules-engine options. Free-form amounts are rejected (FREE_FORM_AMOUNT_NOT_ALLOWED). The customer must confirm the modified terms.</span></label>`;
+  if(action==='ESCALATE')extra=`<label class="f" style="margin-top:8px">escalate_reason (whitelisted)<select id="a-esc"><option value="">Choose a reason...</option>${d.allowed_escalate_reasons.map(r=>`<option value="${r}">${r}</option>`).join('')}</select><span class="small muted">You cannot pick a queue. The routing service chooses the destination.</span></label>`;
+  if(comp)extra=`<fieldset style="margin-top:8px"><legend>Outcome (compliance.review_outcomes)</legend><div class="checks">${d.compliance_outcomes.map(o=>`<label><input type="radio" name="a-out" value="${o}">${o}</label>`).join('')}</div></fieldset>`;
+  if(['FINANCIAL_HARDSHIP','VULNERABLE_CUSTOMER'].includes(c.reason)&&(action==='APPROVE'||action==='REJECT'))extra+=`<label class="checks" style="margin-top:8px"><input type="checkbox" id="a-rel"> release_suppression (release hardship or vulnerable suppression)</label>`;
+  openDialog({title:lab+' - '+esc(c.customer_name),trigger,restore:`[data-action="${action}"]`,focusSel:'#a-reason',body:`<p class="small muted">${api(comp?'POST /api/escalations/'+c.case_id+'/compliance-decision':'POST /api/escalations/'+c.case_id+'/decisions')} <span class="mono small">action: ${action}, expected_version: ${c.version}</span></p>${extra}
+   <label class="f" style="margin-top:8px">${isNote?'Note (required)':'Reason (required, 1-1000 characters)'}<textarea id="a-reason" aria-required="true" aria-describedby="a-msg"></textarea></label><p id="a-msg" class="small" style="color:var(--danger)" role="status"></p><div id="a-err" role="alert"></div>
+   <div class="dlg-actions"><button type="button" class="btn secondary" id="a-cancel">Cancel</button><button type="button" class="btn ${action==='REJECT'?'danger':''}" id="a-ok" disabled>${lab}</button></div>`,
+   onMount:(dlg,close)=>{
+    const t=$('#a-reason',dlg),ok=$('#a-ok',dlg);
+    const upd=()=>{const okText=!!t.value.trim();const okOpt=action!=='MODIFY'||$('#a-opt',dlg).value;const okEsc=action!=='ESCALATE'||$('#a-esc',dlg).value;const okOut=!comp||$('input[name=a-out]:checked',dlg);ok.disabled=!(okText&&okOpt&&okEsc&&okOut);$('#a-msg',dlg).textContent=okText?'':(isNote?'NOTE_REQUIRED':'REASON_REQUIRED')+': enter text to enable this action.'};
+    dlg.addEventListener('input',upd);dlg.addEventListener('change',upd);
+    $('#a-cancel',dlg).onclick=close;
+    ok.onclick=()=>{
+      if(conflictPending){conflictPending=false;c.version++;close();NOTICE=errBox(409,'CONFLICT','VERSION_CONFLICT','This case changed while you were reviewing it. The latest version has been reloaded. Please review it and try again.','context.current_version: '+c.version);render();announce('This case changed. Latest version reloaded.');return}
+      if($('#mock-state').value==='error'){$('#a-err',dlg).innerHTML=errBox(503,'AUDIT_UNAVAILABLE',null,'The audit write failed, so nothing was changed. Try again shortly.');return}
+      const dec={decision_id:'dec_01J8ZKD'+String(Math.floor(Math.random()*90)+10),case_id:c.case_id,action:comp?null:action,compliance_outcome:comp?$('input[name=a-out]:checked',dlg).value:null,reason:t.value.trim(),reviewer_persona:persona(),overrode_ai:(action==='REJECT'||action==='MODIFY')&&c.source==='AI',case_version_after:c.version+1};
+      dec.note=isNote?t.value.trim():null;
+      c.version++;c.decisions.push(dec);
+      let out=`<strong>200 DecisionResult.</strong> ${comp?'Compliance outcome '+dec.compliance_outcome:'Action '+action} recorded as <code>${dec.decision_id}</code>; case version is now ${c.version}.`;
+      if(action==='REQUEST_MORE_INFORMATION'){c.status='AWAITING_INFORMATION'}
+      else if(action==='ESCALATE'){c.status='RE_ROUTED';const er=$('#a-esc',dlg).value;const n=mk('N'+Math.floor(Math.random()*90+10),er,ROUTE_Q[er],c.priority,'OPEN','REVIEWER',0,c.customer_name,c.customer_id,c.account_id,1);n.reason=er;CASES.push(n);out+=` Re-routed to <strong>${n.queue}</strong> as new case <code>${n.case_id}</code> (parent_case_id set).`}
+      else{c.status='DECIDED';if(action==='APPROVE'&&c.reason==='EXCEPTIONAL_ARRANGEMENT')out+=` An arrangement was created with exactly the customer's requested terms (created_via EXCEPTION_APPROVAL).`;if(action==='MODIFY')out+=` A pending ARRANGEMENT proposal was created; the customer must confirm it before anything takes effect.`;if(dec.overrode_ai)out+=' Recorded as an AI override (overrode_ai true).'}
+      NOTICE=banner('ok',out,null,'status');close();render();announce('Decision recorded');
+    };
+   }});
+}
+
+initMockbar();
+$('#mock-state').addEventListener('change',()=>{if(typeof resetState==='function')resetState();render()});
+render();
+</script>
+</body>
+</html>

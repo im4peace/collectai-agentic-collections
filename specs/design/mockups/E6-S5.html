@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E6-S5 AI Collections Chat - CollectAI mockup</title>
+<!--
+  Mockup for story E6-S5: AI Collections Chat
+  Self-contained: inline CSS and vanilla JS only, no CDN, no web fonts, no network calls.
+  Synthetic data only (fictional names, example.com, +1-555-01xx). Payments are simulated.
+  Field names, enums and shapes follow specs/design/api-contracts.md (snake_case, money as 2dp strings).
+  Contract gaps noted while building this mockup:
+  - ChatMessage has no proposal_id, and ConversationDetail exposes only one pending_proposal, so confirmed or cancelled proposal cards cannot be rebuilt when history is reloaded.
+  - When the provider fails, the contract creates an AI_FAILURE_FALLBACK escalation but ChatTurnResponse.handoff is described as a human handoff; unclear whether a case reference is shown to the customer in that state.
+  - Confirm errors use CONFLICT/PROPOSAL_INVALID but the customer-safe message text is not specified; the mockup uses its own copy.
+-->
+<style>
+:root{color-scheme:light dark;--bg:#f3f5f8;--surface:#ffffff;--surface2:#eaeff4;--text:#14202b;--muted:#4a5a69;--line:#c3cfda;--brand:#0b4a6f;--brand-ink:#ffffff;--ai:#5b3fa6;--ai-bg:#f3effc;--rule:#0b4a6f;--rule-bg:#e9f2f9;--warn:#7d4a00;--warn-bg:#fff3d9;--danger:#a3201d;--danger-bg:#fdecea;--ok:#0f6a3a;--ok-bg:#e6f5ec;--sim:#6b3d00;--sim-bg:#ffefd2;--focus:#0a58ca;--shadow:0 1px 2px rgba(20,32,43,.08),0 4px 14px rgba(20,32,43,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none}}
+:root[data-theme=dark]{--bg:#0d1620;--surface:#15212d;--surface2:#1d2c3b;--text:#e8eef4;--muted:#a9b7c4;--line:#34475b;--brand:#62b6ea;--brand-ink:#05131d;--ai:#c8b5ff;--ai-bg:#251b40;--rule:#8ccbf0;--rule-bg:#12293a;--warn:#ffd27a;--warn-bg:#3a2a08;--danger:#ffa19b;--danger-bg:#3d1614;--ok:#84e0a4;--ok-bg:#0f2e1d;--sim:#ffd08a;--sim-bg:#3b2907;--focus:#8ab8ff;--shadow:none;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;overflow-x:hidden}
+h1{font-size:1.45rem;margin:.2rem 0 .6rem;line-height:1.25}h2{font-size:1.1rem;margin:0 0 .5rem}h3{font-size:.98rem;margin:.8rem 0 .3rem}
+p{margin:.3rem 0 .6rem}a{color:var(--brand)}
+code,.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;font-size:.86em}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:8px;top:-60px;background:var(--brand);color:var(--brand-ink);padding:8px 12px;border-radius:6px;z-index:100}.skip:focus{top:8px}
+.mockbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:8px 14px;background:repeating-linear-gradient(135deg,var(--surface2),var(--surface2) 10px,var(--bg) 10px,var(--bg) 20px);border-bottom:2px dashed var(--line);font-size:.82rem}
+.mockbar strong{font-weight:700}.mockbar label{display:flex;gap:6px;align-items:center}
+.appbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.02em;color:var(--brand)}.brand .env{font-weight:600;font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-left:6px}
+.appbar nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.appbar nav a{padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--text);border:1px solid transparent}
+.appbar nav a:hover{background:var(--surface2)}.appbar nav a[aria-current=page]{background:var(--rule-bg);color:var(--rule);border-color:var(--rule);font-weight:700}
+.who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:.85rem}
+main{max-width:1240px;margin:0 auto;padding:16px}
+main:focus{outline:none}
+.pagehead{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+.muted{color:var(--muted)}.small{font-size:.82rem}.right{text-align:right}.num{font-variant-numeric:tabular-nums;text-align:right}
+.api{display:inline-block;font:600 .72rem/1.3 ui-monospace,Consolas,monospace;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;margin:2px 4px 2px 0;vertical-align:middle;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);min-width:0}
+.panel>.ph{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.panel>.ph h2{margin:0}
+.panel.ai{border:2px dashed var(--ai);background:var(--ai-bg)}
+.panel.rules{border-left:5px solid var(--rule)}
+.panel.sim{border-left:5px solid var(--sim)}
+.tag{display:inline-flex;gap:5px;align-items:center;font-size:.74rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid currentColor}
+.tag.rules{color:var(--rule);background:var(--rule-bg)}.tag.ai{color:var(--ai);background:var(--ai-bg)}.tag.sim{color:var(--sim);background:var(--sim-bg)}.tag.rec{color:var(--muted);background:var(--surface2)}
+.chip{display:inline-flex;gap:4px;align-items:center;font-size:.76rem;font-weight:700;border-radius:99px;padding:1px 9px;border:1px solid currentColor;white-space:nowrap}
+.chip.ok{color:var(--ok);background:var(--ok-bg)}.chip.warn{color:var(--warn);background:var(--warn-bg)}.chip.danger{color:var(--danger);background:var(--danger-bg)}.chip.info{color:var(--rule);background:var(--rule-bg)}.chip.ai{color:var(--ai);background:var(--ai-bg)}.chip.neutral{color:var(--muted);background:var(--surface2)}.chip.sim{color:var(--sim);background:var(--sim-bg)}
+.chip.demo{color:var(--warn);background:var(--warn-bg);border-style:dashed}
+.banner{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;border:1px solid currentColor;border-radius:8px;padding:10px 12px;margin:8px 0}
+.banner.warn{color:var(--warn);background:var(--warn-bg)}.banner.danger{color:var(--danger);background:var(--danger-bg)}.banner.info{color:var(--rule);background:var(--rule-bg)}.banner.ok{color:var(--ok);background:var(--ok-bg)}.banner.ai{color:var(--ai);background:var(--ai-bg)}
+.banner>div{flex:1;min-width:200px;color:var(--text)}.banner .bi{font-weight:800}
+.btn{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:7px 13px;cursor:pointer;min-height:36px}
+.btn.secondary{background:var(--surface);color:var(--brand)}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .btn.danger{color:#1b0605}}:root[data-theme=dark] .btn.danger{color:#1b0605}
+.btn:hover:not([disabled]){filter:brightness(1.08)}
+.btn[disabled],.btn[aria-disabled=true]{opacity:.55;cursor:not-allowed;filter:none}
+.btn.link{background:none;border:none;color:var(--brand);text-decoration:underline;padding:2px 4px;min-height:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.g2,.g3{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;gap:3px;font-weight:600;font-size:.85rem;min-width:0}
+input,select,textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--muted);border-radius:6px;padding:6px 8px;min-height:36px;max-width:100%}
+textarea{width:100%;min-height:76px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:8px 10px}legend{font-weight:700;font-size:.85rem;padding:0 4px}
+.checks{display:flex;flex-wrap:wrap;gap:4px 14px}.checks label{display:flex;gap:5px;align-items:center;font-weight:500}
+.tablewrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td.num,th.num{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer}tr.clickable:hover td{background:var(--surface2)}
+th button.sort{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center;font:inherit;text-transform:inherit;letter-spacing:inherit;font-weight:700}
+th button.sort:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+dl.kv{display:grid;grid-template-columns:minmax(110px,max-content) 1fr;gap:4px 14px;margin:0}dl.kv dt{color:var(--muted);font-size:.83rem}dl.kv dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.stat{display:flex;flex-direction:column;gap:2px}.stat .v{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums}.stat .l{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.overlay{position:fixed;inset:0;background:rgba(5,12,20,.6);display:flex;align-items:center;justify-content:center;padding:14px;z-index:50}
+.dialog{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dialog:focus{outline:none}.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.88rem;z-index:60;max-width:92vw}
+.toast[hidden]{display:none}
+.forbidden{max-width:640px;margin:40px auto;text-align:center;background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:26px}
+.forbidden h1{color:var(--danger)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;background:var(--surface)}
+.bar{display:inline-block;height:8px;background:var(--rule);border-radius:4px;vertical-align:middle;min-width:2px}
+ul.plain{list-style:none;padding:0;margin:0}
+.footnote{font-size:.8rem;color:var(--muted);margin-top:10px}
+@media (max-width:600px){main{padding:10px}.appbar{padding:8px 10px}.mockbar{padding:6px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+
+.chatwrap{max-width:760px;margin:0 auto}
+.chat{display:flex;flex-direction:column;height:min(76vh,780px);min-height:460px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chat-h{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.chat-h h1{font-size:1.05rem;margin:0}
+.talk{background:var(--brand);color:var(--brand-ink);border:2px solid var(--brand);font-weight:700;border-radius:8px;padding:8px 14px;min-height:40px;cursor:pointer;font:inherit;font-weight:700}
+.talk:hover{filter:brightness(1.1)}
+.acct{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 12px;font-size:.82rem;border-bottom:1px solid var(--line);color:var(--muted)}
+.log{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.msg{max-width:88%;padding:9px 12px;border-radius:12px;border:1px solid var(--line);overflow-wrap:anywhere}
+.msg .who{font-size:.74rem;font-weight:700;display:flex;gap:6px;align-items:center;margin-bottom:2px;color:var(--muted)}
+.msg.a{align-self:flex-start;background:var(--ai-bg);border-color:var(--ai)}
+.msg.c{align-self:flex-end;background:var(--rule-bg);border-color:var(--rule)}
+.msg.s{align-self:center;background:var(--warn-bg);border-color:var(--warn);text-align:left}
+.msg .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pcard{align-self:flex-start;width:min(100%,420px);border:2px solid var(--rule);background:var(--surface);border-radius:12px;padding:10px 12px}
+.composer{display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--line);background:var(--surface)}
+.composer textarea{flex:1;min-height:44px;max-height:120px;resize:vertical}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px;background:var(--surface)}
+.sugg button{font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--surface2);color:var(--text);border-radius:99px;padding:4px 10px;cursor:pointer;min-height:30px}
+@media (max-width:600px){.msg{max-width:96%}.talk{width:100%}.chat{height:calc(100dvh - 190px);min-height:420px}}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="mockbar" data-bg>
+  <strong>Mockup E6-S5</strong><span class="muted">controls below are not part of the product UI</span>
+  <label>State: <select id="mock-state" aria-label="Mockup state toggle">
+<option value="happy">Happy path</option>
+<option value="ai_down">AI provider unavailable</option>
+<option value="handoff_fail">Handoff fails (503 HANDOFF_FAILED)</option>
+<option value="stale">Stale proposal (409 PROPOSAL_INVALID on Confirm)</option>
+  </select></label>
+  <button type="button" class="btn secondary" id="theme-btn" style="min-height:28px;padding:2px 10px">Theme: toggle light/dark</button>
+</div>
+<div id="root" data-bg>
+  <header class="appbar" id="appbar"></header>
+  <main id="main" tabindex="-1"></main>
+</div>
+<div id="sr-live" class="sr" aria-live="polite" aria-atomic="true"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+/* ---- shared mockup helpers (inlined per file; no external deps) ---- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=l=>`<span class="api" data-api="${esc(l)}" title="API call">${esc(l)}</span>`;
+const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}$${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
+const cents=s=>{const m=String(s).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);return m?BigInt(m[1])*100n+BigInt((m[2]||'').padEnd(2,'0')||'0'):null};
+const fromCents=c=>{const n=c<0n?-c:c;const s=n.toString().padStart(3,'0');return (c<0n?'-':'')+s.slice(0,-2)+'.'+s.slice(-2)};
+const pct4=v=>{if(v==null)return '-';const [i,f='']=String(v).split('.');const n=BigInt(i+f.padEnd(4,'0').slice(0,4));const s=n.toString().padStart(3,'0');return s.slice(0,-2)+'.'+s.slice(-2)+'%'};
+const fmtDT=t=>t?esc(String(t).replace('T',' ').replace(/:\d\dZ$/,' UTC')):'-';
+const PN={CUSTOMER:'Customer',COLLECTIONS_OFFICER:'Collections Officer',COLLECTIONS_MANAGER:'Collections Manager',COMPLIANCE_RISK:'Compliance and Risk'};
+const NAV={CUSTOMER:[['Chat','/chat']],COLLECTIONS_OFFICER:[['Portfolio','/portfolio'],['Customer 360','/customers/acc_000123'],['Escalations','/escalations'],['Review queues','/review-queues'],['Demo controls','/demo-controls',true]],COLLECTIONS_MANAGER:[['Dashboard','/dashboard']],COMPLIANCE_RISK:[['Audit Trail','/audit'],['Compliance review queue','/compliance-review']]};
+const chip=(t,c,i)=>`<span class="chip ${c}">${i?`<span aria-hidden="true">${i}</span>`:''}${esc(t)}</span>`;
+const bandChip=b=>({HIGH:chip('HIGH priority','danger','▲'),MEDIUM:chip('MEDIUM priority','warn','◆'),LOW:chip('LOW priority','ok','▼')}[b]);
+const TAGS={rules:['▦','Rules engine'],ai:['✦','AI-generated'],sim:['◇','Simulated'],rec:['▤','System record']};
+const tag=k=>`<span class="tag ${k}"><span aria-hidden="true">${TAGS[k][0]}</span>${TAGS[k][1]}</span>`;
+const banner=(k,html,icon,role)=>`<div class="banner ${k}" ${role===false?'':`role="${role||(k==='danger'?'alert':'status')}"`}><span class="bi" aria-hidden="true">${icon||({warn:'⚠',danger:'✖',info:'ℹ',ok:'✔',ai:'✦'}[k])}</span><div>${html}</div></div>`;
+const errBox=(status,code,reason,msg,extra)=>banner('danger',`<strong>${status} ${esc(code)}${reason?' / '+esc(reason):''}</strong><br>${esc(msg)}${extra?'<br>'+extra:''}<br><span class="small muted">correlation_id: <code>c0ffee1234abcd</code></span>`);
+function announce(msg){const l=$('#sr-live');l.textContent='';setTimeout(()=>{l.textContent=msg},40)}
+let _tt;function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(_tt);_tt=setTimeout(()=>{t.hidden=true},3200);announce(msg)}
+function setShell(persona,current,opts={}){
+  const layout=persona==='CUSTOMER'?'Customer':'Internal';
+  const nav=(NAV[persona]||[]).filter(n=>!n[2]||opts.demoFlag);
+  $('#appbar').innerHTML=`<div class="brand"><span aria-hidden="true">◈</span> CollectAI <span class="env">${layout} layout</span></div>
+  <nav aria-label="Main navigation">${nav.map(n=>`<a href="${n[1]}" data-route="${n[1]}" ${n[0]===current?'aria-current="page"':''}>${n[0]}</a>`).join('')}</nav>
+  <div class="who"><span class="chip demo">Demo persona - not real authentication</span><span id="persona-chip" role="status" aria-live="polite">Current persona: <strong>${PN[persona]}</strong> <code>${persona}</code></span></div>`;
+}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-route]');if(a){e.preventDefault();if(window.onRoute)window.onRoute(a.dataset.route,a.textContent);else toast('Mockup: would navigate to '+a.dataset.route)}});
+const forbiddenPage=(persona,route)=>`<section class="forbidden" role="alert" aria-labelledby="fh"><h1 id="fh"><span aria-hidden="true">⛔</span> 403 - Forbidden</h1><p>The persona <strong>${esc(persona)}</strong> cannot open <code>${esc(route)}</code>.</p><p class="muted">No restricted data was requested or rendered. The API would answer <code>403 FORBIDDEN</code> and write an <code>ACCESS_DENIED</code> audit event.</p>${api('403 FORBIDDEN (no data fetched)')}</section>`;
+function openDialog({title,body,trigger,restore,focusSel,onMount}){
+  const prev=trigger||document.activeElement;
+  const ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML=`<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t" tabindex="-1"><h2 id="dlg-t">${title}</h2><div>${body}</div></div>`;
+  document.body.appendChild(ov);const dlg=ov.firstElementChild;
+  const bg=$$('[data-bg]');bg.forEach(e=>{e.inert=true;e.setAttribute('aria-hidden','true')});
+  const foc=()=>$$('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',dlg).filter(e=>!e.hidden);
+  function close(){document.removeEventListener('keydown',key,true);ov.remove();bg.forEach(e=>{e.inert=false;e.removeAttribute('aria-hidden')});
+    const t=document.contains(prev)?prev:(restore?$(restore):null);if(t&&t.focus)t.focus()}
+  function key(e){
+    if(e.key==='Escape'){e.stopPropagation();close();return}
+    if(e.key==='Tab'){const f=foc();if(!f.length){e.preventDefault();return}const a=document.activeElement;
+      if(e.shiftKey&&(a===f[0]||!dlg.contains(a))){e.preventDefault();f[f.length-1].focus()}
+      else if(!e.shiftKey&&(a===f[f.length-1]||!dlg.contains(a))){e.preventDefault();f[0].focus()}}}
+  document.addEventListener('keydown',key,true);
+  if(onMount)onMount(dlg,close);
+  const fi=(focusSel&&$(focusSel,dlg))||foc()[0]||dlg;fi.focus();
+  return close;
+}
+function initMockbar(){
+  const t=$('#theme-btn');t.addEventListener('click',()=>{const r=document.documentElement;const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark';t.textContent='Theme: '+(dark?'light':'dark')+' (toggle)'});
+}
+
+/* ---- page script: E6-S5 ---- */
+/* E6-S5 AI Collections Chat (customer layout). Shapes: ChatMessage, Proposal, ConfirmResult, HandoffResult, ChatTurnResponse (api-contracts.md 3.8, section 4). */
+
+const CONV='conv_01J8ZK4A9B',ACC='acc_000123',OVERDUE='612.40',BALANCE='4820.35';
+let M=[],pending=null,handoff=null,busy=false,seq=1,convStatus='ACTIVE',lastTrigger=null;
+function msg(role,content,src,labels){return {message_id:'msg_01J8ZK4'+String(seq++).padStart(3,'0'),conversation_id:CONV,role,content,content_source:src,labels:labels||[],created_at:'2026-10-01T14:3'+Math.min(seq,9)+':00Z'}}
+function resetState(){M=[msg('ASSISTANT',"Hi Priya. I'm an AI assistant for CollectAI, not a person. I can help you promise a payment date, make a simulated payment, or ask about a payment plan. You can talk to a human colleague at any time with the button above. Payments in this demo are simulated and no real money moves.",'TEMPLATE',['AI_DISCLOSURE'])];pending=null;handoff=null;busy=false;convStatus='ACTIVE'}
+const LABEL={AI_DISCLOSURE:chip('AI disclosure','ai','✦'),SIMULATED:chip('Simulated payment','sim','◇'),HUMAN_HANDOFF:chip('Human handoff','info','☺'),SAFE_FALLBACK:chip('Safe message','warn','⚠')};
+const hash=s=>{let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h.toString(16).padStart(8,'0')+'c41e07b2'};
+function mkProposal(kind,terms,summary){const id='prp_01J8ZK4C'+String(seq++).padStart(2,'0');return {proposal_id:id,conversation_id:CONV,kind,status:'PENDING_CONFIRMATION',terms,terms_hash:hash(JSON.stringify(terms)),summary,simulated:kind==='PAYMENT',record_version:7,created_at:'2026-10-01T14:32:00Z',expires_at:'2026-10-01T15:32:00Z'}}
+function msgHtml(m){
+  if(m.role==='SYSTEM')return `<div class="msg s" role="${m.err?'alert':'group'}"><div class="who">Notice</div>${esc(m.content)}${m.extra||''}</div>`;
+  if(m.role==='CUSTOMER')return `<div class="msg c"><div class="who">You</div>${esc(m.content)}</div>`;
+  return `<div class="msg a"><div class="who"><span aria-hidden="true">✦</span> AI assistant <span class="small" style="font-weight:400">(${m.content_source==='TEMPLATE'?'template':'model'} text)</span></div>${esc(m.content)}${m.labels.length?`<div class="chips">${m.labels.map(l=>LABEL[l]).join('')}</div>`:''}</div>`;
+}
+function proposalCard(p){
+  const done=p.status!=='PENDING_CONFIRMATION';
+  return `<div class="pcard" data-proposal="${p.proposal_id}"><div class="row" style="justify-content:space-between"><strong>${p.kind==='PTP'?'Promise to pay':p.kind==='PAYMENT'?'Payment':'Payment plan'}</strong>${done?chip(p.status,p.status==='CONFIRMED'?'ok':'neutral',p.status==='CONFIRMED'?'✔':'-'):chip('Awaiting your confirmation','warn','○')}</div>${p.simulated?'<p style="margin:4px 0">'+chip('Simulated payment - no real money moves','sim','◇')+'</p>':''}<p class="small" style="margin:4px 0">${esc(p.summary)}</p>${done?'':`<button type="button" class="btn secondary" data-review="${p.proposal_id}">Review and confirm</button>`}</div>`;
+}
+function proposalBody(p,err){
+  const t=p.terms;let rows='';
+  if(p.kind==='PTP')rows=`<dt>promised_amount</dt><dd>${money(t.promised_amount)}</dd><dt>promised_date</dt><dd>${t.promised_date}</dd>`;
+  if(p.kind==='PAYMENT')rows=`<dt>payment_option</dt><dd>${t.payment_option}</dd><dt>payment_amount</dt><dd>${money(t.payment_amount)}</dd><dt>simulated</dt><dd>true</dd>`;
+  if(p.kind==='ARRANGEMENT')rows=`<dt>installments</dt><dd>${t.option.installment_count} monthly</dd><dt>total_amount</dt><dd>${money(t.option.total_amount)}</dd><dt>schedule</dt><dd>${t.option.schedule.map(s=>`${s.due_date}: ${money(s.amount)}`).join('<br>')}</dd>`;
+  return `${p.simulated?`<p>${chip('Simulated payment - no real money moves','sim','◇')}</p>`:''}<p>${esc(p.summary)}</p><dl class="kv">${rows}<dt>Offer valid until</dt><dd>${fmtDT(p.expires_at)}</dd><dt>terms_hash</dt><dd class="mono">${p.terms_hash.slice(0,12)}...</dd></dl><p class="small muted">Amounts were calculated by our system, not by the AI. Nothing is submitted until you press Confirm.</p><div id="dlg-err" role="alert">${err||''}</div>
+  <div class="dlg-actions"><button type="button" class="btn secondary" id="d-cancel" data-api="POST .../proposals/${p.proposal_id}/cancel">Cancel</button><button type="button" class="btn" id="d-confirm" data-api="POST .../proposals/${p.proposal_id}/confirm">Confirm</button></div>
+  <p class="small muted" style="margin:0">${api('POST /api/chat/conversations/'+CONV+'/proposals/'+p.proposal_id+'/confirm')} ${api('POST .../cancel')}<br><span class="mono small">Idempotency-Key: confirm-${p.proposal_id}-01 &middot; body {"terms_hash":"${p.terms_hash.slice(0,8)}..."}</span></p>`;
+}
+function openProposal(p,trigger){
+  const title=p.kind==='PTP'?'Confirm your promise to pay':p.kind==='PAYMENT'?'Confirm your simulated payment':'Confirm your payment plan';
+  openDialog({title,trigger,restore:'#msg',focusSel:'#d-confirm',body:proposalBody(p),onMount:(dlg,close)=>{
+    let invalid=false;
+    $('#d-cancel',dlg).onclick=()=>{
+      if(invalid){p.status='INVALIDATED';pending=null;M.push({...msg('SYSTEM','That offer is no longer valid because your account changed. Nothing was created. Ask me again for a fresh offer.','TEMPLATE',[])});draw(true);close();return}
+      p.status='CANCELLED';pending=null;M.push(msg('ASSISTANT',"No problem, I've cancelled that. Nothing was created or changed.",'TEMPLATE',[]));draw(true);close()};
+    $('#d-confirm',dlg).onclick=()=>{
+      if($('#mock-state').value==='stale'){invalid=true;$('#dlg-err',dlg).innerHTML=errBox(409,'CONFLICT','PROPOSAL_INVALID','This offer is no longer valid because your account details changed. Nothing was created.');$('#d-confirm',dlg).disabled=true;$('#d-cancel',dlg).textContent='Close';$('#d-cancel',dlg).focus();return}
+      p.status='CONFIRMED';pending=null;let text,labels=[];
+      if(p.kind==='PTP'){text=`Done. Your promise of ${money(p.terms.promised_amount)} by ${p.terms.promised_date} is recorded (ptp_01J8ZK4E01). We will not contact you about this amount before then.`}
+      else if(p.kind==='PAYMENT'){const bal=fromCents(cents(BALANCE)-cents(p.terms.payment_amount));text=`Simulated payment of ${money(p.terms.payment_amount)} recorded (pay_01J8ZK4F01). No real money moved. Balance after this simulated payment: ${money(bal)}.`;labels=['SIMULATED']}
+      else{text=`Your payment plan is set up: ${p.terms.option.installment_count} monthly installments totalling ${money(p.terms.option.total_amount)}, starting ${p.terms.option.first_installment_date} (arr_01J8ZK4G01).`}
+      M.push(msg('ASSISTANT',text,'TEMPLATE',labels));draw(true);close()}
+  }});
+}
+function draw(scroll){
+  const log=$('#log');if(!log)return;
+  log.innerHTML=M.map((m,i)=>msgHtml(m)+(m.proposal?proposalCard(m.proposal):'')).join('')+(busy?'<div class="msg a" aria-hidden="true"><div class="who">✦ AI assistant</div><em>Thinking...</em></div>':'')+(handoff?`<div class="pcard" style="border-color:var(--ok)"><strong>${chip('Request received','ok','✔')} Reference ${handoff.case_id}</strong><p class="small" style="margin:4px 0 0">${esc(handoff.customer_message)} Status: ${handoff.status}.</p></div>`:'');
+  $$('button[data-review]',log).forEach(b=>b.onclick=()=>{openProposal(pending,b)});
+  if(scroll)log.scrollTop=log.scrollHeight;
+  const hs=$('#hstat');if(hs)hs.innerHTML=convStatus==='HANDED_OFF'?chip('Handed off - a colleague will follow up','info','☺'):chip('AI assistant','ai','✦');
+}
+function reply(text){
+  const st=$('#mock-state').value;
+  if(st==='ai_down'){M.push(msg('ASSISTANT',"I can't help with that right now because my AI service is unavailable. Nothing has been changed. You can talk to a human colleague using the button above.",'TEMPLATE',['SAFE_FALLBACK']));
+    M[M.length-1].extra='';M.push({...msg('SYSTEM','Safe state AI_UNAVAILABLE. A review case (AI_FAILURE_FALLBACK) was queued so a colleague can look at this.','TEMPLATE',[])});return}
+  if(/human|person|someone|agent/i.test(text)){doHandoff(true);return}
+  if(/plan|instal/i.test(text)){
+    const opt={option_id:'opt-3-2026-10-15',installment_count:3,installment_amount:'204.13',final_installment_amount:'204.14',total_amount:OVERDUE,first_installment_date:'2026-10-15',frequency:'MONTHLY',schedule:[{sequence:1,due_date:'2026-10-15',amount:'204.13'},{sequence:2,due_date:'2026-11-15',amount:'204.13'},{sequence:3,due_date:'2026-12-15',amount:'204.14'}]};
+    pending=mkProposal('ARRANGEMENT',{kind:'ARRANGEMENT',option:opt},'3 monthly installments of $204.13 (last $204.14), total $612.40, first due 2026-10-15.');
+    M.push({...msg('ASSISTANT','Here is a plan you are eligible for, calculated by our system. Please review it. Nothing is set up until you confirm.','TEMPLATE',[]),proposal:pending});return}
+  const money_=text.match(/(\d+(?:\.\d{1,2})?)/),day=text.match(/(\d{1,2})(?:st|nd|rd|th)/);
+  if(/pay/i.test(text)&&(/now|today|overdue|all/i.test(text)||!money_)){
+    pending=mkProposal('PAYMENT',{kind:'PAYMENT',payment_option:'OVERDUE_AMOUNT',payment_amount:OVERDUE,simulated:true,simulated_label:'Simulated payment - no real money moves'},'Simulated payment of your overdue amount, $612.40.');
+    M.push({...msg('ASSISTANT','You can pay your overdue amount of $612.40 now. This is a simulated payment. Please review and confirm.','TEMPLATE',['SIMULATED']),proposal:pending});return}
+  if(money_&&/pay|by|on|before/i.test(text)){
+    const amt=cents(money_[1].includes('.')?money_[1]:money_[1]+'.00');
+    if(amt>cents(OVERDUE)){M.push(msg('ASSISTANT',`The most you can promise right now is ${money(OVERDUE)}. Would you like to promise that amount, or a smaller one?`,'TEMPLATE',[]));return}
+    const d='2026-10-'+String(day&&+day[1]>=1&&+day[1]<=31?day[1]:15).padStart(2,'0');
+    pending=mkProposal('PTP',{kind:'PTP',promised_amount:fromCents(amt),promised_date:d},`Promise ${money(fromCents(amt))} by ${d}.`);
+    M.push({...msg('ASSISTANT',`You can promise ${money(fromCents(amt))} by ${d}. Please review and confirm. Nothing is recorded until you confirm.`,'TEMPLATE',[]),proposal:pending});return}
+  M.push(msg('ASSISTANT','I can help you promise a payment date, pay your overdue amount (simulated), or look at a payment plan. What would you like to do?','MODEL',[]));
+}
+function doHandoff(fromMsg){
+  const st=$('#mock-state').value;
+  if(handoff){announce('Your request is already with a colleague. Reference '+handoff.case_id);toast('Already requested: '+handoff.case_id);return}
+  if(st==='handoff_fail'){M.push({role:'SYSTEM',content:'We could not complete your request to reach a colleague. Nothing was lost. Next step: call us on +1-555-0100 during business hours, or press "Talk to a human" again in a minute.',err:true,extra:`<div class="small" style="margin-top:4px">${api('503 HANDOFF_FAILED')} <span class="muted">Automated reminders on this account stay paused.</span></div>`});draw(true);return}
+  handoff={case_id:'esc_01J8ZK8A11',account_id:ACC,status:'OPEN',customer_message:'A human colleague will follow up with you.',created_at:'2026-10-01T14:34:00Z',decided_at:null};convStatus='HANDED_OFF';
+  M.push(msg('ASSISTANT','Thank you. A human colleague will follow up with you. Your reference is esc_01J8ZK8A11. Automated reminders are paused while a person reviews your account.','TEMPLATE',['HUMAN_HANDOFF']));draw(true);
+}
+function render(){
+  if(!M.length)resetState();
+  setShell('CUSTOMER','Chat');
+  const st=$('#mock-state').value;
+  $('#main').innerHTML=`<div class="chatwrap"><div class="chat"><div class="chat-h"><div><h1>Collections assistant</h1><span id="hstat"></span></div><button type="button" class="talk" id="talk" data-api="POST /api/chat/conversations/{id}/handoff">Talk to a human</button></div>
+   <div class="acct"><span>${esc('Everyday Rewards Card')}</span><span>Overdue <strong>${money(OVERDUE)}</strong></span><span>Balance ${money(BALANCE)}</span><span>${api('GET /api/me/accounts/'+ACC)}</span></div>
+   <div id="log" class="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation with AI assistant" tabindex="0"></div>
+   <div class="sugg" aria-label="Suggested messages"><span class="small muted" style="align-self:center">Try:</span>${['I can pay 250.00 by the 15th','I want to pay my overdue amount now','Can I set up a payment plan?'].map(t=>`<button type="button" data-s="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+   <form class="composer" id="cf" novalidate><label class="sr" for="msg">Message to the assistant (Enter to send, Shift+Enter for a new line)</label><textarea id="msg" maxlength="2000" rows="1" placeholder="Type your message"></textarea><button type="submit" class="btn" id="send" data-api="POST /api/chat/conversations/{id}/messages">Send</button></form>
+   <p class="small muted" style="padding:0 12px 8px;margin:0;background:var(--surface)">${api('POST /api/chat/conversations/{id}/messages')} ${api('POST .../handoff')} &middot; You are chatting with an AI. State: <code>${st}</code></p></div>
+   <p class="footnote">Demo: payments are simulated and no real payment occurs. Session bound to customer <code>cus_0041</code> server-side; the browser never sends a customer id.</p></div>`;
+  draw(true);
+  $('#talk').onclick=e=>{doHandoff(false)};
+  $$('.sugg button').forEach(b=>b.onclick=()=>{$('#msg').value=b.dataset.s;$('#msg').focus()});
+  const ta=$('#msg');ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#cf').requestSubmit()}});
+  $('#cf').addEventListener('submit',e=>{e.preventDefault();const v=ta.value.trim();if(!v||busy)return;ta.value='';
+    M.push(msg('CUSTOMER',v,'CUSTOMER_INPUT',[]));busy=true;draw(true);
+    setTimeout(()=>{busy=false;reply(v);draw(true);
+      if(pending&&M[M.length-1].proposal===pending){const rb=$('button[data-review="'+pending.proposal_id+'"]');openProposal(pending,rb||$('#send'))}
+    },550)});
+}
+
+initMockbar();
+$('#mock-state').addEventListener('change',()=>{if(typeof resetState==='function')resetState();render()});
+render();
+</script>
+</body>
+</html>
