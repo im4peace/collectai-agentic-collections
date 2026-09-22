@@ -1,0 +1,42 @@
+; import-linter contracts (folder-structure.md section 5).
+;
+; Only one contract is defined here: `rules_engine` (layer 4a, owned by
+; E2-S1) must not import AI/LLM packages or any higher layer -- this is what
+; AC5 actually requires. Its forbidden-module list includes packages that do
+; not exist yet (e.g. `ai_orchestration`, `application`) on purpose --
+; import-linter passes trivially against a module with no source files, and
+; the contract is then already correct the moment that package is created by
+; a later story, with no edit needed here.
+;
+; `types` and `config` contracts (layers 0 and 1) are intentionally NOT
+; defined here even though they conceptually belong in this file per
+; folder-structure.md section 5: both packages currently ship as PEP 420
+; implicit namespace packages (no `__init__.py`; owned by a sibling story,
+; out of scope for this run to add one), and import-linter's `forbidden`
+; contract type hard-errors ("Module 'collectai.types' does not exist")
+; when a `source_modules` entry isn't a real package in grimp's import
+; graph. Add those two contracts once `types/__init__.py` and
+; `config/__init__.py` exist.
+;
+; `llm_provider` (layer 4a sibling) gets its own contract from E5-S1, added
+; as a separate, additive section in this same file.
+
+[importlinter]
+root_package = collectai
+include_external_packages = True
+
+[importlinter:contract:rules-engine-no-ai-or-higher-layers]
+name = rules_engine (layer 4a) must not import AI/LLM packages or any higher layer
+type = forbidden
+source_modules =
+    collectai.rules_engine
+forbidden_modules =
+    collectai.ai_orchestration
+    collectai.llm_provider
+    collectai.persistence
+    collectai.audit
+    collectai.domain_services
+    collectai.application
+    collectai.api
+    collectai.jobs
+    collectai.bootstrap

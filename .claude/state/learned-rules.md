@@ -94,3 +94,20 @@ and, if applicable, the planned split point (e.g. "# NOTE: nearing the 300-line 
 threshold; consider splitting per-section validators (priority/ptp/arrangement/routing)
 into validator/ submodules if this grows further"). This gives the next teammate who edits
 the file an early warning before a routine addition forces an unplanned refactor.
+
+## 2026-09-22 — Group B recovery: verify the 300-line block threshold at file-close time, not just at the "nearing" warning
+
+**Context:** `persistence/migrations/versions/0004_hardship_dispute_escalation.py` reached
+304 lines (hardship_case + dispute + escalation_case + review_decision + deferred FKs in one
+migration) and only carried the "nearing the 300-line threshold" warning comment — it had
+already crossed the code-gen skill's hard "do not submit" block threshold at principle #1.
+None of the tests caught this because nothing asserts file line counts; it surfaced only in
+manual code review during an interrupted-session recovery.
+
+**Rule:** Before treating a file as finished, re-check its line count against the 300-line
+block threshold, not just whether it already carries a "nearing the threshold" comment —
+the comment can go stale as more content is added after it was written. For a migration
+specifically, split at a natural table/entity boundary (one or a few related tables per
+revision file) rather than combining every table in an epic into a single revision;
+renumber the following revisions' `revision`/`down_revision` and any docstring
+cross-references to other migration numbers accordingly.
