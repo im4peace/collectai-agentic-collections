@@ -1,0 +1,13 @@
+# Applies to the `web` service's build context (repo root, since it COPYs
+# both frontend/ and deploy/nginx/ -- see frontend/Dockerfile).
+.git/
+backend/.venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.import_linter_cache/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+**/__pycache__/

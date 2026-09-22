@@ -1,0 +1,15 @@
+# Override for CI/e2e (E1-S5 AC4, deployment.md section 2): MOCK forced
+# regardless of .env, demo controls enabled so seeded data and clock control
+# are reachable. Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up --build
+
+services:
+  migrate:
+    environment:
+      LLM_MODE: MOCK
+      DEMO_CONTROLS_ENABLED: "true"
+
+  api:
+    environment:
+      LLM_MODE: MOCK
+      DEMO_CONTROLS_ENABLED: "true"

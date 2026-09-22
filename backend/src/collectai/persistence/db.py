@@ -69,6 +69,13 @@ class UnitOfWork:
     Usage:
         async with UnitOfWork(session_factory) as session:
             await some_repository.create(session, ...)
+
+    E1-S4: `AuditService.record_in(session, draft)` takes this same yielded
+    `AsyncSession`, not a session of its own. That is the entire mechanism
+    behind "the audit event is written in the same transaction as the state
+    transition it describes" (data-models.md AuditEvent) -- a business write
+    and its `record_in` call inside one `UnitOfWork` block commit or roll
+    back together, because they are literally the same database transaction.
     """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:

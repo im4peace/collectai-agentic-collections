@@ -1,0 +1,98 @@
+# CollectAI CI (E1-S5 AC4). Every job here is backed by tooling that exists
+# today. Jobs added by later stories per specs/design/deployment.md section 3
+# (not added yet -- their dependencies do not exist in this repo yet):
+#   - data-safety      (scripts/scan_prohibited_patterns.py, tests/security,
+#                        tests/redteam)                        -- E9-S4
+#   - eval-mock        (collectai_eval package)                -- E10-S1
+#   - openapi-contract (scripts/generate_openapi.py)           -- a later
+#                        API-contract story
+#   - e2e              (frontend/e2e Playwright suites)        -- the UI
+#                        journey stories (E11-S1 onward)
+# MOCK only: no ANTHROPIC_API_KEY is set anywhere in this workflow, and no
+# repository secret is required, so LIVE evaluation never runs here.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  lint-type:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: mypy src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npm run lint
+      - working-directory: frontend
+        run: npm run typecheck
+
+  backend-unit:
+    # Everything that does not need a real PostgreSQL instance (tests/unit,
+    # tests/ai_guardrails, tests/architecture, ...). The codebase marks only
+    # `db` tests explicitly (`pytestmark = pytest.mark.db`); "not db" is
+    # therefore the correct complement rather than a `unit` marker that
+    # nothing in the suite actually carries.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -m "not db"
+
+  backend-db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # No postgres service container: tests/db/conftest.py starts its own
+      # embedded PostgreSQL instance (embedded-postgres) per test session.
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -m db
+
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: lint-imports
+      - run: python -m pytest tests/architecture
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm run test:run
+      - run: npm run build

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 pytestmark = pytest.mark.db
 
-_ALL_23_TABLES: tuple[str, ...] = (
+_ALL_24_TABLES: tuple[str, ...] = (
     "customer",
     "account",
     "delinquency_record",
@@ -32,11 +32,16 @@ _ALL_23_TABLES: tuple[str, ...] = (
     "clock_state",
     "eval_run",
     "eval_case_result",
+    # audit_event: added by E1-S4's migration (0007), not E1-S3's. Kept in
+    # this same "head applies cleanly" test rather than a separate one
+    # because both stories' migrations are exercised by the same
+    # `migrated_schema` fixture running `alembic upgrade head`.
+    "audit_event",
 )
 
 
 @pytest.mark.asyncio
-async def test_migrations_create_all_23_business_tables(
+async def test_migrations_create_all_24_tables(
     migrated_schema: str, async_database_url: str
 ) -> None:
     engine = create_async_engine(async_database_url, future=True)
@@ -46,9 +51,8 @@ async def test_migrations_create_all_23_business_tables(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
             )
             table_names = {row[0] for row in result}
-        missing = set(_ALL_23_TABLES) - table_names
+        missing = set(_ALL_24_TABLES) - table_names
         assert not missing, f"migrations did not create: {sorted(missing)}"
-        assert "audit_event" not in table_names, "audit_event is E1-S4's table, not E1-S3's"
     finally:
         await engine.dispose()
 

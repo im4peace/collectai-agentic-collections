@@ -85,15 +85,48 @@ def test_collectai_readonly_has_select_only_on_account(migrated_schema: str) -> 
     assert {row[0] for row in rows} == {"SELECT"}
 
 
-def test_no_role_has_any_grant_on_audit_event_because_it_does_not_exist_yet(
+def test_init_roles_sql_grants_no_privileges_on_audit_event(migrated_schema: str) -> None:
+    """`init-roles.sql` deliberately never mentions `audit_event` (E1-S4's
+    migration 0007 owns that table's own append-only grants, per the
+    comment in init-roles.sql). Confirm applying this file grants nothing
+    extra on top of what 0007 already granted."""
+    sql = _INIT_ROLES_SQL_PATH.read_text(encoding="utf-8")
+    with psycopg.connect(_sync_dsn(migrated_schema), autocommit=True) as conn:
+        before = conn.execute(
+            "SELECT privilege_type FROM information_schema.role_table_grants "
+            "WHERE grantee = 'collectai_app' AND table_name = 'audit_event'"
+        ).fetchall()
+        conn.execute(sql)
+        after = conn.execute(
+            "SELECT privilege_type FROM information_schema.role_table_grants "
+            "WHERE grantee = 'collectai_app' AND table_name = 'audit_event'"
+        ).fetchall()
+    assert {row[0] for row in before} == {row[0] for row in after}
+
+
+def test_collectai_app_can_insert_and_select_but_not_update_delete_audit_event(
     migrated_schema: str,
 ) -> None:
-    """audit_event is E1-S4's table; confirm this story truly leaves it alone."""
+    """E1-S4 AC2: the application role has INSERT and SELECT only on
+    `audit_event`. Migration 0007 grants this itself, guarded by a
+    role-existence check (see `_ddl_helpers.guarded_insert_select_grant_sql`)
+    because `migrated_schema` applies migrations before this file's
+    `init-roles.sql` creates the role -- so this test re-runs that exact
+    guarded grant statement after creating the role, reproducing the real
+    deployment order (role exists before migrations run; deployment.md
+    section 2) without duplicating the SQL by hand."""
+    from collectai.persistence.migrations._ddl_helpers import (
+        guarded_insert_select_grant_sql,
+    )
+
     sql = _INIT_ROLES_SQL_PATH.read_text(encoding="utf-8")
     with psycopg.connect(_sync_dsn(migrated_schema), autocommit=True) as conn:
         conn.execute(sql)
-        ((exists,),) = conn.execute(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-            "WHERE table_name = 'audit_event')"
+        conn.execute(guarded_insert_select_grant_sql("audit_event"))
+        rows = conn.execute(
+            "SELECT privilege_type FROM information_schema.role_table_grants "
+            "WHERE grantee = 'collectai_app' AND table_name = 'audit_event' "
+            "ORDER BY privilege_type"
         ).fetchall()
-    assert exists is False
+    granted = {row[0] for row in rows}
+    assert granted == {"INSERT", "SELECT"}

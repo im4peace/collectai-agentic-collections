@@ -50,3 +50,25 @@ def create_table(name: str, columns: Iterable[str], *, extra: Iterable[str] = ()
     all_fragments = list(columns) + list(extra)
     body = ",\n    ".join(all_fragments)
     return f"CREATE TABLE {name} (\n    {body}\n)"
+
+
+def guarded_insert_select_grant_sql(table: str, *, role: str = "collectai_app") -> str:
+    """A `GRANT INSERT, SELECT` on `table` to `role`, applied only if `role`
+    already exists.
+
+    Used by insert-only-table migrations (e.g. `audit_event`, 0007) that may
+    run before `deploy/db/init-roles.sql` creates the application role (see
+    `tests/db/conftest.py`'s `migrated_schema` fixture, which applies
+    migrations alone). Exposed here (rather than inlined per-migration) so a
+    test can execute the exact same SQL the migration runs, once the role
+    does exist, without duplicating the string.
+    """
+    return f"""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN
+                GRANT INSERT, SELECT ON TABLE {table} TO {role};
+            END IF;
+        END
+        $$
+        """
