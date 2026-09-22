@@ -1,0 +1,57 @@
+"""Chat intent, conversation and message enums (api-contracts.md section 5)."""
+
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class Intent(StrEnum):
+    PAY_NOW = "PAY_NOW"
+    PROMISE_TO_PAY = "PROMISE_TO_PAY"
+    PAYMENT_PLAN = "PAYMENT_PLAN"
+    FINANCIAL_HARDSHIP = "FINANCIAL_HARDSHIP"
+    DISPUTE = "DISPUTE"
+    REQUEST_HUMAN = "REQUEST_HUMAN"
+    UNKNOWN = "UNKNOWN"
+
+
+class SpecialRequest(StrEnum):
+    NONE = "NONE"
+    SETTLEMENT = "SETTLEMENT"
+    POLICY_EXCEPTION = "POLICY_EXCEPTION"
+
+
+class MessageRole(StrEnum):
+    CUSTOMER = "CUSTOMER"
+    ASSISTANT = "ASSISTANT"
+    SYSTEM = "SYSTEM"
+
+
+class ConversationStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    HANDED_OFF = "HANDED_OFF"
+    CLOSED = "CLOSED"
+
+
+class MessageLabel(StrEnum):
+    AI_DISCLOSURE = "AI_DISCLOSURE"
+    SIMULATED = "SIMULATED"
+    HUMAN_HANDOFF = "HUMAN_HANDOFF"
+    SAFE_FALLBACK = "SAFE_FALLBACK"
+
+
+class ContentSource(StrEnum):
+    MODEL = "MODEL"
+    TEMPLATE = "TEMPLATE"
+    CUSTOMER_INPUT = "CUSTOMER_INPUT"
+
+
+class SafeState(StrEnum):
+    NONE = "NONE"
+    AI_UNAVAILABLE = "AI_UNAVAILABLE"
+    HANDOFF_CREATED = "HANDOFF_CREATED"
+    HANDOFF_FAILED = "HANDOFF_FAILED"
+    POLICY_UNAVAILABLE = "POLICY_UNAVAILABLE"
+    AUDIT_UNAVAILABLE = "AUDIT_UNAVAILABLE"
+    TOOL_CAP_REACHED = "TOOL_CAP_REACHED"
+    STALE_DATA_REFRESHED = "STALE_DATA_REFRESHED"

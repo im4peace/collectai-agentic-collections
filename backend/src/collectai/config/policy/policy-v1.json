@@ -1,0 +1,48 @@
+{
+  "priority": {
+    "weights": {"dpd": "40", "overdue_amount": "25", "broken_ptp_count": "20", "recent_contact_outcome": "15"},
+    "normalization": {"dpd_days": 90, "overdue_amount": "5000.00", "broken_ptp_count": 3},
+    "contact_outcome_scores": {"NO_CONTACT": "1.0", "CONTACT_NO_COMMITMENT": "0.7", "PTP_MADE": "0.2", "PTP_BROKEN": "0.9", "PAYMENT_MADE": "0.0"},
+    "band_cutoffs": ["35", "65"]
+  },
+  "ptp": {"window_days": 30, "min_amount": "10.00", "qualifying_payment_min_amount": "5.00"},
+  "payment": {"payable_options": ["OVERDUE_AMOUNT", "FULL_BALANCE"]},
+  "arrangement": {
+    "eligible_max_dpd": 89, "min_overdue_amount": "100.00",
+    "installment_counts": [3, 6, 12], "min_installment_amount": "25.00",
+    "max_start_delay_days": 30, "allow_with_active_ptp": false
+  },
+  "exception": {
+    "thresholds": {"max_installment_count": 24, "max_start_delay_days": 60, "min_installment_amount": "15.00"},
+    "authority": {"collections_officer": {"types": ["TERM", "START_DATE"], "max_overdue_amount": "3000.00"}}
+  },
+  "contact": {"max_attempts": 3, "period_days": 7, "min_interval_hours": 24},
+  "freshness": {"max_snapshot_age_minutes": 60},
+  "suppression": {"dispute_scope": "ITEM", "hardship_scope": "ACCOUNT", "vulnerable_scope": "ACCOUNT", "release": "HUMAN_DECISION"},
+  "vulnerability": {"categories": ["BEREAVEMENT", "SERIOUS_ILLNESS_OR_DISABILITY", "MENTAL_HEALTH_CONCERN", "DOMESTIC_ABUSE_OR_COERCION", "LIMITED_CAPACITY_TO_UNDERSTAND", "LANGUAGE_OR_COMMUNICATION_BARRIER", "OTHER"]},
+  "routing": {
+    "table": {
+      "REQUEST_HUMAN": {"queue": "COLLECTIONS_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "UNRESOLVED_UNKNOWN": {"queue": "COLLECTIONS_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "AI_FAILURE_FALLBACK": {"queue": "COLLECTIONS_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "EXCEPTIONAL_ARRANGEMENT": {"queue": "COLLECTIONS_EXCEPTION_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "FINANCIAL_HARDSHIP": {"queue": "HARDSHIP_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "DISPUTE": {"queue": "DISPUTE_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "SETTLEMENT_REQUEST": {"queue": "COLLECTIONS_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "AMBIGUOUS_VALIDATION": {"queue": "COLLECTIONS_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "VULNERABLE_CUSTOMER": {"queue": "VULNERABLE_CUSTOMER_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+      "POLICY_EXCEPTION": {"queue": "COMPLIANCE_REVIEW", "reviewer_role": "COMPLIANCE_RISK"},
+      "HIGH_RISK_COMPLIANCE": {"queue": "COMPLIANCE_REVIEW", "reviewer_role": "COMPLIANCE_RISK"}
+    },
+    "fallback": {"queue": "COLLECTIONS_REVIEW", "reviewer_role": "COLLECTIONS_OFFICER"},
+    "priority_by_reason": {
+      "REQUEST_HUMAN": "NORMAL", "UNRESOLVED_UNKNOWN": "NORMAL", "AI_FAILURE_FALLBACK": "NORMAL",
+      "EXCEPTIONAL_ARRANGEMENT": "NORMAL", "FINANCIAL_HARDSHIP": "ELEVATED", "DISPUTE": "ELEVATED",
+      "SETTLEMENT_REQUEST": "NORMAL", "AMBIGUOUS_VALIDATION": "NORMAL", "VULNERABLE_CUSTOMER": "URGENT",
+      "POLICY_EXCEPTION": "ELEVATED", "HIGH_RISK_COMPLIANCE": "URGENT"
+    },
+    "reviewer_escalation_reasons": ["EXCEPTIONAL_ARRANGEMENT", "FINANCIAL_HARDSHIP", "DISPUTE", "SETTLEMENT_REQUEST", "AMBIGUOUS_VALIDATION", "VULNERABLE_CUSTOMER", "POLICY_EXCEPTION", "HIGH_RISK_COMPLIANCE"],
+    "aging_warning_hours": {"NORMAL": 48, "ELEVATED": 24, "URGENT": 4}
+  },
+  "compliance": {"review_outcomes": ["CLEARED", "NOT_CLEARED", "REMEDIATION_REQUIRED"]}
+}
