@@ -7,6 +7,7 @@ from collectai.persistence.repositories.conversation_repository import Conversat
 from collectai.persistence.repositories.customer_repository import CustomerRepository
 from collectai.persistence.repositories.delinquency_repository import DelinquencyRecordRepository
 from collectai.persistence.repositories.delinquent_item_repository import DelinquentItemRepository
+from collectai.persistence.repositories.demo_session_repository import DemoSessionRepository
 from collectai.persistence.repositories.dispute_repository import DisputeRepository
 from collectai.persistence.repositories.escalation_case_repository import EscalationCaseRepository
 from collectai.persistence.repositories.hardship_case_repository import HardshipCaseRepository
@@ -22,6 +23,7 @@ __all__ = [
     "ConversationRepository",
     "CustomerRepository",
     "DelinquencyRecordRepository",
+    "DemoSessionRepository",
     "DelinquentItemRepository",
     "DisputeRepository",
     "EscalationCaseRepository",

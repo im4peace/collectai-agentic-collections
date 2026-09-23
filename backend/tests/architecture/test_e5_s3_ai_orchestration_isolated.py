@@ -1,15 +1,22 @@
-"""E5-S3: `ai_orchestration` imports nothing from `rules_engine`,
-`domain_services`, `persistence`, `api` or `audit` (folder-structure.md
-section 5's layer-5b row; the `audit` restriction is this story's own
-decoupling choice, not yet a durable `.importlinter` contract).
+"""E5-S3/E5-S2: `ai_orchestration` imports nothing from `rules_engine`,
+`domain_services`, `persistence`, `api`, `application` or `bootstrap`
+(folder-structure.md section 5's layer-5b row: "AI: types, config, audit,
+llm_provider").
+
+E5-S3 originally forbade `collectai.audit` too, as "this story's own
+decoupling choice, not yet a durable contract" (see git history). E5-S2's
+`orchestrator.py` now writes AI-interaction audit events directly, which the
+layer-5b row always allowed, so that entry is removed here; the restriction
+this test still enforces (no `rules_engine`/`domain_services`/`persistence`/
+`api`/`application`/`bootstrap`, and no direct `anthropic` import) is
+otherwise unchanged.
 
 A hand-rolled AST scan, not `.importlinter`, by design: `backend/.importlinter`
 already documents (see its own top-of-file comment) that the durable
 `ai_orchestration` contract is added by E5-S4, once `ai_orchestration` also
 needs to import `llm_provider` for real. This test only needs to hold today's
-narrower promise -- this package, as shipped by E5-S3, touches no other
-production layer -- and should be deleted or superseded once that later
-contract exists.
+narrower promise -- this package touches no other forbidden production layer
+-- and should be deleted or superseded once that later contract exists.
 """
 
 from __future__ import annotations
@@ -24,7 +31,6 @@ _FORBIDDEN_TOP_LEVEL_MODULES = (
     "collectai.domain_services",
     "collectai.persistence",
     "collectai.api",
-    "collectai.audit",
     "collectai.application",
     "collectai.bootstrap",
     "anthropic",
