@@ -142,7 +142,7 @@ async def seeded_customer_id(engine: AsyncEngine, clean_db: None) -> str:
                 customer_id=SEEDED_CUSTOMER_ID,
                 account_type="CARD",
                 product_name="Everyday Card",
-                currency="USD",
+                currency="AED",
                 opened_on=NOW.date(),
                 product_attributes={},
                 created_at=NOW,

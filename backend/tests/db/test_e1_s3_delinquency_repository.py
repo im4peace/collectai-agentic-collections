@@ -43,7 +43,7 @@ async def _seed_customer_and_account(
             customer_id=customer_id,
             account_type="PERSONAL_LOAN",
             product_name="Everyday Personal Loan",
-            currency="USD",
+            currency="AED",
             opened_on=date(2025, 3, 14),
             product_attributes={
                 "original_principal": "12000.00",

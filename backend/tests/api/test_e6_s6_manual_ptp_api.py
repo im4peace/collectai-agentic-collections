@@ -75,7 +75,7 @@ async def seeded_account(session: AsyncSession, clean_db: None) -> None:
             customer_id=_CUSTOMER_ID,
             account_type=AccountType.CARD.value,
             product_name="Everyday Card",
-            currency="USD",
+            currency="AED",
             opened_on=_NOW.date(),
             product_attributes={},
             created_at=_NOW,

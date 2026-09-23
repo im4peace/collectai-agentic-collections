@@ -49,7 +49,7 @@ async def _seed_ptp(session: AsyncSession, *, status: str) -> None:
             customer_id="cus_000301",
             account_type="CARD",
             product_name="Everyday Card",
-            currency="USD",
+            currency="AED",
             opened_on=date(2025, 1, 1),
             product_attributes={"credit_limit": "2000.00", "minimum_payment_due": "50.00"},
             created_at=_NOW,

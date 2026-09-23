@@ -7755,7 +7755,7 @@
           },
           "currency": {
             "type": "string",
-            "description": "Always USD"
+            "description": "Always AED"
           },
           "opened_on": {
             "type": "string",
@@ -10070,7 +10070,7 @@
           },
           "currency": {
             "type": "string",
-            "description": "USD"
+            "description": "AED"
           },
           "outstanding_balance": {
             "type": "string",

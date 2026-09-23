@@ -43,7 +43,7 @@ class Account(BaseModel):
     customer_id: CustomerId
     account_type: AccountType
     product_name: str = Field(max_length=120)
-    currency: Literal["USD"]
+    currency: Literal["AED"]
     opened_on: date
     product_attributes: CardProductAttributes | PersonalLoanProductAttributes
     created_at: datetime

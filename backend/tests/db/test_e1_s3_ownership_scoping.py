@@ -43,7 +43,7 @@ async def _seed_two_customers_with_accounts(session: AsyncSession) -> None:
                 customer_id=customer_id,
                 account_type="CARD",
                 product_name="Everyday Card",
-                currency="USD",
+                currency="AED",
                 opened_on=date(2025, 1, 1),
                 product_attributes={
                     "credit_limit": "2000.00",

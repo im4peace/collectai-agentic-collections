@@ -1731,9 +1731,9 @@
         "currency": {
           "type": "string",
           "enum": [
-            "USD"
+            "AED"
           ],
-          "description": "Always USD"
+          "description": "Always AED"
         },
         "opened_on": {
           "type": "string",

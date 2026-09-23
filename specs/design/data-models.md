@@ -136,7 +136,7 @@ API shapes: AccountBlock, CustomerAccountSummary.
 | `customer_id` | id (cus_) | text | no | Owner, FK customer |
 | `account_type` | enum AccountType | text | no | CARD or PERSONAL_LOAN |
 | `product_name` | string (max 120) | text | no | Synthetic product name |
-| `currency` | constant USD | text | no | Always USD |
+| `currency` | constant AED | text | no | Always AED |
 | `opened_on` | date | date | no | Open date |
 | `product_attributes` | object | jsonb | no | CARD: credit_limit, minimum_payment_due. PERSONAL_LOAN: original_principal, term_months, monthly_installment (money strings, term_months numeric string) |
 | `created_at` | timestamp | timestamptz | no | Clock time |
@@ -164,7 +164,7 @@ API shapes: AccountBlock, CustomerAccountSummary.
   "customer_id": "cus_000101",
   "account_type": "PERSONAL_LOAN",
   "product_name": "Everyday Personal Loan",
-  "currency": "USD",
+  "currency": "AED",
   "opened_on": "2025-03-14",
   "product_attributes": {
     "original_principal": "12000.00",

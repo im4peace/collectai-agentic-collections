@@ -94,7 +94,7 @@ def build_account(
         "customer_id": customer_id,
         "account_type": account_type,
         "product_name": product_name,
-        "currency": "USD",
+        "currency": "AED",
         "opened_on": now.date() - timedelta(days=rng.randint(60, 900)),
         "product_attributes": product_attributes,
         "created_at": now,

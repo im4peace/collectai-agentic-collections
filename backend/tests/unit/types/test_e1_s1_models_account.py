@@ -18,7 +18,7 @@ def _card_account(**overrides: object) -> Account:
         "customer_id": "cus_000101",
         "account_type": AccountType.CARD,
         "product_name": "Everyday Rewards Card",
-        "currency": "USD",
+        "currency": "AED",
         "opened_on": date(2025, 3, 14),
         "product_attributes": CardProductAttributes(
             credit_limit=Decimal("5000.00"), minimum_payment_due=Decimal("125.00")

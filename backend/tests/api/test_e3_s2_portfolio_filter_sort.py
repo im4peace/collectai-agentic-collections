@@ -173,7 +173,7 @@ async def seeded_portfolio(
                 customer_id=customer_id,
                 account_type=account_type.value,
                 product_name="Everyday Account",
-                currency="USD",
+                currency="AED",
                 opened_on=_NOW.date(),
                 product_attributes={},
                 created_at=_NOW,

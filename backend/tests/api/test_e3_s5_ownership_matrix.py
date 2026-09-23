@@ -133,7 +133,7 @@ async def _seed_customer(session: AsyncSession, *, suffix: str) -> SeededCustome
             customer_id=customer_id,
             account_type="CARD",
             product_name="Everyday Card",
-            currency="USD",
+            currency="AED",
             opened_on=_NOW.date(),
             product_attributes={},
             created_at=_NOW,

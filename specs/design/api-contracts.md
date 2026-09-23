@@ -9,7 +9,7 @@ Synthetic data only. Payments are simulated. All ids, names, emails (`example.co
 ### 1.1 Base, formats
 - Base path `/api`. No URL version segment in the MVP; changes are additive. JSON only (`application/json; charset=utf-8`).
 - Field names are snake_case. Enum values are UPPER_SNAKE_CASE strings.
-- **Money** is a JSON string with exactly 2 decimal places in responses (`"1250.50"`, pattern `^\d+\.\d{2}$`). In requests money is a JSON **string** (`"1250.5"` is accepted and normalized; more than 2 decimals is rejected with reason `OVER_PRECISION`; a JSON number is rejected with 422 `FLOAT_NOT_ALLOWED`). Never a float anywhere. Currency is always `USD` (synthetic).
+- **Money** is a JSON string with exactly 2 decimal places in responses (`"1250.50"`, pattern `^\d+\.\d{2}$`). In requests money is a JSON **string** (`"1250.5"` is accepted and normalized; more than 2 decimals is rejected with reason `OVER_PRECISION`; a JSON number is rejected with 422 `FLOAT_NOT_ALLOWED`). Never a float anywhere. Currency is always `AED` (synthetic, English display format `AED 1,234.56`, no FX conversion).
 - Other decimals (scores, weights, ratios) are decimal strings. Score and contribution: 2 dp; normalized_value: 4 dp; ratios: 4 dp.
 - Timestamps: ISO-8601 UTC with `Z` (`2026-10-01T14:30:00Z`), always from the injected Clock. Dates: `YYYY-MM-DD`, interpreted in UTC.
 - Ids are opaque prefixed strings: `cus_`, `acc_`, `itm_`, `int_`, `ptp_`, `pay_`, `arr_`, `hsp_`, `dsp_`, `esc_`, `dec_`, `conv_`, `msg_`, `trn_`, `prp_`, `rec_`, `aud_`, `evr_`. Clients must not parse them.
@@ -1166,7 +1166,7 @@ Account and delinquency facts (deterministic data).
 | `account_id` | id | yes | acc_ id |
 | `account_type` | enum AccountType | yes | CARD or PERSONAL_LOAN |
 | `product_name` | string | yes | Synthetic product name |
-| `currency` | string | yes | Always USD |
+| `currency` | string | yes | Always AED |
 | `opened_on` | date | yes | Open date |
 | `outstanding_balance` | money string | yes | Total balance |
 | `overdue_amount` | money string | yes | Overdue amount |
@@ -1739,7 +1739,7 @@ Customer-safe account summary.
 | `account_id` | id | yes | acc_ id |
 | `account_type` | enum AccountType | yes | Type |
 | `product_name` | string | yes | Synthetic product |
-| `currency` | string | yes | USD |
+| `currency` | string | yes | AED |
 | `outstanding_balance` | money string | yes | Balance |
 | `overdue_amount` | money string | yes | Overdue |
 | `collection_status` | enum CollectionStatus | yes | Status |

@@ -114,7 +114,7 @@ def _create_account_table() -> None:
                 id_column("customer_id", "cus"),
                 enum_check_column("account_type", _ACCOUNT_TYPES, nullable=False),
                 "product_name varchar(120) NOT NULL",
-                "currency text NOT NULL CHECK (currency = 'USD')",
+                "currency text NOT NULL CHECK (currency = 'AED')",
                 "opened_on date NOT NULL",
                 "product_attributes jsonb NOT NULL",
                 timestamptz_column("created_at", nullable=False),

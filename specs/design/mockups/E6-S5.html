@@ -141,11 +141,11 @@ const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const api=l=>`<span class="api" data-api="${esc(l)}" title="API call">${esc(l)}</span>`;
-const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}$${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
+const money=s=>{const m=String(s).match(/^(-?)(\d+)\.(\d{2})$/);return m?`${m[1]}AED ${m[2].replace(/\B(?=(\d{3})+(?!\d))/g,',')}.${m[3]}`:esc(s)};
 const cents=s=>{const m=String(s).trim().match(/^(\d+)(?:\.(\d{1,2}))?$/);return m?BigInt(m[1])*100n+BigInt((m[2]||'').padEnd(2,'0')||'0'):null};
 const fromCents=c=>{const n=c<0n?-c:c;const s=n.toString().padStart(3,'0');return (c<0n?'-':'')+s.slice(0,-2)+'.'+s.slice(-2)};
 const pct4=v=>{if(v==null)return '-';const [i,f='']=String(v).split('.');const n=BigInt(i+f.padEnd(4,'0').slice(0,4));const s=n.toString().padStart(3,'0');return s.slice(0,-2)+'.'+s.slice(-2)+'%'};
-const fmtDT=t=>t?esc(String(t).replace('T',' ').replace(/:\d\dZ$/,' UTC')):'-';
+const fmtDT=t=>{if(!t)return '-';const d=new Date(t),z=new Date(d.getTime()+14400000),p=n=>String(n).padStart(2,'0');return `${z.getUTCFullYear()}-${p(z.getUTCMonth()+1)}-${p(z.getUTCDate())} ${p(z.getUTCHours())}:${p(z.getUTCMinutes())} GST`};
 const PN={CUSTOMER:'Customer',COLLECTIONS_OFFICER:'Collections Officer',COLLECTIONS_MANAGER:'Collections Manager',COMPLIANCE_RISK:'Compliance and Risk'};
 const NAV={CUSTOMER:[['Chat','/chat']],COLLECTIONS_OFFICER:[['Portfolio','/portfolio'],['Customer 360','/customers/acc_000123'],['Escalations','/escalations'],['Review queues','/review-queues'],['Demo controls','/demo-controls',true]],COLLECTIONS_MANAGER:[['Dashboard','/dashboard']],COMPLIANCE_RISK:[['Audit Trail','/audit'],['Compliance review queue','/compliance-review']]};
 const chip=(t,c,i)=>`<span class="chip ${c}">${i?`<span aria-hidden="true">${i}</span>`:''}${esc(t)}</span>`;
@@ -246,12 +246,12 @@ function reply(text){
   if(/human|person|someone|agent/i.test(text)){doHandoff(true);return}
   if(/plan|instal/i.test(text)){
     const opt={option_id:'opt-3-2026-10-15',installment_count:3,installment_amount:'204.13',final_installment_amount:'204.14',total_amount:OVERDUE,first_installment_date:'2026-10-15',frequency:'MONTHLY',schedule:[{sequence:1,due_date:'2026-10-15',amount:'204.13'},{sequence:2,due_date:'2026-11-15',amount:'204.13'},{sequence:3,due_date:'2026-12-15',amount:'204.14'}]};
-    pending=mkProposal('ARRANGEMENT',{kind:'ARRANGEMENT',option:opt},'3 monthly installments of $204.13 (last $204.14), total $612.40, first due 2026-10-15.');
+    pending=mkProposal('ARRANGEMENT',{kind:'ARRANGEMENT',option:opt},'3 monthly installments of AED 204.13 (last AED 204.14), total AED 612.40, first due 2026-10-15.');
     M.push({...msg('ASSISTANT','Here is a plan you are eligible for, calculated by our system. Please review it. Nothing is set up until you confirm.','TEMPLATE',[]),proposal:pending});return}
   const money_=text.match(/(\d+(?:\.\d{1,2})?)/),day=text.match(/(\d{1,2})(?:st|nd|rd|th)/);
   if(/pay/i.test(text)&&(/now|today|overdue|all/i.test(text)||!money_)){
-    pending=mkProposal('PAYMENT',{kind:'PAYMENT',payment_option:'OVERDUE_AMOUNT',payment_amount:OVERDUE,simulated:true,simulated_label:'Simulated payment - no real money moves'},'Simulated payment of your overdue amount, $612.40.');
-    M.push({...msg('ASSISTANT','You can pay your overdue amount of $612.40 now. This is a simulated payment. Please review and confirm.','TEMPLATE',['SIMULATED']),proposal:pending});return}
+    pending=mkProposal('PAYMENT',{kind:'PAYMENT',payment_option:'OVERDUE_AMOUNT',payment_amount:OVERDUE,simulated:true,simulated_label:'Simulated payment - no real money moves'},'Simulated payment of your overdue amount, AED 612.40.');
+    M.push({...msg('ASSISTANT','You can pay your overdue amount of AED 612.40 now. This is a simulated payment. Please review and confirm.','TEMPLATE',['SIMULATED']),proposal:pending});return}
   if(money_&&/pay|by|on|before/i.test(text)){
     const amt=cents(money_[1].includes('.')?money_[1]:money_[1]+'.00');
     if(amt>cents(OVERDUE)){M.push(msg('ASSISTANT',`The most you can promise right now is ${money(OVERDUE)}. Would you like to promise that amount, or a smaller one?`,'TEMPLATE',[]));return}
