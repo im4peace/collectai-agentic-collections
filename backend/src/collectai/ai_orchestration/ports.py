@@ -17,6 +17,23 @@ from typing import Protocol, TypeVar
 
 from pydantic import BaseModel
 
+from collectai.ai_orchestration.schemas.tool_args import (
+    EscalateToHumanArgs,
+    FlagDisputeArgs,
+    FlagHardshipArgs,
+    GetAccountContextArgs,
+    GetEligibleOptionsArgs,
+    ProposePtpArgs,
+)
+from collectai.ai_orchestration.schemas.tool_results import (
+    AccountContextResult,
+    EligibleOptionsResult,
+    EscalateToHumanResult,
+    FlagDisputeResult,
+    FlagHardshipResult,
+    ProposePtpResult,
+)
+
 SchemaT = TypeVar("SchemaT", bound=BaseModel, contravariant=True)
 
 
@@ -54,3 +71,48 @@ class DomainWritePort(Protocol[SchemaT]):
     """
 
     async def apply(self, structured_output: SchemaT) -> DomainWriteOutcome: ...
+
+
+class ToolBackendPort(Protocol):
+    """Implemented by `application.tool_backend` (E5-S4): the seam between
+    the closed six-tool registry (`ai_orchestration.tools`) and the real
+    rules-engine/persistence calls each tool needs. Mirrors `DomainWritePort`
+    above exactly -- `ai_orchestration` never imports `rules_engine`,
+    `domain_services` or `persistence` directly (this package's own layering
+    rule, and now also a durable `.importlinter` contract); `tools/registry.py`
+    calls only this Protocol, and `application.tool_backend.ToolBackend`
+    supplies the implementation.
+
+    `customer_id` is supplied by the trusted caller (a future chat-flow
+    story that already knows which customer a conversation is bound to),
+    never by the LLM -- it is deliberately absent from every tool's own
+    Pydantic argument schema (`ai_orchestration.schemas.tool_args`).
+    `idempotency_key` (PROPOSE tools only) is computed deterministically by
+    `ai_orchestration.tools.propose_tools` from
+    `(turn_id, tool_name, canonical arguments)` (AC3) and handed to the
+    implementation, which backs it with `domain_services.idempotency`.
+    """
+
+    async def get_account_context(
+        self, customer_id: str, args: GetAccountContextArgs
+    ) -> AccountContextResult: ...
+
+    async def get_eligible_options(
+        self, customer_id: str, args: GetEligibleOptionsArgs
+    ) -> EligibleOptionsResult: ...
+
+    async def propose_ptp(
+        self, customer_id: str, idempotency_key: str, args: ProposePtpArgs
+    ) -> ProposePtpResult: ...
+
+    async def flag_hardship(
+        self, customer_id: str, idempotency_key: str, args: FlagHardshipArgs
+    ) -> FlagHardshipResult: ...
+
+    async def flag_dispute(
+        self, customer_id: str, idempotency_key: str, args: FlagDisputeArgs
+    ) -> FlagDisputeResult: ...
+
+    async def escalate_to_human(
+        self, customer_id: str, idempotency_key: str, args: EscalateToHumanArgs
+    ) -> EscalateToHumanResult: ...

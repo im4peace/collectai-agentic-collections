@@ -13,6 +13,7 @@ once real routes replace some of the probes.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
 
 import pytest
@@ -73,32 +74,59 @@ def probe_client(api_client: TestClient) -> Iterator[TestClient]:
     yield api_client
 
 
-def _iter_api_routes(routes: Iterable[object]) -> Iterator[APIRoute]:
-    """Recursively find every `APIRoute`. Newer FastAPI/Starlette versions
-    wrap an `include_router`-ed router in an opaque container (exposing the
-    original `APIRouter` as `.original_router`) instead of flattening its
-    routes into the parent's `.routes` list, so a plain `isinstance` filter
-    over `app.routes` alone misses everything under a router -- which, on
-    this app, is every route this test needs to see."""
+def _iter_api_routes(routes: Iterable[object]) -> Iterator[tuple[str, APIRoute]]:
+    """Recursively find every `APIRoute`, paired with its fully resolved
+    path. Newer FastAPI/Starlette versions wrap an `include_router`-ed
+    router in an opaque container (exposing the original `APIRouter` as
+    `.original_router`) instead of flattening its routes into the parent's
+    `.routes` list, so a plain `isinstance` filter over `app.routes` alone
+    misses everything under a router -- which, on this app, is every route
+    this test needs to see.
+
+    A router included into an *already-included* router (E3-S5's
+    `me.py` -> `me_resources.py`) additionally never bakes the outer
+    router's mount prefix into its own routes' `.path` at all --
+    `me_resources.router` has no `prefix=` of its own, so its routes' raw
+    `.path` (e.g. `/ptps/{ptp_id}`) is relative, not absolute. That prefix
+    instead lives on the wrapper's `include_context.prefix`, which FastAPI
+    already resolves absolute from root at the point `.include_router()`
+    was called, so it is read and prepended explicitly here rather than
+    assumed to already be part of `route.path`."""
     for route in routes:
         if isinstance(route, APIRoute):
-            yield route
+            yield route.path, route
             continue
         nested_router = getattr(route, "original_router", None)
-        if nested_router is not None:
-            yield from _iter_api_routes(nested_router.routes)
+        if nested_router is None:
+            continue
+        prefix = getattr(getattr(route, "include_context", None), "prefix", "") or ""
+        for path, sub_route in _iter_api_routes(nested_router.routes):
+            yield prefix + path, sub_route
+
+
+_PATH_PARAM_PATTERN = re.compile(r"\{[^}]+\}")
+
+
+def _concrete_path(template: str) -> str:
+    """Every path param this story's routers declare is a plain `str` (no
+    `AfterValidator`), so a fixed placeholder always matches the route and
+    reaches `require_capability` -- a request to the literal, unsubstituted
+    `{param}` template 404s at Starlette's routing layer before the
+    dependency graph (and so before AC1's 401/403) ever runs."""
+    return _PATH_PARAM_PATTERN.sub("test-id", template)
 
 
 def _registered_routes(app: FastAPI) -> list[tuple[str, str, str]]:
-    """`(method, path, capability)` for every route with an HTTP method.
+    """`(method, path, capability)` for every route with an HTTP method,
+    `path` already concrete (placeholders substituted for any path params).
     An undeclared `x-capability` (E1-S5's `/api/health`, `/api/ready`) is
     public by contract (api-contracts.md 3.1)."""
     routes: list[tuple[str, str, str]] = []
-    for route in _iter_api_routes(app.routes):
+    for path, route in _iter_api_routes(app.routes):
         extra = route.openapi_extra or {}
         capability = extra.get("x-capability", PUBLIC_CAPABILITY)
         for method in route.methods - {"HEAD", "OPTIONS"}:
-            routes.append((method, route.path, capability))
+            routes.append((method, _concrete_path(path), capability))
     return routes
 
 

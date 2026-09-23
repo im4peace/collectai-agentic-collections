@@ -20,6 +20,14 @@
 ;
 ; `llm_provider` (layer 4a sibling) gets its own contract from E5-S1, added
 ; as a separate, additive section in this same file.
+;
+; `ai_orchestration` (layer 5b, E5-S4) gets its own contract below, now that
+; the package imports `llm_provider` for real: it must never import
+; `rules_engine`, `domain_services`, `persistence`, `api`, `application` or
+; `bootstrap`. `llm_provider` is deliberately NOT in its forbidden list --
+; `ai_orchestration` legitimately imports it elsewhere (E5-S1/E5-S2).
+; `tests/architecture/test_e5_s3_ai_orchestration_isolated.py`'s docstring
+; explains why this durable contract did not exist before this story.
 
 [importlinter]
 root_package = collectai
@@ -40,3 +48,24 @@ forbidden_modules =
     collectai.api
     collectai.jobs
     collectai.bootstrap
+
+[importlinter:contract:ai-orchestration-no-rules-engine-or-higher-layers]
+name = ai_orchestration (layer 5b) must not import rules_engine, domain_services, persistence, api, application or bootstrap
+type = forbidden
+source_modules =
+    collectai.ai_orchestration
+forbidden_modules =
+    collectai.rules_engine
+    collectai.domain_services
+    collectai.persistence
+    collectai.api
+    collectai.application
+    collectai.bootstrap
+; `audit` is an allowed layer-5b import (folder-structure.md: "AI: types,
+; config, audit, llm_provider") and `audit.service` itself needs the
+; `audit_event` ORM class to write rows -- that single edge is `persistence`
+; only by transitivity through an already-sanctioned dependency, not a
+; boundary violation of `ai_orchestration` itself, so it is excluded here
+; rather than dropping `persistence` from `forbidden_modules` wholesale.
+ignore_imports =
+    collectai.audit.service -> collectai.persistence.orm.audit_event

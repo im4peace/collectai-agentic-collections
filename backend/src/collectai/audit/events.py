@@ -26,6 +26,11 @@ PROVIDER_UNAVAILABLE_EVENT_TYPE = "PROVIDER_UNAVAILABLE"
 POLICY_CONFLICT_EVENT_TYPE = "POLICY_CONFLICT"
 AI_RESPONSE_RECORDED_EVENT_TYPE = "AI_RESPONSE_RECORDED"
 
+# E3-S5 AC5: a customer's `/api/me/*` request that resolves to a row owned
+# by a different customer (object-level authorization denial, distinct from
+# E3-S1's persona-level `ACCESS_DENIED`).
+CROSS_CUSTOMER_ACCESS_DENIED_EVENT_TYPE = "CROSS_CUSTOMER_ACCESS_DENIED"
+
 
 class AuditEventDraft(BaseModel):
     """Caller-supplied audit event fields (E1-S4 AC1)."""

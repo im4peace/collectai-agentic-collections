@@ -3,12 +3,15 @@ every update increments `record_version` (AC7)."""
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
-from sqlalchemy import Table, select
+from sqlalchemy import Row, Table, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from collectai.persistence.orm.account import AccountOrm
+from collectai.persistence.orm.customer import CustomerOrm
 from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.persistence.repositories.base import CustomerScopedRepository
 from collectai.persistence.repositories.concurrency import optimistic_update
@@ -64,3 +67,34 @@ class DelinquencyRecordRepository(CustomerScopedRepository[DelinquencyRecordOrm]
                 "record_version": expected_version + 1,
             },
         )
+
+    async def list_portfolio_candidates(
+        self,
+        session: AsyncSession,
+        *,
+        dpd_min: int | None,
+        dpd_max: int | None,
+        statuses: Sequence[str] | None,
+    ) -> Sequence[Row[Any]]:
+        """SQL-filterable slice of the portfolio query (E3-S2 AC1-AC2):
+        joins `delinquency_record` to `account` and `customer`, filtering
+        only what is directly stored -- `overdue_amount > 0` (api-contracts.md
+        3.3: "Only accounts with overdue_amount > 0 are listed"), the `dpd`
+        range and `collection_status`. `priority_band` has no column: it is
+        a computed value (data-models.md), filtered in Python by
+        `domain_services.portfolio_service` once each candidate has been
+        scored by `rules_engine.priority`."""
+        stmt = (
+            select(DelinquencyRecordOrm, AccountOrm, CustomerOrm)
+            .join(AccountOrm, AccountOrm.account_id == DelinquencyRecordOrm.account_id)
+            .join(CustomerOrm, CustomerOrm.customer_id == DelinquencyRecordOrm.customer_id)
+            .where(DelinquencyRecordOrm.overdue_amount > Money("0"))
+        )
+        if dpd_min is not None:
+            stmt = stmt.where(DelinquencyRecordOrm.dpd >= dpd_min)
+        if dpd_max is not None:
+            stmt = stmt.where(DelinquencyRecordOrm.dpd <= dpd_max)
+        if statuses:
+            stmt = stmt.where(DelinquencyRecordOrm.collection_status.in_(statuses))
+        result = await session.execute(stmt)
+        return result.all()

@@ -1,17 +1,25 @@
-"""Correlation-id propagation and the error envelope (E3-S1;
-api-contracts.md 1.2, 1.3).
+"""Correlation-id propagation and the error envelope (E3-S1; extended by
+Group E's API stories: E3-S2, E3-S5, E4-S1, E6-S6, E9-S1).
 
 Two responsibilities live here because they are two sides of the same
 contract: `X-Correlation-Id` must be on every response (success or error),
 and every non-2xx response must have the exact `ErrorEnvelope` shape. Wiring
 both from `api/app.py` in one place keeps that contract in one file instead
-of scattered across every router.
+of scattered across every router. The `ErrorEnvelope`/`ErrorBody`/
+`ErrorDetail` Pydantic models themselves live in `api/schemas/errors.py` (see
+that module's docstring) so this file only holds exceptions, handlers and the
+correlation-id middleware.
 
-NOTE: this file is past the code-gen skill's 200-line warning threshold
-(still well under the 300-line block threshold). If a future story adds
-another business-specific exception/handler pair here, split the envelope
-models (`ErrorDetail`, `ErrorBody`, `ErrorEnvelope`) into their own
-`api/schemas/errors.py` first, since that is the natural seam.
+Business-rule-specific reason codes are supplied by the raising router/
+service (a `ReasonCode` member), not hard-coded per exception class: every
+Group E story that rejects a request for a deterministic business reason
+raises one of `BusinessRuleViolationError` (422) or `ConflictError` (409)
+with its own `reason_code` rather than adding a new exception class per rule.
+The exception classes themselves live in `api/middleware/error_types.py`
+(split out once this module crossed the 300-line block threshold); this
+module re-exports every one of them so existing `from
+collectai.api.middleware.errors import NotFoundError`-style imports keep
+working unchanged.
 """
 
 from __future__ import annotations
@@ -25,9 +33,17 @@ from typing import Any, Final
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
 
+from collectai.api.middleware.error_types import (
+    AuditUnavailableError,
+    BusinessRuleViolationError,
+    ConflictError,
+    NotFoundError,
+    PolicyUnavailableError,
+    RequestValidationFailedError,
+)
 from collectai.api.rbac import ForbiddenError, UnauthenticatedError
+from collectai.api.schemas.errors import ErrorBody, ErrorDetail, ErrorEnvelope
 from collectai.types.enums import ErrorCode
 from collectai.types.reason_codes import ReasonCode
 
@@ -35,61 +51,21 @@ logger = logging.getLogger(__name__)
 
 _CORRELATION_ID_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
-
-class ErrorDetail(BaseModel):
-    """One field-level violation inside `ErrorEnvelope.error.details`."""
-
-    model_config = ConfigDict(frozen=True)
-
-    field: str | None = None
-    reason_code: str
-    message: str
-
-
-class ErrorBody(BaseModel):
-    """The `error` object of `ErrorEnvelope` (api-contracts.md 1.3)."""
-
-    model_config = ConfigDict(frozen=True)
-
-    code: str
-    reason_code: str | None = None
-    message: str
-    correlation_id: str
-    policy_version: str | None = None
-    details: list[ErrorDetail] = []
-    alternatives: dict[str, Any] | None = None
-    context: dict[str, Any] | None = None
-
-
-class ErrorEnvelope(BaseModel):
-    """Every non-2xx response has this shape (api-contracts.md 1.3)."""
-
-    model_config = ConfigDict(frozen=True)
-
-    error: ErrorBody
-
-
-class NotFoundError(Exception):
-    """A referenced resource does not exist (or, for a cross-customer
-    lookup, is indistinguishable from not existing). Mapped to 404
-    `NOT_FOUND`. Generic and reusable: any router may raise this rather
-    than building its own 404 envelope by hand."""
-
-    def __init__(self, *, message: str) -> None:
-        self.message = message
-        super().__init__(message)
-
-
-class RequestValidationFailedError(Exception):
-    """A business-shape validation rule the request body violates, distinct
-    from FastAPI/Pydantic's own field-shape `RequestValidationError`
-    (e.g. api-contracts.md's `CUSTOMER_ID_REQUIRED_OR_FORBIDDEN`). Mapped to
-    422 `VALIDATION_ERROR` with the given `reason_code`."""
-
-    def __init__(self, *, reason_code: ReasonCode, message: str) -> None:
-        self.reason_code = reason_code
-        self.message = message
-        super().__init__(message)
+__all__ = [
+    "AuditUnavailableError",
+    "BusinessRuleViolationError",
+    "ConflictError",
+    "ErrorBody",
+    "ErrorDetail",
+    "ErrorEnvelope",
+    "NotFoundError",
+    "PolicyUnavailableError",
+    "RequestValidationFailedError",
+    "build_error_response",
+    "correlation_id_middleware",
+    "register_error_handlers",
+    "resolve_correlation_id",
+]
 
 
 def resolve_correlation_id(request: Request) -> str:
@@ -124,15 +100,16 @@ def _generate_correlation_id() -> str:
 
 
 def register_error_handlers(app: FastAPI) -> None:
-    """Map every error this layer knows about to the `ErrorEnvelope` shape.
-    Business-rule-specific codes (BUSINESS_RULE_VIOLATION, CONFLICT, ...)
-    are added by the stories that introduce those rules; this registers
-    only the auth and generic-failure handlers E3-S1 owns."""
+    """Map every error this layer knows about to the `ErrorEnvelope` shape."""
     app.add_exception_handler(UnauthenticatedError, _handle_unauthenticated)
     app.add_exception_handler(ForbiddenError, _handle_forbidden)
     app.add_exception_handler(RequestValidationError, _handle_validation_error)
     app.add_exception_handler(NotFoundError, _handle_not_found)
     app.add_exception_handler(RequestValidationFailedError, _handle_request_validation_failed)
+    app.add_exception_handler(BusinessRuleViolationError, _handle_business_rule_violation)
+    app.add_exception_handler(ConflictError, _handle_conflict)
+    app.add_exception_handler(PolicyUnavailableError, _handle_policy_unavailable)
+    app.add_exception_handler(AuditUnavailableError, _handle_audit_unavailable)
     app.add_exception_handler(Exception, _handle_unexpected_error)
 
 
@@ -188,6 +165,52 @@ async def _handle_request_validation_failed(request: Request, exc: Exception) ->
     )
 
 
+async def _handle_business_rule_violation(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, BusinessRuleViolationError)  # noqa: S101 - type-bound by registration
+    return build_error_response(
+        request,
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+        message=exc.message,
+        reason_code=exc.reason_code,
+        details=exc.details,
+        alternatives=exc.alternatives,
+    )
+
+
+async def _handle_conflict(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, ConflictError)  # noqa: S101 - handler is type-bound by registration
+    return build_error_response(
+        request,
+        status.HTTP_409_CONFLICT,
+        ErrorCode.CONFLICT,
+        message=exc.message,
+        reason_code=exc.reason_code,
+        context=exc.context,
+    )
+
+
+async def _handle_policy_unavailable(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, PolicyUnavailableError)  # noqa: S101 - type-bound by registration
+    return build_error_response(
+        request,
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        ErrorCode.POLICY_UNAVAILABLE,
+        message=exc.message,
+        reason_code=ReasonCode.POLICY_UNAVAILABLE,
+    )
+
+
+async def _handle_audit_unavailable(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, AuditUnavailableError)  # noqa: S101 - type-bound by registration
+    return build_error_response(
+        request,
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        ErrorCode.AUDIT_UNAVAILABLE,
+        message=exc.message,
+    )
+
+
 async def _handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
     correlation_id = resolve_correlation_id(request)
     logger.error(
@@ -211,6 +234,9 @@ def build_error_response(
     message: str,
     reason_code: ReasonCode | None = None,
     details: list[ErrorDetail] | None = None,
+    alternatives: dict[str, Any] | None = None,
+    context: dict[str, Any] | None = None,
+    policy_version: str | None = None,
 ) -> JSONResponse:
     correlation_id = resolve_correlation_id(request)
     body = ErrorEnvelope(
@@ -219,7 +245,10 @@ def build_error_response(
             reason_code=reason_code.value if reason_code else None,
             message=message,
             correlation_id=correlation_id,
+            policy_version=policy_version,
             details=details or [],
+            alternatives=alternatives,
+            context=context,
         )
     )
     response = JSONResponse(status_code=http_status, content=body.model_dump())

@@ -14,7 +14,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import Annotated, cast
+from typing import Annotated, Final, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +28,7 @@ from collectai.api.rbac import (
 )
 from collectai.audit.events import AuditEventDraft
 from collectai.audit.service import AuditService, AuditUnavailable
+from collectai.config.policy.provider import PolicyProvider
 from collectai.persistence.repositories.demo_session_repository import DemoSessionRepository
 from collectai.types.clock import Clock
 from collectai.types.enums import ActorKind, AuditStage, Persona
@@ -64,6 +65,31 @@ def get_audit_service(request: Request) -> AuditService:
 
 
 AuditServiceDep = Annotated[AuditService, Depends(get_audit_service)]
+
+# No story before E6-S6 has needed the active PolicyRuleSet at the API layer
+# (every route so far is `session`/`system`, neither of which touches
+# `rules_engine`), so `api/app.py`'s `lifespan` does not yet set
+# `app.state.policy_provider`. Since this story may not edit `app.py` (the
+# parallel-batch orchestrator wires every sibling router and any new
+# app.state attribute into it in one pass once every Group E story lands),
+# `get_policy_provider` degrades to a fresh, never-activated `PolicyProvider`
+# instead of raising `AttributeError` when the attribute is still missing.
+# `PolicyProvider.get_active()` on that fallback instance always raises
+# `PolicyUnavailable` (fail-closed, CLAUDE.md's core engineering principle),
+# so a route depending on `PolicyProviderDep` degrades to a clean 503
+# `POLICY_UNAVAILABLE` rather than an unhandled 500 until the orchestrator's
+# integration pass adds `app.state.policy_provider = ...` to `lifespan`.
+_FALLBACK_POLICY_PROVIDER: Final[PolicyProvider] = PolicyProvider()
+
+
+def get_policy_provider(request: Request) -> PolicyProvider:
+    """The active-policy registry `api/app.py`'s `lifespan` is expected to
+    store on `app.state` (see module note above)."""
+    existing = getattr(request.app.state, "policy_provider", None)
+    return existing if isinstance(existing, PolicyProvider) else _FALLBACK_POLICY_PROVIDER
+
+
+PolicyProviderDep = Annotated[PolicyProvider, Depends(get_policy_provider)]
 
 
 def hash_session_token(raw_token: str) -> str:
@@ -159,6 +185,23 @@ def require_capability(
         return persona_context
 
     return _dependency
+
+
+def bound_customer_id(
+    persona_context: Annotated[PersonaContext, Depends(require_capability("self:read"))],
+) -> str:
+    """The CUSTOMER persona's server-bound `customer_id` (E3-S5 AC1), for
+    every `/api/me/*` handler to scope its lookups by. Safe to assert
+    non-None: only CUSTOMER holds `self:read` (`api/rbac.py`'s
+    `CAPABILITY_MATRIX`), and `_resolve_customer_session` above always sets
+    `customer_id` on a CUSTOMER's `PersonaContext`. A client-supplied
+    `customer_id` is never read here or anywhere in a `/api/me/*` request
+    schema -- this is the only source of truth a handler may use."""
+    assert persona_context.customer_id is not None  # noqa: S101 - guaranteed by self:read
+    return persona_context.customer_id
+
+
+BoundCustomerId = Annotated[str, Depends(bound_customer_id)]
 
 
 async def _audit_access_denied(

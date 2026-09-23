@@ -100,6 +100,8 @@ def run_startup_validation(
 def build_app() -> FastAPI:
     """ASGI entrypoint factory (E1-S5 AC1, AC2). Runs full startup
     validation (fail closed) and builds the FastAPI app from the resulting
-    `Settings`. Called by uvicorn via `--factory`, never at import time."""
+    `Settings` and already-activated `PolicyProvider`, so the seed policy
+    file is loaded and validated exactly once. Called by uvicorn via
+    `--factory`, never at import time."""
     result = run_startup_validation()
-    return create_app(result.settings)
+    return create_app(result.settings, policy_provider=result.policy_provider)

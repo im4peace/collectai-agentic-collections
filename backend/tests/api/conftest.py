@@ -31,8 +31,10 @@ from collectai.api.app import create_app
 from collectai.config.settings import Settings
 from collectai.persistence.orm.account import AccountOrm
 from collectai.persistence.orm.customer import CustomerOrm
+from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.types.clock import SimulatedClock
-from collectai.types.enums import LlmMode, Persona
+from collectai.types.enums import Bucket, CollectionStatus, LlmMode, Persona
+from collectai.types.money import Money
 
 _MIGRATIONS_DIR = (
     Path(__file__).resolve().parents[2] / "src" / "collectai" / "persistence" / "migrations"
@@ -109,8 +111,11 @@ async def clean_db(engine: AsyncEngine) -> AsyncIterator[None]:
 
 @pytest_asyncio.fixture
 async def seeded_customer_id(engine: AsyncEngine, clean_db: None) -> str:
-    """One seeded customer with one account, for CUSTOMER-persona session
-    creation (api-contracts.md `POST /api/session`)."""
+    """One seeded customer with one account and its delinquency record --
+    every account in this domain model has one (`GET /api/me/accounts`
+    relies on it existing for every owned account, not just delinquent
+    ones) -- for CUSTOMER-persona session creation (api-contracts.md
+    `POST /api/session`)."""
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as db_session:
         db_session.add(
@@ -141,6 +146,21 @@ async def seeded_customer_id(engine: AsyncEngine, clean_db: None) -> str:
                 opened_on=NOW.date(),
                 product_attributes={},
                 created_at=NOW,
+            )
+        )
+        await db_session.flush()
+        db_session.add(
+            DelinquencyRecordOrm(
+                account_id="acc_000101",
+                customer_id=SEEDED_CUSTOMER_ID,
+                outstanding_balance=Money("0.00"),
+                overdue_amount=Money("0.00"),
+                dpd=0,
+                bucket=Bucket.CURRENT.value,
+                collection_status=CollectionStatus.NEW.value,
+                as_of=NOW,
+                record_version=1,
+                updated_at=NOW,
             )
         )
         await db_session.commit()
