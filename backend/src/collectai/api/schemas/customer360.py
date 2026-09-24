@@ -14,11 +14,13 @@ one to the other at the API boundary, the same boundary every other
 `domain_services` module in this codebase already crosses when it returns a
 Pydantic domain model (e.g. `types.models.delinquency_record.DelinquencyRecord`).
 
-`payment_events`/`arrangements` are always empty this story: `PaymentEvent`
-and `PaymentArrangement` belong to not-yet-built E6-S3/E8-S1 and are
-deliberately out of this story's read list (see the module docstring of
-`domain_services.customer360_service`), so their wire shape is left
-unspecified here rather than guessed.
+`payment_events` (E6-S3, E4-S2 AC4) reuses `api.schemas.me.PaymentEvent`
+verbatim rather than a second, field-for-field duplicate of the exact same
+shape -- both `customer360.py` and `customer360_mapping.py` were already at
+the code-gen skill's 300-line block threshold, so this file keeps its own
+"re-declare every shape" convention everywhere except this one field.
+`arrangements` stays `list[Any] = []`: `PaymentArrangement` still belongs to
+not-yet-built E8-S1.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from collectai.api.schemas.me import PaymentEvent
 from collectai.types.enums import (
     AccountType,
     Bucket,
@@ -287,7 +290,7 @@ class Customer360(_Frozen):
     ai: AiBlock
     interactions: list[Interaction]
     ptp_history: list[PromiseToPay]
-    payment_events: list[Any] = []
+    payment_events: list[PaymentEvent] = []
     arrangements: list[Any] = []
     hardship_cases: list[HardshipCase]
     disputes: list[Dispute]

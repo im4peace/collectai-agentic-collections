@@ -120,3 +120,33 @@ class AuditUnavailableError(Exception):
     ) -> None:
         self.message = message
         super().__init__(message)
+
+
+class QueueNotPermittedError(Exception):
+    """E7-S1 AC7/api-contracts.md 3.9: `COMPLIANCE_RISK` requested a queue
+    other than `COMPLIANCE_REVIEW` on `GET /api/escalations`. Mapped to 403
+    `FORBIDDEN` with `reason_code` `QUEUE_NOT_PERMITTED` -- distinct from
+    `rbac.ForbiddenError` (a capability-level denial with no reason code):
+    this is an authenticated, capability-holding caller asking for a scope
+    their role does not cover."""
+
+    def __init__(
+        self, *, message: str = "COMPLIANCE_RISK may only view the COMPLIANCE_REVIEW queue."
+    ) -> None:
+        self.message = message
+        super().__init__(message)
+
+
+class HandoffFailedError(Exception):
+    """`POST /api/chat/conversations/{conversation_id}/handoff` could not
+    create the escalation case (E7-S1 AC4, api-contracts.md 3.8's handoff
+    behaviour note). Mapped to 503 `HANDOFF_FAILED`, distinct from the
+    generic `AuditUnavailableError` so the customer-facing next step stays
+    specific to "the handoff was not completed" rather than a generic audit
+    failure message."""
+
+    def __init__(
+        self, *, message: str = "The handoff could not be completed. Please try again shortly."
+    ) -> None:
+        self.message = message
+        super().__init__(message)

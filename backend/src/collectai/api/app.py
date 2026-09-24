@@ -29,6 +29,10 @@ resolved `ProviderMode`) on `app.state`, so `recommendations.py`'s
 `get_llm_provider`/`get_provider_mode` and `chat.py`'s `get_settings`
 resolve to the real, configured provider instead of their MOCK-mode
 fallbacks.
+
+Group G integration pass: `chat_proposals` (E6-S2/E6-S3 confirm/cancel/
+handoff) and `escalations` (E7-S1's `GET /api/escalations`) are wired in the
+same way.
 """
 
 from __future__ import annotations
@@ -41,7 +45,9 @@ from fastapi import FastAPI
 from collectai.api.middleware.errors import correlation_id_middleware, register_error_handlers
 from collectai.api.routers.audit import router as audit_router
 from collectai.api.routers.chat import router as chat_router
+from collectai.api.routers.chat_proposals import router as chat_proposals_router
 from collectai.api.routers.customer360 import router as customer360_router
+from collectai.api.routers.escalations import router as escalations_router
 from collectai.api.routers.me import router as me_router
 from collectai.api.routers.portfolio import router as portfolio_router
 from collectai.api.routers.ptps import router as ptps_router
@@ -112,5 +118,7 @@ def create_app(
     app.include_router(portfolio_router)
     app.include_router(ptps_router)
     app.include_router(chat_router)
+    app.include_router(chat_proposals_router)
+    app.include_router(escalations_router)
     app.include_router(recommendations_router)
     return app

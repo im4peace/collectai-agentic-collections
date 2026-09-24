@@ -12,6 +12,8 @@ from collectai.ai_orchestration.schemas.intent import IntentResult
 from collectai.persistence.orm.chat_message import ChatMessageOrm
 from collectai.persistence.orm.chat_turn import ChatTurnOrm
 from collectai.persistence.orm.conversation import ConversationOrm
+from collectai.persistence.orm.escalation_case import EscalationCaseOrm
+from collectai.persistence.orm.proposal import ProposalOrm
 from collectai.types.enums import EscalationReason, SafeState
 
 
@@ -30,3 +32,11 @@ class TurnOutcome:
     safe_state: SafeState
     escalation_reported: bool
     escalation_reason: EscalationReason | None
+    proposal: ProposalOrm | None = None
+    """E6-S2/E6-S3: the `Proposal` this turn created, if any (never set by
+    `respond_handed_off`/`_respond_unclassifiable`, which default it via
+    this field's own default)."""
+    escalation_case: EscalationCaseOrm | None = None
+    """E7-S1: the real `EscalationCase` this turn created (or the existing
+    one AC6's idempotent dedup returned), when `escalation_reported` is
+    true."""

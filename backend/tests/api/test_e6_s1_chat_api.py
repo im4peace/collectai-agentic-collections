@@ -25,7 +25,7 @@ from typing import Any
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from collectai.api.app import create_app
@@ -70,9 +70,37 @@ def _settings(*, database_url: str, chat_rate_limit_per_minute: int = 20) -> Set
     )
 
 
+async def _ensure_policy_rule_set_row(session: AsyncSession) -> None:
+    """E7-S1: `escalation_case.routing_policy_version` carries a real FK to
+    `policy_rule_set(policy_version)` (migration 0005) -- any test that can
+    trigger escalation-case creation (REQUEST_HUMAN, UNRESOLVED_UNKNOWN) now
+    needs a matching row to exist, mirroring the same helper
+    `test_e6_s6_manual_ptp_api.py` already uses for `promise_to_pay
+    .policy_version`'s identical FK."""
+    await session.execute(
+        text(
+            "INSERT INTO policy_rule_set "
+            "(policy_version, parameters, content_hash, is_active, created_at) "
+            "VALUES ('policy-v1', '{}'::jsonb, "
+            "'0000000000000000000000000000000000000000000000000000000000000000', "
+            "true, :created_at) "
+            "ON CONFLICT (policy_version) DO NOTHING"
+        ),
+        {"created_at": _NOW},
+    )
+
+
+@pytest_asyncio.fixture
+async def policy_rule_set_row(engine: AsyncEngine, clean_db: None) -> None:
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with factory() as db_session:
+        await _ensure_policy_rule_set_row(db_session)
+        await db_session.commit()
+
+
 @pytest.fixture
 def chat_client(
-    migrated_schema: str, clock: SimulatedClock, clean_db: None
+    migrated_schema: str, clock: SimulatedClock, clean_db: None, policy_rule_set_row: None
 ) -> Iterator[TestClient]:
     settings = _settings(database_url=migrated_schema)
     app = create_app(settings, clock=clock)
@@ -132,9 +160,7 @@ async def second_customer_id(engine: AsyncEngine, clean_db: None) -> str:
 
 
 @pytest.fixture
-def second_customer_headers(
-    chat_client: TestClient, second_customer_id: str
-) -> dict[str, str]:
+def second_customer_headers(chat_client: TestClient, second_customer_id: str) -> dict[str, str]:
     response = chat_client.post(
         "/api/session", json={"persona": Persona.CUSTOMER.value, "customer_id": second_customer_id}
     )
@@ -172,6 +198,28 @@ def _intent_response(
     )
     return ProviderResult(
         content=content, model_id="mock-model-1", latency_ms=5.0, input_tokens=12, output_tokens=40
+    )
+
+
+def _extraction_response(
+    *,
+    promised_amount: str | None = None,
+    promised_date: str | None = None,
+    payment_option: str | None = None,
+) -> ProviderResult:
+    """E6-S2/E6-S3: the second scripted response a PAY_NOW/PROMISE_TO_PAY
+    message now consumes (`ai_orchestration.schemas.proposal_extraction
+    .ProposalExtractionResult`), on top of the intent-classification
+    response every message already scripted."""
+    content = json.dumps(
+        {
+            "promised_amount": promised_amount,
+            "promised_date": promised_date,
+            "payment_option": payment_option,
+        }
+    )
+    return ProviderResult(
+        content=content, model_id="mock-model-1", latency_ms=5.0, input_tokens=12, output_tokens=20
     )
 
 
@@ -236,7 +284,7 @@ def test_message_response_always_offers_talk_to_human(
     chat_client: TestClient, customer_session_headers: dict[str, str]
 ) -> None:
     conversation_id = _create_conversation(chat_client, customer_session_headers)
-    _script(chat_client, [_intent_response("PAY_NOW")])
+    _script(chat_client, [_intent_response("PAY_NOW"), _extraction_response()])
 
     result = _send(chat_client, conversation_id, customer_session_headers, "I want to pay today")
 
@@ -251,7 +299,7 @@ def test_transactional_intent_alone_gets_a_templated_acknowledgement(
     chat_client: TestClient, customer_session_headers: dict[str, str]
 ) -> None:
     conversation_id = _create_conversation(chat_client, customer_session_headers)
-    _script(chat_client, [_intent_response("PROMISE_TO_PAY")])
+    _script(chat_client, [_intent_response("PROMISE_TO_PAY"), _extraction_response()])
 
     result = _send(
         chat_client, conversation_id, customer_session_headers, "I promise to pay next Friday"
@@ -259,7 +307,10 @@ def test_transactional_intent_alone_gets_a_templated_acknowledgement(
 
     assert result.status_code == 200
     body = result.body
+    # No amount/date extracted -> the deterministic clarification message
+    # (E6-S2 AC1: no proposal from the initial statement alone).
     assert "promise to pay" in body["assistant_message"]["content"].lower()
+    assert body["proposal"] is None
     assert body["escalation_reported"] is False
     assert body["safe_state"] == "NONE"
 
@@ -383,7 +434,11 @@ def test_more_than_the_configured_requests_per_minute_returns_429(
     chat_client: TestClient, customer_session_headers: dict[str, str]
 ) -> None:
     conversation_id = _create_conversation(chat_client, customer_session_headers)
-    _script(chat_client, [_intent_response("PAY_NOW") for _ in range(20)])
+    # FINANCIAL_HARDSHIP (a sensitive intent) rather than PAY_NOW: this test
+    # only cares about the rate limiter, not the proposal flow, and a
+    # sensitive intent needs exactly one scripted response per message
+    # (E6-S2/E6-S3's extraction call never runs for a sensitive intent).
+    _script(chat_client, [_intent_response("FINANCIAL_HARDSHIP") for _ in range(20)])
 
     for _ in range(20):
         result = _send(chat_client, conversation_id, customer_session_headers, "checking in")
@@ -453,7 +508,7 @@ async def test_one_message_call_writes_exactly_one_customer_and_assistant_messag
     chat_client: TestClient, customer_session_headers: dict[str, str], session: AsyncSession
 ) -> None:
     conversation_id = _create_conversation(chat_client, customer_session_headers)
-    _script(chat_client, [_intent_response("PAY_NOW")])
+    _script(chat_client, [_intent_response("PAY_NOW"), _extraction_response()])
 
     result = _send(chat_client, conversation_id, customer_session_headers, "I'd like to pay now")
     assert result.status_code == 200, result.body
@@ -488,9 +543,7 @@ def test_list_and_get_conversation_endpoints(
 
     listing = chat_client.get("/api/chat/conversations", headers=customer_session_headers)
     assert listing.status_code == 200
-    assert any(
-        item["conversation_id"] == conversation_id for item in listing.json()["items"]
-    )
+    assert any(item["conversation_id"] == conversation_id for item in listing.json()["items"])
 
     detail = chat_client.get(
         f"/api/chat/conversations/{conversation_id}", headers=customer_session_headers

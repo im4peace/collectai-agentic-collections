@@ -34,7 +34,11 @@ function personaHeaders(): HeadersInit {
   return headers;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+/** Exported so sibling `api/*Client.ts` modules (Customer 360, chat, audit,
+ * PTP, `/api/me`) can issue their own typed requests through the same
+ * persona-header/error-parsing wrapper, instead of each reimplementing it or
+ * calling `fetch` directly (this module's own docstring). */
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
     ...init,
     headers: {

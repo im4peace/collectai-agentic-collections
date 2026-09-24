@@ -169,8 +169,18 @@ def business_violation_message(reason_code: ReasonCode) -> str:
 
 
 def build_ptp_row(
-    request: PtpRecordRequest, customer_id: str, policy_version: str, clock: Clock
+    request: PtpRecordRequest,
+    customer_id: str,
+    policy_version: str,
+    clock: Clock,
+    *,
+    source: PtpSource = PtpSource.OFFICER_MANUAL,
+    created_by_persona: Persona = Persona.COLLECTIONS_OFFICER,
 ) -> PromiseToPayOrm:
+    """`source`/`created_by_persona` default to the E6-S6 officer-manual
+    workflow's values; E6-S2's chat-driven path passes `PtpSource.CUSTOMER_CHAT`
+    / `Persona.CUSTOMER` explicitly (see `record_chat_ptp` in
+    `ptp_service.py`)."""
     now = clock.now()
     return PromiseToPayOrm(
         ptp_id=generate_id(EntityPrefix.PROMISE_TO_PAY),
@@ -182,8 +192,8 @@ def build_ptp_row(
         status=PtpStatus.PENDING.value,
         cumulative_paid=Money("0"),
         interaction_reference=request.interaction_reference,
-        source=PtpSource.OFFICER_MANUAL.value,
-        created_by_persona=Persona.COLLECTIONS_OFFICER.value,
+        source=source.value,
+        created_by_persona=created_by_persona.value,
         created_at=now,
         updated_at=now,
         policy_version=policy_version,

@@ -3,13 +3,13 @@ section 4: `ConversationCreateRequest`, `ChatMessage`, `IntentSummary`,
 `MessageCreateRequest`, `ChatTurnResponse`, `Conversation`,
 `ConversationDetail`, `ConversationCreateResult`, `ConversationPage`).
 
-`ChatTurnResponse.proposal` and `.handoff` are always `None` in this story
-(E6-S1): proposal persistence is E6-S2/E6-S3, and a populated `handoff`
-needs a real `escalation_case` row, which only E6-S5/E7-S1 create. Both
-fields are still declared here (typed as the always-`None` shape for now)
-so this response matches api-contracts.md's `ChatTurnResponse` field set --
-a later story widens `proposal`'s type without otherwise changing this
-schema. `escalation_reported`/`escalation_reason` are this story's own
+`ChatTurnResponse.proposal` and `ConversationDetail.pending_proposal` are
+widened, as of E6-S2/E6-S3, from the always-`None` placeholder E6-S1 shipped
+to the real `chat_proposals.Proposal` shape -- this is the "a later story
+widens `proposal`'s type without otherwise changing this schema" the
+original docstring anticipated. `handoff` is similarly widened, as of E7-S1,
+to be populated whenever a real `escalation_case` exists for the
+conversation. `escalation_reported`/`escalation_reason` are E6-S1's own
 addition: `SafeState` has no member meaning "a sensitive/UNKNOWN outcome was
 reported to escalation, but no case exists yet" (see
 `application.chat_flow`'s module docstring for the full design note), so
@@ -23,14 +23,13 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from collectai.api.schemas._chat_message import ChatMessage
+from collectai.api.schemas.chat_proposals import Proposal
 from collectai.api.schemas.me import EscalationCustomerView, PageInfo
-from collectai.types.enums import ContentSource as MessageContentSource
 from collectai.types.enums import (
     ConversationStatus,
     EscalationReason,
     Intent,
-    MessageLabel,
-    MessageRole,
     SafeState,
     SpecialRequest,
 )
@@ -65,20 +64,6 @@ class MessageCreateRequest(BaseModel):
     content: str = Field(min_length=1, max_length=2000)
 
 
-class ChatMessage(BaseModel):
-    """One message (api-contracts.md `ChatMessage`)."""
-
-    model_config = ConfigDict(frozen=True)
-
-    message_id: str
-    conversation_id: str
-    role: MessageRole
-    content: str
-    content_source: MessageContentSource
-    labels: list[MessageLabel]
-    created_at: datetime
-
-
 class IntentSummary(BaseModel):
     """Advisory interpretation summary (never authoritative)."""
 
@@ -109,7 +94,7 @@ class ConversationDetail(BaseModel):
 
     conversation: Conversation
     messages: list[ChatMessage]
-    pending_proposal: None = None
+    pending_proposal: Proposal | None = None
     handoff: EscalationCustomerView | None = None
 
 
@@ -142,7 +127,7 @@ class ChatTurnResponse(BaseModel):
     customer_message: ChatMessage
     assistant_message: ChatMessage
     intent: IntentSummary | None
-    proposal: None = None
+    proposal: Proposal | None = None
     handoff: EscalationCustomerView | None = None
     safe_state: SafeState
     talk_to_human_available: bool

@@ -21,14 +21,16 @@ in the API layer.
 
 Module split (code-gen skill's 300-line hard block, principle #5): this
 file kept growing past 300 lines once idempotency, lookups and row/audit
-construction were all written out, so those pieces now live in two
+construction were all written out, so those pieces now live in
 underscore-prefixed sibling modules this file is the sole importer of --
-`_ptp_helpers.py` (lookups, dataclasses, wire-dict/row/draft construction)
-and `_ptp_idempotency.py` (the `Idempotency-Key` storage the story brief
-asks to keep out of any new shared repository/ORM file; see that module's
-own docstring for why it is a *separate* file from this one rather than
-literally inline). Every name a caller needs is re-exported here, so
-`api/routers/ptps.py` only ever imports from `ptp_service` itself.
+`_ptp_helpers.py` (lookups, dataclasses, wire-dict/row/draft construction),
+`_ptp_idempotency.py` (the `Idempotency-Key` storage the story brief asks to
+keep out of any new shared repository/ORM file), `_ptp_validation.py` (the
+freshness/amount-date/conflict assertions both `record_officer_ptp` and
+E6-S2's `_ptp_chat_confirmation.record_chat_ptp` need) and
+`_ptp_chat_confirmation.py` (that chat-driven creation path itself). Every
+name a caller needs is re-exported here, so `api/routers/ptps.py` and
+`application.confirmation_flow` only ever import from `ptp_service` itself.
 """
 
 from __future__ import annotations
@@ -39,8 +41,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.audit.service import AuditService
-from collectai.config.policy.models import PolicyRuleSet
 from collectai.config.policy.provider import PolicyProvider
+from collectai.domain_services._ptp_chat_confirmation import record_chat_ptp
 from collectai.domain_services._ptp_exceptions import (
     PtpAccountNotFoundError,
     PtpBusinessRuleViolation,
@@ -53,10 +55,7 @@ from collectai.domain_services._ptp_helpers import (
     alternatives_to_dict,
     build_audit_draft,
     build_ptp_row,
-    business_violation_message,
     get_delinquency_record,
-    has_active_pending_ptp,
-    has_open_dispute,
     ptp_wire_dict,
     to_domain_record,
 )
@@ -65,14 +64,15 @@ from collectai.domain_services._ptp_idempotency import (
     insert_or_replay,
     replay_if_present,
 )
+from collectai.domain_services._ptp_validation import (
+    assert_amount_and_date_valid,
+    assert_fresh,
+    assert_no_conflict,
+)
 from collectai.persistence.orm.promise_to_pay import PromiseToPayOrm
-from collectai.rules_engine.freshness import check_freshness
 from collectai.rules_engine.ptp_rules import PtpValidationInput, validate_ptp
 from collectai.types.clock import Clock
-from collectai.types.enums import Freshness, Persona
-from collectai.types.models.delinquency_record import DelinquencyRecord
-from collectai.types.money import Money
-from collectai.types.reason_codes import ReasonCode
+from collectai.types.enums import Persona
 
 __all__ = [
     "DryRunValidationResult",
@@ -84,6 +84,7 @@ __all__ = [
     "dry_run_validate_ptp",
     "get_ptp_by_id",
     "ptp_wire_dict",
+    "record_chat_ptp",
     "record_officer_ptp",
 ]
 
@@ -158,9 +159,9 @@ async def record_officer_ptp(
         raise PtpAccountNotFoundError(request.account_id)
     domain_record = to_domain_record(record)
 
-    _assert_fresh(request, domain_record, policy, clock)
-    _assert_amount_and_date_valid(request, record.overdue_amount, policy_provider, clock)
-    await _assert_no_conflict(session, request)
+    assert_fresh(request, domain_record, policy, clock)
+    assert_amount_and_date_valid(request, record.overdue_amount, policy_provider, clock)
+    await assert_no_conflict(session, request)
 
     new_row = build_ptp_row(request, record.customer_id, policy.policy_version, clock)
     session.add(new_row)
@@ -181,54 +182,3 @@ async def record_officer_ptp(
     return RecordPtpOutcome(response_body=response_body, replayed=False)
 
 
-def _assert_fresh(
-    request: PtpRecordRequest, domain_record: DelinquencyRecord, policy: PolicyRuleSet, clock: Clock
-) -> None:
-    freshness_result = check_freshness(
-        snapshot_as_of=request.snapshot_as_of,
-        snapshot_version=request.record_version,
-        current_record=domain_record,
-        policy=policy,
-        clock=clock,
-    )
-    if freshness_result.status is not Freshness.FRESH:
-        raise PtpConflictError(
-            reason_code=freshness_result.reason_code or ReasonCode.AMBIGUOUS_VALIDATION,
-            message=f"Snapshot freshness check failed: {freshness_result.status.value}.",
-            context={"refreshed_context": {"record_version": domain_record.record_version}},
-        )
-
-
-def _assert_amount_and_date_valid(
-    request: PtpRecordRequest, overdue_amount: Money, policy_provider: PolicyProvider, clock: Clock
-) -> None:
-    outcome = validate_ptp(
-        PtpValidationInput(
-            promised_amount=request.promised_amount,
-            promised_date=request.promised_date,
-            overdue_amount=overdue_amount,
-        ),
-        policy_provider,
-        clock,
-    )
-    if not outcome.valid:
-        reason_code = outcome.reason_codes[0]
-        raise PtpBusinessRuleViolation(
-            reason_code=reason_code,
-            message=business_violation_message(reason_code),
-            alternatives=alternatives_to_dict(outcome.alternatives),
-        )
-
-
-async def _assert_no_conflict(session: AsyncSession, request: PtpRecordRequest) -> None:
-    if await has_active_pending_ptp(session, request.account_id):
-        raise PtpConflictError(
-            reason_code=ReasonCode.CONFLICTING_ACTIVE_ITEM,
-            message="This account already has an active PENDING promise to pay.",
-            context={"permitted_paths": ["cancel", "amend"]},
-        )
-    if await has_open_dispute(session, account_id=request.account_id, item_id=request.item_id):
-        raise PtpConflictError(
-            reason_code=ReasonCode.DISPUTED_ITEM,
-            message="This item is under an open dispute.",
-        )

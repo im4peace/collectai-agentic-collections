@@ -1,5 +1,8 @@
 import { createBrowserRouter, useLocation } from "react-router-dom";
 
+import { AuditTrailViewer } from "../features/audit/AuditTrailViewer";
+import { ChatScreen } from "../features/chat/ChatScreen";
+import { Customer360Screen } from "../features/customer360/Customer360Screen";
 import { PersonaSwitcher } from "../features/session/PersonaSwitcher";
 import { PortfolioScreen } from "../features/portfolio/PortfolioScreen";
 import { useSession } from "../auth/sessionStore";
@@ -22,10 +25,10 @@ function NotFoundRoute(): JSX.Element {
  * capability table, which mirrors `backend/src/collectai/api/rbac.py`'s
  * `CAPABILITY_MATRIX`. `/` is the persona switcher and is reachable by
  * everyone (public, no `RequireCapability`) — it is how a fresh session is
- * created in the first place. Every other route is a guarded slot; most
- * still render `RouteStub` (`/portfolio` is E3-S3's real screen; later
- * Group G/H stories replace the rest) — see this story's handback notes
- * for how to plug a real screen in.
+ * created in the first place. Every other route is a guarded slot; Groups
+ * E3-S3, E4-S2, E6-S5 and E9-S2 have all replaced their `RouteStub` with a
+ * real screen. Only `/dashboard` (E10-S4) and `/compliance-review` (E7-S5)
+ * remain stubs, for stories not yet built.
  */
 export const router = createBrowserRouter([
   {
@@ -44,7 +47,7 @@ export const router = createBrowserRouter([
         path: "/customers/:customerId",
         element: (
           <RequireCapability capability="customer360:read">
-            <RouteStub title="Customer 360" />
+            <Customer360Screen />
           </RequireCapability>
         ),
       },
@@ -68,7 +71,7 @@ export const router = createBrowserRouter([
         path: "/audit",
         element: (
           <RequireCapability capability="audit:read">
-            <RouteStub title="Audit Trail" />
+            <AuditTrailViewer />
           </RequireCapability>
         ),
       },
@@ -90,7 +93,7 @@ export const router = createBrowserRouter([
         path: "/chat",
         element: (
           <RequireCapability capability="chat:use">
-            <RouteStub title="Chat" />
+            <ChatScreen />
           </RequireCapability>
         ),
       },

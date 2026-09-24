@@ -42,6 +42,7 @@ from collectai.application._chat_templates import GREETING_TEXT
 from collectai.application._chat_turn_processing import classify_and_respond, respond_handed_off
 from collectai.application._chat_types import ConversationCreateOutcome, TurnOutcome
 from collectai.audit.service import AuditService
+from collectai.config.policy.provider import PolicyProvider
 from collectai.llm_provider.base import LlmProvider
 from collectai.persistence.orm.conversation import ConversationOrm
 from collectai.types.clock import Clock
@@ -106,11 +107,17 @@ async def process_customer_message(
     audit_service: AuditService,
     ai_retry_bound: int,
     max_clarification_turns: int,
+    policy_provider: PolicyProvider,
+    proposal_ttl_minutes: int,
 ) -> TurnOutcome:
     """One `POST /messages` call's full business logic (AC2-AC5, AC7).
     `conversation` must already be ownership-checked by the caller (the
     router, via `me_ownership.require_owned`) -- this function trusts it."""
     now = clock.now()
+    # Generated up front so `customer_message` can carry it at INSERT time --
+    # see `_chat_persistence`'s module docstring for why (the deferred
+    # `fk_chat_message_turn` constraint this relies on).
+    turn_id = generate_id(EntityPrefix.CHAT_TURN)
     customer_message = await persist_message(
         session,
         conversation_id=conversation.conversation_id,
@@ -120,6 +127,7 @@ async def process_customer_message(
         content_source=ContentSource.CUSTOMER_INPUT,
         labels=[],
         created_at=now,
+        turn_id=turn_id,
     )
 
     if conversation.status == ConversationStatus.HANDED_OFF.value:
@@ -130,6 +138,7 @@ async def process_customer_message(
             customer_message=customer_message,
             correlation_id=correlation_id,
             now=now,
+            turn_id=turn_id,
         )
     else:
         outcome = await classify_and_respond(
@@ -145,6 +154,10 @@ async def process_customer_message(
             audit_service=audit_service,
             ai_retry_bound=ai_retry_bound,
             max_clarification_turns=max_clarification_turns,
+            policy_provider=policy_provider,
+            clock=clock,
+            proposal_ttl_minutes=proposal_ttl_minutes,
+            turn_id=turn_id,
         )
 
     conversation.last_message_at = now

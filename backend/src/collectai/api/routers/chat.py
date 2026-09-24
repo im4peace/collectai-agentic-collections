@@ -34,11 +34,18 @@ from collectai.api.deps import (
     ClockDep,
     DbSession,
     PersonaContext,
+    PolicyProviderDep,
     require_capability,
 )
 from collectai.api.middleware.errors import RateLimitedError, resolve_correlation_id
 from collectai.api.middleware.rate_limit import SlidingWindowRateLimiter
-from collectai.api.routers._chat_views import conversation_view, intent_summary, message_view
+from collectai.api.routers import me_views
+from collectai.api.routers._chat_views import (
+    conversation_view,
+    intent_summary,
+    message_view,
+    proposal_view,
+)
 from collectai.api.routers.me_ownership import LimitQuery, OffsetQuery, paginate, require_owned
 from collectai.api.schemas.chat import (
     ChatTurnResponse,
@@ -56,6 +63,7 @@ from collectai.persistence.orm.account import AccountOrm
 from collectai.persistence.orm.conversation import ConversationOrm
 from collectai.persistence.repositories.chat_message_repository import ChatMessageRepository
 from collectai.persistence.repositories.conversation_repository import ConversationRepository
+from collectai.persistence.repositories.proposal_repository import ProposalRepository
 from collectai.types.enums import LlmMode, ProviderMode
 
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
@@ -64,6 +72,7 @@ _CHAT_USE: Final[dict[str, str]] = {"x-capability": "chat:use"}
 
 _conversation_repo = ConversationRepository()
 _chat_message_repo = ChatMessageRepository()
+_proposal_repo = ProposalRepository()
 _rate_limiter = SlidingWindowRateLimiter()
 
 _require_chat_use = require_capability("chat:use")
@@ -208,9 +217,11 @@ async def get_conversation_endpoint(
     messages = await _chat_message_repo.list_by_conversation_for_customer(
         db, conversation_id, customer_id
     )
+    pending_proposal = await _proposal_repo.get_pending_by_conversation(db, conversation_id)
     return ConversationDetail(
         conversation=conversation_view(conversation),
         messages=[message_view(row) for row in messages],
+        pending_proposal=proposal_view(pending_proposal),
     )
 
 
@@ -228,6 +239,7 @@ async def send_message_endpoint(
     audit_service: AuditServiceDep,
     settings: SettingsDep,
     provider: ChatLlmProviderDep,
+    policy_provider: PolicyProviderDep,
     customer_id: RateLimitedCustomerId,
 ) -> ChatTurnResponse:
     conversation = await require_owned(
@@ -252,6 +264,8 @@ async def send_message_endpoint(
         audit_service=audit_service,
         ai_retry_bound=settings.ai_retry_bound,
         max_clarification_turns=settings.max_clarification_turns,
+        policy_provider=policy_provider,
+        proposal_ttl_minutes=settings.proposal_ttl_minutes,
     )
     await db.commit()
     return ChatTurnResponse(
@@ -260,6 +274,10 @@ async def send_message_endpoint(
         customer_message=message_view(outcome.customer_message),
         assistant_message=message_view(outcome.assistant_message),
         intent=intent_summary(outcome.intent),
+        proposal=proposal_view(outcome.proposal),
+        handoff=me_views.escalation_view(outcome.escalation_case)
+        if outcome.escalation_case is not None
+        else None,
         safe_state=outcome.safe_state,
         talk_to_human_available=True,
         correlation_id=outcome.turn.correlation_id,

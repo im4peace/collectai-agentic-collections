@@ -9,9 +9,18 @@ from __future__ import annotations
 
 from collectai.ai_orchestration.schemas.intent import IntentResult
 from collectai.api.schemas.chat import ChatMessage, Conversation, IntentSummary
+from collectai.api.schemas.chat_proposals import Proposal
 from collectai.persistence.orm.chat_message import ChatMessageOrm
 from collectai.persistence.orm.conversation import ConversationOrm
-from collectai.types.enums import ContentSource, ConversationStatus, MessageLabel, MessageRole
+from collectai.persistence.orm.proposal import ProposalOrm
+from collectai.types.enums import (
+    ContentSource,
+    ConversationStatus,
+    MessageLabel,
+    MessageRole,
+    ProposalKind,
+    ProposalStatus,
+)
 
 
 def conversation_view(row: ConversationOrm) -> Conversation:
@@ -33,6 +42,24 @@ def message_view(row: ChatMessageOrm) -> ChatMessage:
         content_source=ContentSource(row.content_source),
         labels=[MessageLabel(label) for label in row.labels],
         created_at=row.created_at,
+    )
+
+
+def proposal_view(row: ProposalOrm | None) -> Proposal | None:
+    if row is None:
+        return None
+    return Proposal(
+        proposal_id=row.proposal_id,
+        conversation_id=row.conversation_id,
+        kind=ProposalKind(row.kind),
+        status=ProposalStatus(row.status),
+        terms=row.terms,
+        terms_hash=row.terms_hash,
+        summary=row.summary,
+        simulated=row.simulated,
+        record_version=row.record_version,
+        created_at=row.created_at,
+        expires_at=row.expires_at,
     )
 
 

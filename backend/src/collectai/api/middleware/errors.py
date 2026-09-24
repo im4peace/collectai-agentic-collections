@@ -38,8 +38,10 @@ from collectai.api.middleware.error_types import (
     AuditUnavailableError,
     BusinessRuleViolationError,
     ConflictError,
+    HandoffFailedError,
     NotFoundError,
     PolicyUnavailableError,
+    QueueNotPermittedError,
     RateLimitedError,
     RequestValidationFailedError,
 )
@@ -59,8 +61,10 @@ __all__ = [
     "ErrorBody",
     "ErrorDetail",
     "ErrorEnvelope",
+    "HandoffFailedError",
     "NotFoundError",
     "PolicyUnavailableError",
+    "QueueNotPermittedError",
     "RateLimitedError",
     "RequestValidationFailedError",
     "build_error_response",
@@ -113,6 +117,8 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RateLimitedError, _handle_rate_limited)
     app.add_exception_handler(PolicyUnavailableError, _handle_policy_unavailable)
     app.add_exception_handler(AuditUnavailableError, _handle_audit_unavailable)
+    app.add_exception_handler(QueueNotPermittedError, _handle_queue_not_permitted)
+    app.add_exception_handler(HandoffFailedError, _handle_handoff_failed)
     app.add_exception_handler(Exception, _handle_unexpected_error)
 
 
@@ -220,6 +226,24 @@ async def _handle_audit_unavailable(request: Request, exc: Exception) -> JSONRes
         status.HTTP_503_SERVICE_UNAVAILABLE,
         ErrorCode.AUDIT_UNAVAILABLE,
         message=exc.message,
+    )
+
+
+async def _handle_queue_not_permitted(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, QueueNotPermittedError)  # noqa: S101 - type-bound by registration
+    return build_error_response(
+        request,
+        status.HTTP_403_FORBIDDEN,
+        ErrorCode.FORBIDDEN,
+        message=exc.message,
+        reason_code=ReasonCode.QUEUE_NOT_PERMITTED,
+    )
+
+
+async def _handle_handoff_failed(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, HandoffFailedError)  # noqa: S101 - type-bound by registration
+    return build_error_response(
+        request, status.HTTP_503_SERVICE_UNAVAILABLE, ErrorCode.HANDOFF_FAILED, message=exc.message
     )
 
 
