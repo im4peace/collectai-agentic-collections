@@ -6,10 +6,12 @@ by the migration's `CHECK (simulated)`); this module never imports a payment
 gateway SDK and never makes an HTTP call to an external payment host (AC4) --
 the entire "payment" is a database write against synthetic data.
 
-`applied_to_ptp_id` is intentionally left `None` by this story: matching a
-payment to a PENDING PTP and evaluating KEPT/BROKEN from it is
-`domain_services.ptp_lifecycle` (E6-S4, Group H) -- out of this group's
-scope.
+`applied_to_ptp_id` (E6-S4, Group H): the caller passes the account's
+PENDING PTP id, if any, so it is set at INSERT time -- `payment_event` is
+one of `deploy/db/init-roles.sql`'s insert-only tables (no UPDATE grant for
+`collectai_app`), so this module never back-fills it with an UPDATE after
+the fact. `domain_services.ptp_lifecycle` owns deciding KEPT/BROKEN from it;
+this module only records the association.
 """
 
 from __future__ import annotations
@@ -55,6 +57,7 @@ async def record_simulated_payment(
     clock: Clock,
     audit_service: AuditService,
     persona: Persona,
+    applied_to_ptp_id: str | None = None,
 ) -> PaymentEventOrm:
     """AC2 (E6-S3): exactly one `PaymentEvent`, outcome SUCCEEDED, and the
     balance reduced by `amount` -- both writes in the caller's own
@@ -62,7 +65,8 @@ async def record_simulated_payment(
     the just-freshness-checked row for the proposal's account; its
     `record_version` is used as `expected_version` so a genuine concurrent
     change between the freshness check and this write is caught rather than
-    silently overwritten."""
+    silently overwritten. `applied_to_ptp_id` (E6-S4): the account's PENDING
+    PTP id, if the caller already found one -- see this module's docstring."""
     now = clock.now()
     new_outstanding = Money(record.outstanding_balance.amount - amount.amount)
     new_overdue = Money(max(record.overdue_amount.amount - amount.amount, _ZERO))
@@ -93,7 +97,7 @@ async def record_simulated_payment(
         simulated=True,
         occurred_at=now,
         balance_after=new_outstanding,
-        applied_to_ptp_id=None,
+        applied_to_ptp_id=applied_to_ptp_id,
         proposal_id=proposal_id,
         created_by_persona=persona.value,
     )

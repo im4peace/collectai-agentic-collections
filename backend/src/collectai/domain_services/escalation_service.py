@@ -57,13 +57,6 @@ from collectai.types.ids import EntityPrefix, generate_id
 
 ESCALATION_CASE_CREATED_EVENT_TYPE = "ESCALATION_CASE_CREATED"
 
-# AC2's routing_policy_version column is NOT NULL (data-models.md), but
-# `RoutingResult.policy_version` is `None` under the routing service's own
-# AC5 policy-unavailable fallback. This literal keeps the column populated
-# and traceable; `routing_flags` (containing "POLICY_UNAVAILABLE") is the
-# real signal a reader should key off, never this placeholder string.
-_UNVERSIONED_POLICY_PLACEHOLDER = "POLICY_UNAVAILABLE"
-
 _OPEN_CASE_STATUSES: frozenset[CaseStatus] = frozenset(
     {CaseStatus.OPEN, CaseStatus.IN_REVIEW, CaseStatus.AWAITING_INFORMATION}
 )
@@ -112,11 +105,17 @@ async def create_escalation(
     idempotency_service: IdempotencyService | None = None,
     idempotency_key: str | None = None,
     summary: str | None = None,
+    parent_case_id: str | None = None,
+    dispute_id: str | None = None,
 ) -> EscalationCreationResult:
     """AC1, AC2, AC4, AC6. Writes the case and its audit event in this
     caller's transaction: a flush failure (e.g. `AuditUnavailable`
     propagating from `record_in`) rolls back the whole thing, so a failed
-    escalation write never leaves a case without its audit event (AC4)."""
+    escalation write never leaves a case without its audit event (AC4).
+    `parent_case_id` (E7-S2, Group H): the case this one was re-routed from,
+    via a reviewer's ESCALATE action -- `None` for every other trigger.
+    `dispute_id` (E8-S3, Group H): the `Dispute` this case was opened for,
+    if any -- `None` for every other trigger."""
     existing = await _find_open_duplicate(session, conversation_id, reason)
     if existing is not None:
         return EscalationCreationResult(case=existing, created=False)
@@ -137,6 +136,8 @@ async def create_escalation(
             idempotency_service=idempotency_service,
             idempotency_key=idempotency_key,
             summary=summary,
+            parent_case_id=parent_case_id,
+            dispute_id=dispute_id,
         )
 
     case = await _insert_case(
@@ -152,6 +153,8 @@ async def create_escalation(
         audit_service=audit_service,
         correlation_id=correlation_id,
         summary=summary,
+        parent_case_id=parent_case_id,
+        dispute_id=dispute_id,
     )
     return EscalationCreationResult(case=case, created=True)
 
@@ -188,6 +191,8 @@ async def _create_with_idempotency_key(
     idempotency_service: IdempotencyService,
     idempotency_key: str,
     summary: str | None,
+    parent_case_id: str | None,
+    dispute_id: str | None = None,
 ) -> EscalationCreationResult:
     """AC6's other clause: "the same idempotency key ... returns the
     existing case and creates no duplicate", used by the `POST .../handoff`
@@ -208,6 +213,8 @@ async def _create_with_idempotency_key(
             audit_service=audit_service,
             correlation_id=correlation_id,
             summary=summary,
+            parent_case_id=parent_case_id,
+            dispute_id=dispute_id,
         )
         return {"case_id": case.case_id}
 
@@ -242,6 +249,8 @@ async def _insert_case(
     audit_service: AuditService,
     correlation_id: str,
     summary: str | None,
+    parent_case_id: str | None = None,
+    dispute_id: str | None = None,
 ) -> EscalationCaseOrm:
     routing = route_escalation(reason, policy_provider)
     now = clock.now()
@@ -261,11 +270,11 @@ async def _insert_case(
         requested_terms=None,
         exception_types=None,
         hardship_case_id=None,
-        dispute_id=None,
+        dispute_id=dispute_id,
         recommendation_id=None,
-        parent_case_id=None,
+        parent_case_id=parent_case_id,
         rerouted_to_case_id=None,
-        routing_policy_version=routing.policy_version or _UNVERSIONED_POLICY_PLACEHOLDER,
+        routing_policy_version=routing.policy_version,
         routing_flags=list(routing.flags),
         first_reviewed_at=None,
         created_at=now,

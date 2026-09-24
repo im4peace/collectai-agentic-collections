@@ -126,7 +126,7 @@ async def confirm_proposal(
         audit_service=audit_service,
         correlation_id=correlation_id,
     )
-    outcome_kind, ptp_wire, payment_wire = await apply_confirmed_proposal(
+    outcome_kind, ptp_wire, payment_wire, arrangement_wire = await apply_confirmed_proposal(
         session,
         conversation=conversation,
         proposal=proposal,
@@ -145,6 +145,7 @@ async def confirm_proposal(
         outcome_kind=outcome_kind,
         ptp_wire=ptp_wire,
         payment_wire=payment_wire,
+        arrangement_wire=arrangement_wire,
         message_wire=message_wire_dict(message),
     )
 

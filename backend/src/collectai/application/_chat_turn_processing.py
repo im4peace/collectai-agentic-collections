@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.ai_orchestration.safety_precedence import apply_safety_precedence
 from collectai.application._chat_classification import classify, respond_unclassifiable
+from collectai.application._chat_dispute_flow import build_dispute_reply
 from collectai.application._chat_escalation_reporting import report_escalation
 from collectai.application._chat_persistence import persist_message, persist_turn
 from collectai.application._chat_proposal_flow import build_proposal_reply
@@ -38,7 +39,9 @@ from collectai.types.enums import (
 )
 from collectai.types.enums import SafeState as _SafeState
 
-_TRANSACTIONAL_PROPOSAL_INTENTS = frozenset({Intent.PAY_NOW, Intent.PROMISE_TO_PAY})
+_TRANSACTIONAL_PROPOSAL_INTENTS = frozenset(
+    {Intent.PAY_NOW, Intent.PROMISE_TO_PAY, Intent.PAYMENT_PLAN}
+)
 
 
 async def respond_handed_off(
@@ -167,11 +170,35 @@ async def classify_and_respond(
         )
         escalation_case = creation.case
 
+    escalation_reason = plan.escalation_reason
     reply_content = plan.content
     reply_labels: list[MessageLabel] = list(plan.labels)
     safe_state = _SafeState.NONE
     proposal_row = None
-    if (
+    if plan.escalation_reason is None and intent_result.label is Intent.DISPUTE:
+        # E8-S3 AC1/AC4: `_plan_sensitive` already chose the customer-facing
+        # message (AC2's fixed template, never overridden here) and left
+        # `escalation_reason` `None` by design (`_chat_escalation_reporting`
+        # 's own docstring: DISPUTE's real case creation belongs to this
+        # story, not that one) -- this branch does the actual `Dispute`/
+        # `EscalationCase` writes `report_escalation`'s audit-only signal
+        # above intentionally does not.
+        dispute_outcome = await build_dispute_reply(
+            session,
+            conversation=conversation,
+            customer_id=customer_id,
+            content=content,
+            correlation_id=correlation_id,
+            provider=provider,
+            provider_mode=provider_mode,
+            audit_service=audit_service,
+            ai_retry_bound=ai_retry_bound,
+            policy_provider=policy_provider,
+            clock=clock,
+        )
+        escalation_case = dispute_outcome.result.escalation.case
+        escalation_reason = EscalationReason.DISPUTE
+    elif (
         plan.escalation_reason is None
         and decision.proposal_execution_permitted
         and intent_result.label in _TRANSACTIONAL_PROPOSAL_INTENTS
@@ -236,8 +263,8 @@ async def classify_and_respond(
         assistant_message=assistant_message,
         intent=intent_result,
         safe_state=safe_state,
-        escalation_reported=plan.escalation_reason is not None,
-        escalation_reason=plan.escalation_reason,
+        escalation_reported=escalation_reason is not None,
+        escalation_reason=escalation_reason,
         proposal=proposal_row,
         escalation_case=escalation_case,
     )

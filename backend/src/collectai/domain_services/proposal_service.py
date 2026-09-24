@@ -7,11 +7,12 @@ core engineering principle). `application._chat_proposal_flow` is this
 module's only caller for creation; `application.confirmation_flow` is its
 only caller for revalidation/consumption at confirm/cancel time.
 
-Only `PTP` and `PAYMENT` proposal kinds are created in this group
-(E6-S2/E6-S3); `ARRANGEMENT` (E8-S1) and `EXCEPTION_REQUEST` (E7-S4) are
-Slice-2 kinds this module's `terms_hash`/wire-shape helpers are written
-generically enough to support later without a breaking change, but no
-constructor for them exists yet.
+`PTP` and `PAYMENT` proposal kinds were created starting in Group G
+(E6-S2/E6-S3); `ARRANGEMENT` (E8-S1) reuses this same `create_proposal` with
+`arrangement_terms()` below. `EXCEPTION_REQUEST` (E7-S4) remains a Slice-2
+kind this module's `terms_hash`/wire-shape helpers are written generically
+enough to support later without a breaking change, but no constructor for
+it exists yet.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.persistence.orm.proposal import ProposalOrm
 from collectai.persistence.repositories.proposal_repository import ProposalRepository
+from collectai.rules_engine.arrangement import ArrangementOption
 from collectai.types.clock import Clock
 from collectai.types.enums import PayableOptionType, ProposalKind, ProposalStatus
 from collectai.types.ids import EntityPrefix, generate_id
@@ -60,6 +62,25 @@ def payment_terms(
         "payment_amount": payment_amount.to_api_string(),
         "simulated": True,
         "simulated_label": SIMULATED_PAYMENT_LABEL,
+    }
+
+
+def arrangement_terms(*, option: ArrangementOption) -> dict[str, Any]:
+    """E8-S1 AC1/AC5: the exact `ArrangementOption` the customer was shown,
+    stored verbatim -- `application._confirmation_apply` rebuilds the
+    `PaymentArrangement` row's schedule/amount fields straight from these
+    terms at confirm time (no second, possibly-divergent derivation), and
+    `confirmation_flow`'s revalidation confirms `option_id` is still present
+    among a *freshly re-run* `get_eligible_options()` before it is trusted."""
+    return {
+        "kind": ProposalKind.ARRANGEMENT.value,
+        "option_id": option.option_id,
+        "installment_count": option.installment_count,
+        "installment_amount": option.installment_amount.to_api_string(),
+        "final_installment_amount": option.final_installment_amount.to_api_string(),
+        "total_amount": option.total_amount.to_api_string(),
+        "first_installment_date": option.first_installment_date.isoformat(),
+        "frequency": option.frequency,
     }
 
 

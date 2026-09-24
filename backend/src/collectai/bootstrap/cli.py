@@ -1,9 +1,10 @@
-"""`python -m collectai.bootstrap.cli migrate|seed`.
+"""`python -m collectai.bootstrap.cli migrate|seed|break-ptps`.
 
 A thin wrapper: `run_migrate` just points Alembic's `upgrade head` at
-`Settings.database_url`, and `run_seed` just calls the seed
-generator/validator/scanner/loader in sequence. No migration or
-generation logic lives in this module.
+`Settings.database_url`, `run_seed` just calls the seed
+generator/validator/scanner/loader in sequence, and `break-ptps` (E6-S4
+AC4) delegates entirely to `collectai.jobs.ptp_lifecycle_job.run`. No
+migration, generation or breakage-rule logic lives in this module.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from alembic import command
 from alembic.config import Config
 
 from collectai.config.settings import StartupConfigError, load_settings
+from collectai.jobs.ptp_lifecycle_job import run as run_break_ptps
 from collectai.persistence.db import build_engine, build_session_factory, normalize_database_url
 from collectai.persistence.seed.generator import (
     DEFAULT_ACCOUNT_COUNT,
@@ -89,6 +91,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     seed_parser = subparsers.add_parser("seed", help="Generate and load synthetic seed data.")
     seed_parser.add_argument("--account-count", type=int, default=DEFAULT_ACCOUNT_COUNT)
     seed_parser.add_argument("--random-seed", type=int, default=DEFAULT_RANDOM_SEED)
+    subparsers.add_parser(
+        "break-ptps", help="Move every overdue, unsatisfied PENDING PTP to BROKEN."
+    )
     return parser
 
 
@@ -106,6 +111,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "migrate":
         run_migrate(settings.database_url)
+        return 0
+
+    if args.command == "break-ptps":
+        result = asyncio.run(run_break_ptps(settings.database_url))
+        logger.info(
+            "PTP breakage job complete",
+            extra={
+                "checked": result.checked_count,
+                "broken": result.broken_count,
+                "kept": result.kept_count,
+            },
+        )
         return 0
 
     inserted = run_seed(

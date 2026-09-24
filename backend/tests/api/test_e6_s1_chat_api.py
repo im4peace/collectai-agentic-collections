@@ -41,6 +41,8 @@ from collectai.persistence.orm.chat_turn import ChatTurnOrm
 from collectai.persistence.orm.conversation import ConversationOrm
 from collectai.persistence.orm.customer import CustomerOrm
 from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
+from collectai.persistence.orm.dispute import DisputeOrm
+from collectai.persistence.orm.escalation_case import EscalationCaseOrm
 from collectai.types.clock import SimulatedClock
 from collectai.types.enums import Bucket, CollectionStatus, LlmMode, Persona
 from collectai.types.money import Money
@@ -223,6 +225,17 @@ def _extraction_response(
     )
 
 
+def _dispute_extraction_response(*, category: str | None = "AMOUNT_INCORRECT") -> ProviderResult:
+    """E8-S3: the second scripted response a DISPUTE message now consumes
+    (`ai_orchestration.schemas.dispute_extraction.DisputeExtractionResult`),
+    on top of the intent-classification response every message already
+    scripted."""
+    content = json.dumps({"category": category})
+    return ProviderResult(
+        content=content, model_id="mock-model-1", latency_ms=5.0, input_tokens=12, output_tokens=10
+    )
+
+
 def _create_conversation(
     client: TestClient, headers: dict[str, str], account_id: str = _SEEDED_ACCOUNT_ID
 ) -> str:
@@ -346,19 +359,39 @@ def test_transactional_intent_with_vulnerability_detected_is_overridden_by_sensi
     assert body["escalation_reported"] is False
 
 
-def test_dispute_intent_pauses_automated_treatment_without_an_escalation_report(
-    chat_client: TestClient, customer_session_headers: dict[str, str]
+async def test_dispute_intent_opens_a_dispute_and_a_real_escalation(
+    chat_client: TestClient, customer_session_headers: dict[str, str], session: AsyncSession
 ) -> None:
+    """E8-S3 AC1, AC4: superseded Slice-1 behavior (a template pause with no
+    real case, per `_chat_escalation_reporting.py`'s own docstring) -- a
+    DISPUTE message now opens a real `Dispute` and `EscalationCase`, routed
+    to DISPUTE_REVIEW, and the reply (AC2) never states or implies validity
+    either way."""
     conversation_id = _create_conversation(chat_client, customer_session_headers)
-    _script(chat_client, [_intent_response("DISPUTE")])
+    _script(chat_client, [_intent_response("DISPUTE"), _dispute_extraction_response()])
 
     result = _send(chat_client, conversation_id, customer_session_headers, "This charge isn't mine")
 
     assert result.status_code == 200
     body = result.body
-    assert body["escalation_reported"] is False
-    assert body["escalation_reason"] is None
-    assert "specialist" in body["assistant_message"]["content"].lower()
+    assert body["escalation_reported"] is True
+    assert body["escalation_reason"] == "DISPUTE"
+    content = body["assistant_message"]["content"].lower()
+    assert "specialist" in content
+    for judging_word in ("valid", "invalid", "confirmed", "you're right", "we agree"):
+        assert judging_word not in content
+
+    disputes = (await session.execute(select(DisputeOrm))).scalars().all()
+    assert len(disputes) == 1
+    assert disputes[0].status == "OPEN"
+    assert disputes[0].category == "AMOUNT_INCORRECT"
+    assert disputes[0].customer_reason == "This charge isn't mine"
+
+    cases = (await session.execute(select(EscalationCaseOrm))).scalars().all()
+    dispute_cases = [c for c in cases if c.reason == "DISPUTE"]
+    assert len(dispute_cases) == 1
+    assert dispute_cases[0].queue == "DISPUTE_REVIEW"
+    assert dispute_cases[0].dispute_id == disputes[0].dispute_id
 
 
 # AC5 -------------------------------------------------------------------

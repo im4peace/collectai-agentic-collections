@@ -32,3 +32,10 @@ class ProposalExtractionResult(StrictToolModel):
     promised_amount: Annotated[str, Field(max_length=20)] | None = None
     promised_date: date | None = None
     payment_option: PayableOptionType | None = None
+    installment_count: int | None = None
+    """E8-S1: which listed payment-plan option the customer means, by its
+    installment count (e.g. 3 for "3 payments") -- never a free-form amount
+    or a count the service didn't offer; `rules_engine.arrangement
+    .get_eligible_options`/`classify_requested_terms` alone decide whether
+    that count is a real, standard option or must be escalated as
+    exceptional."""

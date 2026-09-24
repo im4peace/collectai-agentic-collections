@@ -40,6 +40,7 @@ from collectai.api.middleware.error_types import (
     ConflictError,
     HandoffFailedError,
     NotFoundError,
+    ObjectForbiddenError,
     PolicyUnavailableError,
     QueueNotPermittedError,
     RateLimitedError,
@@ -63,6 +64,7 @@ __all__ = [
     "ErrorEnvelope",
     "HandoffFailedError",
     "NotFoundError",
+    "ObjectForbiddenError",
     "PolicyUnavailableError",
     "QueueNotPermittedError",
     "RateLimitedError",
@@ -118,6 +120,7 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(PolicyUnavailableError, _handle_policy_unavailable)
     app.add_exception_handler(AuditUnavailableError, _handle_audit_unavailable)
     app.add_exception_handler(QueueNotPermittedError, _handle_queue_not_permitted)
+    app.add_exception_handler(ObjectForbiddenError, _handle_object_forbidden)
     app.add_exception_handler(HandoffFailedError, _handle_handoff_failed)
     app.add_exception_handler(Exception, _handle_unexpected_error)
 
@@ -237,6 +240,17 @@ async def _handle_queue_not_permitted(request: Request, exc: Exception) -> JSONR
         ErrorCode.FORBIDDEN,
         message=exc.message,
         reason_code=ReasonCode.QUEUE_NOT_PERMITTED,
+    )
+
+
+async def _handle_object_forbidden(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, ObjectForbiddenError)  # noqa: S101 - type-bound by registration
+    return build_error_response(
+        request,
+        status.HTTP_403_FORBIDDEN,
+        ErrorCode.FORBIDDEN,
+        message=exc.message,
+        reason_code=exc.reason_code,
     )
 
 

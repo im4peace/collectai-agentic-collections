@@ -3,6 +3,7 @@ import { createBrowserRouter, useLocation } from "react-router-dom";
 import { AuditTrailViewer } from "../features/audit/AuditTrailViewer";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { Customer360Screen } from "../features/customer360/Customer360Screen";
+import { EscalationsScreen } from "../features/escalations/EscalationsScreen";
 import { PersonaSwitcher } from "../features/session/PersonaSwitcher";
 import { PortfolioScreen } from "../features/portfolio/PortfolioScreen";
 import { useSession } from "../auth/sessionStore";
@@ -26,9 +27,9 @@ function NotFoundRoute(): JSX.Element {
  * `CAPABILITY_MATRIX`. `/` is the persona switcher and is reachable by
  * everyone (public, no `RequireCapability`) — it is how a fresh session is
  * created in the first place. Every other route is a guarded slot; Groups
- * E3-S3, E4-S2, E6-S5 and E9-S2 have all replaced their `RouteStub` with a
- * real screen. Only `/dashboard` (E10-S4) and `/compliance-review` (E7-S5)
- * remain stubs, for stories not yet built.
+ * E3-S3, E4-S2, E6-S5, E9-S2 and E7-S6 have all replaced their `RouteStub`
+ * with a real screen. Only `/dashboard` (E10-S4) and `/compliance-review`
+ * (E7-S5) remain stubs, for stories not yet built.
  */
 export const router = createBrowserRouter([
   {
@@ -55,7 +56,7 @@ export const router = createBrowserRouter([
         path: "/escalations",
         element: (
           <RequireCapability capability="escalation:review">
-            <RouteStub title="Escalations" />
+            <EscalationsScreen />
           </RequireCapability>
         ),
       },

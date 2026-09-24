@@ -34,7 +34,7 @@ class EscalationCaseOrm(Base):
     recommendation_id: Mapped[str | None] = mapped_column(Text, default=None)
     parent_case_id: Mapped[str | None] = mapped_column(Text, default=None)
     rerouted_to_case_id: Mapped[str | None] = mapped_column(Text, default=None)
-    routing_policy_version: Mapped[str] = mapped_column(Text)
+    routing_policy_version: Mapped[str | None] = mapped_column(Text, default=None)
     routing_flags: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     first_reviewed_at: Mapped[datetime | None] = mapped_column(TIMESTAMPTZ, default=None)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMPTZ)

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from collectai.rules_engine.arrangement import ArrangementOption
 from collectai.rules_engine.payable import PayableOption
 from collectai.rules_engine.ptp_rules import Alternatives
 from collectai.types.enums import PayableOptionType
@@ -23,6 +24,26 @@ SUPPRESSED_MESSAGE = (
 NO_PAYABLE_OPTIONS_MESSAGE = (
     "There isn't a payment option available for this account right now. "
     "You can talk to a human at any time."
+)
+
+NO_ARRANGEMENT_OPTIONS_MESSAGE = (
+    "I can't offer a payment plan for this account right now. You can talk to a human at any "
+    "time."
+)
+
+ARRANGEMENT_CONFLICT_MESSAGE = (
+    "This account already has an active promise to pay or payment plan, so I can't set up "
+    "another one. You can ask to amend or cancel the existing one, or talk to a human."
+)
+
+ARRANGEMENT_RULES_UNAVAILABLE_MESSAGE = (
+    "I can't work out payment plan options right now, so I've asked a specialist to help. "
+    "You can talk to a human at any time."
+)
+
+ARRANGEMENT_EXCEPTIONAL_MESSAGE = (
+    "That request is outside what I can set up automatically, so I've asked a specialist to "
+    "review it. You can talk to a human at any time."
 )
 
 _PTP_REJECTION_REASONS: dict[ReasonCode, str] = {
@@ -93,4 +114,27 @@ def payment_choice_message(options: list[PayableOption]) -> str:
 def _option_label(option_type: PayableOptionType) -> str:
     return "the overdue amount" if option_type is PayableOptionType.OVERDUE_AMOUNT else (
         "the full balance"
+    )
+
+
+def arrangement_choice_message(options: list[ArrangementOption]) -> str:
+    """AC1: every amount here comes straight from `option`, the eligibility
+    service's own `Decimal` values -- never re-derived or rounded again."""
+    described = [
+        f"{option.installment_count} payments of "
+        f"{option.installment_amount.to_api_string()} (last one "
+        f"{option.final_installment_amount.to_api_string()}), starting "
+        f"{option.first_installment_date.isoformat()}"
+        for option in options
+    ]
+    joined = "; or ".join(described)
+    return f"You can set up a payment plan: {joined}. Which would you like?"
+
+
+def arrangement_offer_message(option: ArrangementOption) -> str:
+    return (
+        f"You can set up a payment plan of {option.installment_count} payments of "
+        f"{option.installment_amount.to_api_string()} (last one "
+        f"{option.final_installment_amount.to_api_string()}), starting "
+        f"{option.first_installment_date.isoformat()}. Please confirm below."
     )

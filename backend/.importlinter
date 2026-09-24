@@ -28,6 +28,16 @@
 ; `ai_orchestration` legitimately imports it elsewhere (E5-S1/E5-S2).
 ; `tests/architecture/test_e5_s3_ai_orchestration_isolated.py`'s docstring
 ; explains why this durable contract did not exist before this story.
+;
+; `collectai_eval` (E10-S1) is a separate root package (`collectai_eval`,
+; not `collectai.something`), not `include_external_packages`-visible to a
+; contract whose `root_package` is `collectai` -- no contract here can
+; express "collectai must not import collectai_eval" the way every other
+; contract expresses a boundary within `collectai` itself.
+; `tests/architecture/test_e10_s1_eval_isolation.py`'s hand-rolled AST scan
+; is this boundary's real, durable enforcement (mirroring
+; `test_e5_s3_ai_orchestration_isolated.py`'s own precedent for exactly
+; this "not yet expressible via `.importlinter`" situation).
 
 [importlinter]
 root_package = collectai
@@ -61,6 +71,7 @@ forbidden_modules =
     collectai.api
     collectai.application
     collectai.bootstrap
+    collectai.jobs
 ; `audit` is an allowed layer-5b import (folder-structure.md: "AI: types,
 ; config, audit, llm_provider") and `audit.service` itself needs the
 ; `audit_event` ORM class to write rows -- that single edge is `persistence`

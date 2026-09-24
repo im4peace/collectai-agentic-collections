@@ -1,15 +1,18 @@
 # CollectAI CI (E1-S5 AC4). Every job here is backed by tooling that exists
-# today. Jobs added by later stories per specs/design/deployment.md section 3
-# (not added yet -- their dependencies do not exist in this repo yet):
-#   - data-safety      (scripts/scan_prohibited_patterns.py, tests/security,
-#                        tests/redteam)                        -- E9-S4
-#   - eval-mock        (collectai_eval package)                -- E10-S1
+# today. `data-safety` (E9-S4) owns tests/redteam and tests/security
+# exclusively, and `eval-mock` (E10-S1) owns tests/evaluation exclusively --
+# backend-db/backend-unit ignore all three so a db-marked test in any of
+# them never runs twice. Jobs still not added per specs/design/deployment.md
+# section 3 (their dependencies do not exist in this repo yet):
 #   - openapi-contract (scripts/generate_openapi.py)           -- a later
 #                        API-contract story
 #   - e2e              (frontend/e2e Playwright suites)        -- the UI
 #                        journey stories (E11-S1 onward)
 # MOCK only: no ANTHROPIC_API_KEY is set anywhere in this workflow, and no
-# repository secret is required, so LIVE evaluation never runs here.
+# repository secret is required, so LIVE evaluation never runs here --
+# `eval-mock`'s own name is a promise `collectai_eval.runner`'s own
+# `LiveEvalCiRefusedError` backs structurally, not just by this workflow's
+# omission of a key.
 
 name: CI
 
@@ -50,7 +53,9 @@ jobs:
     # tests/ai_guardrails, tests/architecture, ...). The codebase marks only
     # `db` tests explicitly (`pytestmark = pytest.mark.db`); "not db" is
     # therefore the correct complement rather than a `unit` marker that
-    # nothing in the suite actually carries.
+    # nothing in the suite actually carries. tests/redteam, tests/security
+    # and tests/evaluation are ignored here -- `data-safety`/`eval-mock` own
+    # them exclusively.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +63,9 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
-      - run: python -m pytest -m "not db"
+      - run: |
+          python -m pytest -m "not db" \
+            --ignore=tests/redteam --ignore=tests/security --ignore=tests/evaluation
 
   backend-db:
     runs-on: ubuntu-latest
@@ -69,8 +76,42 @@ jobs:
           python-version: "3.11"
       # No postgres service container: tests/db/conftest.py starts its own
       # embedded PostgreSQL instance (embedded-postgres) per test session.
+      # tests/redteam, tests/security and tests/evaluation are ignored here
+      # -- `data-safety`/`eval-mock` own them exclusively.
       - run: pip install -e ".[dev]"
-      - run: python -m pytest -m db
+      - run: |
+          python -m pytest -m db \
+            --ignore=tests/redteam --ignore=tests/security --ignore=tests/evaluation
+
+  data-safety:
+    # E9-S4: the prohibited-pattern scan (AC2) plus the red-team (AC1, AC3)
+    # and security (AC2, AC4) suites, isolated from backend-unit/backend-db
+    # so a scan or red-team failure reports distinctly from an ordinary test
+    # failure.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: python scripts/scan_prohibited_patterns.py
+      - run: python -m pytest tests/redteam tests/security
+
+  eval-mock:
+    # E10-S1: the evaluation dataset/runner/store/report test suite
+    # (tests/evaluation), isolated from backend-unit/backend-db so an eval
+    # regression reports distinctly. Only ever MOCK here (no ANTHROPIC_API_KEY
+    # is set in this workflow, and `collectai_eval.runner` refuses LIVE
+    # under CI regardless -- see this file's own top-of-file comment).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest tests/evaluation
 
   architecture:
     runs-on: ubuntu-latest

@@ -44,6 +44,7 @@ from collectai.ai_orchestration.schemas.tool_args import (
 from collectai.ai_orchestration.schemas.tool_results import (
     AccountContextResult,
     AmountRangeResult,
+    ArrangementOptionSummary,
     DateRangeResult,
     EligibleOptionsResult,
     EscalateToHumanResult,
@@ -57,15 +58,19 @@ from collectai.ai_orchestration.schemas.tool_results import (
 from collectai.ai_orchestration.tools.registry import ToolName
 from collectai.application._tool_backend_suppression import build_suppression_input
 from collectai.config.policy.provider import PolicyProvider
+from collectai.domain_services._arrangement_helpers import has_active_arrangement
+from collectai.domain_services._ptp_helpers import has_active_pending_ptp
 from collectai.domain_services.idempotency import IdempotencyService
+from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.persistence.repositories.account_repository import AccountRepository
 from collectai.persistence.repositories.delinquency_repository import DelinquencyRecordRepository
+from collectai.rules_engine.arrangement import get_eligible_options as get_eligible_arrangements
 from collectai.rules_engine.payable import get_payable_options
 from collectai.rules_engine.ptp_rules import Alternatives, PtpValidationInput, validate_ptp
 from collectai.rules_engine.routing import route_escalation
 from collectai.rules_engine.suppression import evaluate_suppression
 from collectai.types.clock import Clock
-from collectai.types.enums import AccountType, Bucket, CollectionStatus
+from collectai.types.enums import AccountType, Bucket, CollectionStatus, EligibilityClass
 
 
 class AccountNotFoundForCustomerError(Exception):
@@ -123,9 +128,13 @@ class ToolBackend:
     async def get_eligible_options(
         self, customer_id: str, args: GetEligibleOptionsArgs
     ) -> EligibleOptionsResult:
-        """Slice 1 (AC5): payable amounts and the PTP date window only.
-        `arrangement_options` is always `[]` here -- a Slice-2 story (E8-S1)
-        adds real data without changing this method's return type."""
+        """Payable amounts, the PTP date window, and (E8-S1 AC9)
+        `arrangement_options` from `rules_engine.arrangement
+        .get_eligible_options` -- real data now, without changing this
+        method's return type (`EligibleOptionsResult`/`ArrangementOptionSummary`
+        were already shaped for it in Slice 1). Empty when the account is not
+        arrangement-eligible or the arrangement rules engine itself fails
+        closed -- never a fabricated option."""
         delinquency = await DelinquencyRecordRepository().get_by_account(
             self._session, args.account_id, customer_id
         )
@@ -148,6 +157,7 @@ class ToolBackend:
             earliest=today,
             latest=today + timedelta(days=policy.parameters.ptp.window_days),
         )
+        arrangement_options = await self._arrangement_options(args.account_id, delinquency)
         return EligibleOptionsResult(
             account_id=args.account_id,
             payable_options=[
@@ -155,8 +165,36 @@ class ToolBackend:
                 for option in payable
             ],
             ptp_date_window=window,
-            arrangement_options=[],
+            arrangement_options=arrangement_options,
         )
+
+    async def _arrangement_options(
+        self, account_id: str, delinquency: DelinquencyRecordOrm
+    ) -> list[ArrangementOptionSummary]:
+        has_ptp = await has_active_pending_ptp(self._session, account_id)
+        has_arrangement = await has_active_arrangement(self._session, account_id)
+        result = get_eligible_arrangements(
+            self._policy_provider,
+            self._clock,
+            delinquency.overdue_amount,
+            delinquency.dpd,
+            has_ptp,
+            has_arrangement,
+        )
+        if not result.ok or result.value is None:
+            return []
+        if result.value.classification is not EligibilityClass.ELIGIBLE:
+            return []
+        return [
+            ArrangementOptionSummary(
+                option_id=option.option_id,
+                installment_count=option.installment_count,
+                installment_amount=option.installment_amount,
+                total_amount=option.total_amount,
+                first_installment_date=option.first_installment_date,
+            )
+            for option in result.value.options
+        ]
 
     async def propose_ptp(
         self, customer_id: str, idempotency_key: str, args: ProposePtpArgs

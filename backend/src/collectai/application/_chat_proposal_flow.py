@@ -29,20 +29,25 @@ from collectai.ai_orchestration.prompts.proposal_v1 import (
 from collectai.ai_orchestration.schemas.proposal_extraction import ProposalExtractionResult
 from collectai.application._chat_proposal_builders import (
     ProposalFlowOutcome,
+    build_arrangement_reply,
     build_payment_reply,
     build_ptp_reply,
 )
-from collectai.application._chat_proposal_messages import SUPPRESSED_MESSAGE
+from collectai.application._chat_proposal_messages import (
+    ARRANGEMENT_RULES_UNAVAILABLE_MESSAGE,
+    SUPPRESSED_MESSAGE,
+)
 from collectai.application._tool_backend_suppression import build_suppression_input
 from collectai.audit.service import AuditService
 from collectai.config.policy.provider import PolicyProvider
+from collectai.domain_services.escalation_service import create_escalation
 from collectai.llm_provider.base import LlmProvider
 from collectai.persistence.orm.conversation import ConversationOrm
 from collectai.persistence.repositories.delinquency_repository import DelinquencyRecordRepository
 from collectai.rules_engine.payable import get_payable_options
 from collectai.rules_engine.suppression import evaluate_suppression
 from collectai.types.clock import Clock
-from collectai.types.enums import Intent, Persona, ProviderMode
+from collectai.types.enums import CaseSource, EscalationReason, Intent, Persona, ProviderMode
 from collectai.types.results import PolicyUnavailable
 
 __all__ = ["ProposalFlowOutcome", "build_proposal_reply"]
@@ -80,6 +85,30 @@ async def build_proposal_reply(
     try:
         policy = policy_provider.get_active()
     except PolicyUnavailable:
+        if intent_label is Intent.PAYMENT_PLAN:
+            # E8-S1 AC4: unlike PTP/PAY_NOW's generic safe-fallback (no
+            # escalation), an arrangement's own rules-engine failure --
+            # `get_eligible_options` can only ever fail this same way, via
+            # `PolicyUnavailable` -- escalates AMBIGUOUS_VALIDATION so a
+            # specialist follows up, mirroring `confirmation_flow
+            # ._revalidate_freshness`'s own ad hoc, inline escalation for
+            # its analogous `Freshness.UNKNOWN` case.
+            await create_escalation(
+                session,
+                reason=EscalationReason.AMBIGUOUS_VALIDATION,
+                customer_id=customer_id,
+                account_id=conversation.account_id,
+                conversation_id=conversation.conversation_id,
+                item_id=None,
+                source=CaseSource.SYSTEM,
+                policy_provider=policy_provider,
+                clock=clock,
+                audit_service=audit_service,
+                correlation_id=correlation_id,
+            )
+            return ProposalFlowOutcome(
+                ARRANGEMENT_RULES_UNAVAILABLE_MESSAGE, (), None, False, False
+            )
         return _unavailable(policy_unavailable=True)
 
     suppression_input = await build_suppression_input(session, conversation.account_id, customer_id)
@@ -116,6 +145,20 @@ async def build_proposal_reply(
             policy_version=policy.policy_version,
             clock=clock,
             proposal_ttl_minutes=proposal_ttl_minutes,
+        )
+    if intent_label is Intent.PAYMENT_PLAN:
+        return await build_arrangement_reply(
+            session,
+            conversation=conversation,
+            customer_id=customer_id,
+            extraction=extraction,
+            record=record,
+            policy_provider=policy_provider,
+            policy_version=policy.policy_version,
+            clock=clock,
+            proposal_ttl_minutes=proposal_ttl_minutes,
+            audit_service=audit_service,
+            correlation_id=correlation_id,
         )
     return await build_payment_reply(
         session,

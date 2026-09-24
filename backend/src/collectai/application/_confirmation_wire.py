@@ -42,6 +42,7 @@ def build_confirm_response_body(
     outcome_kind: str,
     ptp_wire: dict[str, object] | None,
     payment_wire: dict[str, object] | None,
+    arrangement_wire: dict[str, object] | None,
     message_wire: dict[str, Any],
 ) -> dict[str, Any]:
     return {
@@ -50,7 +51,7 @@ def build_confirm_response_body(
             "kind": outcome_kind,
             "ptp": ptp_wire,
             "payment_event": payment_wire,
-            "arrangement": None,
+            "arrangement": arrangement_wire,
             "escalation": None,
         },
         "assistant_message": message_wire,

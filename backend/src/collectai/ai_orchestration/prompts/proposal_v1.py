@@ -33,6 +33,12 @@ If the customer wants to pay now, extract payment_option as OVERDUE_AMOUNT \
 balance) if and only if the customer's message makes their choice clear \
 among the listed eligible options. Leave it null if unclear.
 
+If the customer wants a payment plan (paying the overdue amount in \
+installments), extract installment_count as the number of payments they \
+asked for (for example 3 for "3 payments" or "over 3 months") if and only \
+if they stated a number. Leave it null if unclear -- never guess a count \
+they did not state, even if only one option was listed.
+
 Respond with a single JSON object matching this schema exactly, with no \
 extra fields:
 {schema}

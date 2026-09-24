@@ -122,6 +122,21 @@ class AuditUnavailableError(Exception):
         super().__init__(message)
 
 
+class ObjectForbiddenError(Exception):
+    """An authenticated, capability-holding caller may not act on this
+    specific resource (E7-S2 AC5: a case whose own `reviewer_role` does not
+    match the caller, even though the caller's persona generally holds the
+    endpoint's capability). Mapped to 403 `FORBIDDEN` with the given
+    `reason_code` -- distinct from `rbac.ForbiddenError`'s persona-level
+    check, the object-level counterpart to how `QueueNotPermittedError`
+    covers one specific case of this same family."""
+
+    def __init__(self, *, reason_code: ReasonCode, message: str) -> None:
+        self.reason_code = reason_code
+        self.message = message
+        super().__init__(message)
+
+
 class QueueNotPermittedError(Exception):
     """E7-S1 AC7/api-contracts.md 3.9: `COMPLIANCE_RISK` requested a queue
     other than `COMPLIANCE_REVIEW` on `GET /api/escalations`. Mapped to 403

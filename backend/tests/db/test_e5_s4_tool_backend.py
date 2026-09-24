@@ -135,9 +135,12 @@ async def test_get_account_context_returns_real_account_and_delinquency_snapshot
 
 
 @pytest.mark.asyncio
-async def test_get_eligible_options_returns_payable_amounts_and_empty_arrangement_options(
+async def test_get_eligible_options_returns_payable_amounts_and_real_arrangement_options(
     session: AsyncSession, clean_db: None
 ) -> None:
+    """E8-S1 AC9: `arrangement_options` now comes from `rules_engine
+    .arrangement.get_eligible_options`, not the empty list Slice 1 (E5-S4
+    AC5) hard-coded."""
     await _seed_account(session)
     clock = SimulatedClock(_NOW)
     backend = ToolBackend(session, _active_policy_provider(clock), clock, IdempotencyService(clock))
@@ -151,7 +154,11 @@ async def test_get_eligible_options_returns_payable_amounts_and_empty_arrangemen
     assert len(result.payable_options) == 2  # OVERDUE_AMOUNT and FULL_BALANCE per policy-v1
     assert result.ptp_date_window.earliest == date(2026, 10, 1)
     assert result.ptp_date_window.latest == date(2026, 10, 31)  # policy-v1 ptp.window_days=30
-    assert result.arrangement_options == []  # AC5: always empty in Slice 1
+    assert len(result.arrangement_options) > 0
+    for option in result.arrangement_options:
+        assert option.option_id.startswith("opt-")
+        assert option.total_amount == Money("770.40")  # the seeded overdue amount, unrounded
+        assert option.first_installment_date == date(2026, 10, 2)
 
 
 @pytest.mark.asyncio

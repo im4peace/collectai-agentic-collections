@@ -3,6 +3,12 @@ AC4). Confirms zero real-looking PII: emails only on example.com, phones only
 in the fictional +1-555-01xx range, no 13-19 digit sequences anywhere in a
 generated string field (catches anything that looks like a card number), and
 no SSN-shaped or CVV/PIN-labelled patterns.
+
+`scan_text_for_dangerous_patterns` (the card/SSN/CVV/PIN half of this, with
+no email/phone shape opinion -- those are seed-specific) is also the pattern
+core `scripts/scan_prohibited_patterns.py` (E9-S4 AC2) reuses to scan
+prompt templates, fixtures and captured logs -- one set of regexes, so a
+tightened pattern here tightens both scans at once.
 """
 
 from __future__ import annotations
@@ -18,6 +24,22 @@ _PHONE_PATTERN = re.compile(r"^\+1-555-01\d{2}$")
 _CARD_LIKE_DIGIT_RUN = re.compile(r"\d{13,19}")
 _SSN_SHAPED = re.compile(r"\d{3}-\d{2}-\d{4}")
 _CVV_OR_PIN_LABELLED = re.compile(r"\b(CVV|PIN)\b\s*[:=]?\s*\d{3,4}\b", re.IGNORECASE)
+
+
+def scan_text_for_dangerous_patterns(text: str) -> list[str]:
+    """Return a human-readable finding per dangerous pattern found in
+    `text` (empty list means clean): a 13-19 digit run (catches any card
+    number shape), an SSN-shaped `###-##-####`, or a CVV/PIN-labelled
+    number. Generic -- no email/phone allow-list opinion, unlike the
+    seed-specific checks above."""
+    findings: list[str] = []
+    if _CARD_LIKE_DIGIT_RUN.search(text):
+        findings.append(f"13-19 digit sequence found: {text!r}")
+    if _SSN_SHAPED.search(text):
+        findings.append(f"SSN-shaped pattern found: {text!r}")
+    if _CVV_OR_PIN_LABELLED.search(text):
+        findings.append(f"CVV/PIN-labelled pattern found: {text!r}")
+    return findings
 
 
 def scan_seed_dataset(dataset: SeedDataset) -> list[SeedValidationFailure]:
@@ -71,20 +93,10 @@ def _scan_rows_for_dangerous_patterns(
 def _check_text_for_dangerous_patterns(
     table_name: str, entity_id: str, text_value: str
 ) -> list[SeedValidationFailure]:
-    findings: list[SeedValidationFailure] = []
-    if _CARD_LIKE_DIGIT_RUN.search(text_value):
-        findings.append(
-            _finding(table_name, entity_id, f"13-19 digit sequence found: {text_value!r}")
-        )
-    if _SSN_SHAPED.search(text_value):
-        findings.append(
-            _finding(table_name, entity_id, f"SSN-shaped pattern found: {text_value!r}")
-        )
-    if _CVV_OR_PIN_LABELLED.search(text_value):
-        findings.append(
-            _finding(table_name, entity_id, f"CVV/PIN-labelled pattern found: {text_value!r}")
-        )
-    return findings
+    return [
+        _finding(table_name, entity_id, detail)
+        for detail in scan_text_for_dangerous_patterns(text_value)
+    ]
 
 
 def _row_identifier(row: dict[str, Any]) -> str:

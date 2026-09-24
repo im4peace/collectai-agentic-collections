@@ -57,7 +57,13 @@ class EscalationCase(BaseModel):
     recommendation_id: RecommendationId | None
     parent_case_id: CaseId | None
     rerouted_to_case_id: CaseId | None
-    routing_policy_version: str = Field(max_length=40)
+    routing_policy_version: str | None = Field(default=None, max_length=40)
+    """`None` when the case was created under `PolicyUnavailable` (no active
+    `PolicyRuleSet` to record a version from) -- `routing_flags` containing
+    `"POLICY_UNAVAILABLE"` is the real signal a reader should key off, never
+    a sentinel string here; `escalation_case.routing_policy_version` FKs to
+    `policy_rule_set.policy_version`, so it must be a real version or NULL,
+    never a placeholder that was never itself a real row."""
     routing_flags: list[str] = Field(default_factory=list)
     first_reviewed_at: datetime | None
     created_at: datetime

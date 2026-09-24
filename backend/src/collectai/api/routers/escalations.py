@@ -1,28 +1,51 @@
-"""Staff escalation list (E7-S1 AC7): `GET /api/escalations`. The minimal
-Slice-1 read this story owns -- case detail, reviewer actions, and the
-summary endpoint all belong to E7-S2/E7-S3/E7-S5 (Group H), which extend
-this same router later, per this codebase's established "the orchestrator
-wires every sibling router in once every group's stories land" convention
-(see `api/routers/chat.py`'s own docstring for the precedent).
+"""Staff escalation list and reviewer decisions: `GET /api/escalations`
+(E7-S1 AC7), `POST /api/escalations/{case_id}/decisions` (E7-S2). Case
+detail and the summary endpoint belong to E7-S3/E7-S5 (not in Group H),
+which extend this same router later, per this codebase's established "the
+orchestrator wires every sibling router in once every group's stories land"
+convention (see `api/routers/chat.py`'s own docstring for the precedent).
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 
 from collectai.api.deps import (
+    AuditServiceDep,
     ClockDep,
     DbSession,
     PersonaContext,
     PolicyProviderDep,
     require_capability,
 )
-from collectai.api.middleware.error_types import QueueNotPermittedError
+from collectai.api.middleware.errors import (
+    AuditUnavailableError,
+    ConflictError,
+    NotFoundError,
+    ObjectForbiddenError,
+    QueueNotPermittedError,
+    RequestValidationFailedError,
+    resolve_correlation_id,
+)
 from collectai.api.routers.me_ownership import LimitQuery, OffsetQuery, paginate
-from collectai.api.schemas.escalations import EscalationListItem, EscalationPage
+from collectai.api.schemas.escalations import (
+    EscalationListItem,
+    EscalationPage,
+    ReviewDecisionRequest,
+    ReviewDecisionResult,
+)
+from collectai.audit.service import AuditUnavailable
 from collectai.domain_services._escalation_queue_query import list_for_queue_view
+from collectai.domain_services._review_exceptions import (
+    ReviewCaseNotFoundError,
+    ReviewConflictError,
+    ReviewNotPermittedError,
+    ReviewValidationError,
+)
+from collectai.domain_services.review_service import ReviewDecisionRequest as DecisionRequest
+from collectai.domain_services.review_service import decide
 from collectai.persistence.repositories.customer_repository import CustomerRepository
 from collectai.types.enums import (
     CaseSource,
@@ -33,6 +56,7 @@ from collectai.types.enums import (
     ReviewerRole,
     ReviewQueue,
 )
+from collectai.types.reason_codes import ReasonCode
 from collectai.types.results import PolicyUnavailable
 
 router = APIRouter(prefix="/api/escalations", tags=["Escalations"])
@@ -133,3 +157,80 @@ def _effective_queues(
     if requested and any(q is not ReviewQueue.COMPLIANCE_REVIEW for q in requested):
         raise QueueNotPermittedError()
     return [ReviewQueue.COMPLIANCE_REVIEW]
+
+
+_ESCALATION_REVIEW = {"x-capability": "escalation:review"}
+_require_escalation_review = require_capability("escalation:review")
+
+
+def _require_idempotency_key(idempotency_key: str) -> None:
+    if not idempotency_key:
+        raise RequestValidationFailedError(
+            reason_code=ReasonCode.IDEMPOTENCY_KEY_REQUIRED,
+            message="Idempotency-Key is required for this endpoint.",
+        )
+
+
+@router.post(
+    "/{case_id}/decisions",
+    response_model=ReviewDecisionResult,
+    status_code=status.HTTP_201_CREATED,
+    openapi_extra=_ESCALATION_REVIEW,
+)
+async def decide_case_endpoint(
+    case_id: str,
+    body: ReviewDecisionRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    clock: ClockDep,
+    audit_service: AuditServiceDep,
+    policy_provider: PolicyProviderDep,
+    persona_context: Annotated[PersonaContext, Depends(_require_escalation_review)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+) -> ReviewDecisionResult:
+    """AC1-AC8: reviewer decisions (APPROVE/REJECT/MODIFY/
+    REQUEST_MORE_INFORMATION/ESCALATE). `require_capability("escalation:
+    review")` already restricts this to `COLLECTIONS_OFFICER` (AC5's
+    persona-level half); `domain_services.review_service.decide` adds the
+    object-level half (a case whose own `reviewer_role` is not
+    `COLLECTIONS_OFFICER` is still rejected)."""
+    _require_idempotency_key(idempotency_key)
+    try:
+        outcome = await decide(
+            db,
+            request=DecisionRequest(
+                case_id=case_id,
+                action=body.action,
+                expected_version=body.expected_version,
+                reason=body.reason,
+                note=body.note,
+                modification_option_id=body.modification_option_id,
+                escalate_reason=body.escalate_reason,
+            ),
+            reviewer_persona=persona_context.persona,
+            idempotency_key=idempotency_key,
+            policy_provider=policy_provider,
+            clock=clock,
+            audit_service=audit_service,
+            correlation_id=resolve_correlation_id(request),
+        )
+    except ReviewCaseNotFoundError as exc:
+        raise NotFoundError(message=str(exc)) from exc
+    except ReviewValidationError as exc:
+        raise RequestValidationFailedError(
+            reason_code=exc.reason_code, message=exc.message
+        ) from exc
+    except ReviewNotPermittedError as exc:
+        raise ObjectForbiddenError(reason_code=exc.reason_code, message=exc.message) from exc
+    except ReviewConflictError as exc:
+        raise ConflictError(reason_code=exc.reason_code, message=exc.message) from exc
+    except AuditUnavailable as exc:
+        raise AuditUnavailableError() from exc
+    await db.commit()
+    if outcome.replayed:
+        response.status_code = status.HTTP_200_OK
+        response.headers["Idempotent-Replayed"] = "true"
+    return ReviewDecisionResult.model_validate(
+        {**outcome.response_body, "replayed": outcome.replayed}
+    )
