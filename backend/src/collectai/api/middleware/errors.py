@@ -40,6 +40,7 @@ from collectai.api.middleware.error_types import (
     ConflictError,
     NotFoundError,
     PolicyUnavailableError,
+    RateLimitedError,
     RequestValidationFailedError,
 )
 from collectai.api.rbac import ForbiddenError, UnauthenticatedError
@@ -60,6 +61,7 @@ __all__ = [
     "ErrorEnvelope",
     "NotFoundError",
     "PolicyUnavailableError",
+    "RateLimitedError",
     "RequestValidationFailedError",
     "build_error_response",
     "correlation_id_middleware",
@@ -108,6 +110,7 @@ def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(RequestValidationFailedError, _handle_request_validation_failed)
     app.add_exception_handler(BusinessRuleViolationError, _handle_business_rule_violation)
     app.add_exception_handler(ConflictError, _handle_conflict)
+    app.add_exception_handler(RateLimitedError, _handle_rate_limited)
     app.add_exception_handler(PolicyUnavailableError, _handle_policy_unavailable)
     app.add_exception_handler(AuditUnavailableError, _handle_audit_unavailable)
     app.add_exception_handler(Exception, _handle_unexpected_error)
@@ -188,6 +191,15 @@ async def _handle_conflict(request: Request, exc: Exception) -> JSONResponse:
         reason_code=exc.reason_code,
         context=exc.context,
     )
+
+
+async def _handle_rate_limited(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, RateLimitedError)  # noqa: S101 - handler is type-bound by registration
+    response = build_error_response(
+        request, status.HTTP_429_TOO_MANY_REQUESTS, ErrorCode.RATE_LIMITED, message=exc.message
+    )
+    response.headers["Retry-After"] = str(exc.retry_after_seconds)
+    return response
 
 
 async def _handle_policy_unavailable(request: Request, exc: Exception) -> JSONResponse:

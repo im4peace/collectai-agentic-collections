@@ -94,6 +94,20 @@ class PolicyUnavailableError(Exception):
         super().__init__(message)
 
 
+class RateLimitedError(Exception):
+    """More than the configured requests-per-minute from the same session
+    (E6-S1 AC6; api-contracts.md 1.2's in-process sliding window). Mapped to
+    429 `RATE_LIMITED` with a `Retry-After` header carrying
+    `retry_after_seconds`."""
+
+    def __init__(
+        self, *, retry_after_seconds: int, message: str = "Rate limit exceeded."
+    ) -> None:
+        self.retry_after_seconds = retry_after_seconds
+        self.message = message
+        super().__init__(message)
+
+
 class AuditUnavailableError(Exception):
     """The audit write for a state transition failed; the transaction was
     rolled back and the transition never happened (E1-S4 AC5). Mapped to 503

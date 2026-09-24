@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Generic, TypedDict, TypeVar
+from typing import Generic, Literal, TypedDict, TypeVar
 
 from pydantic import BaseModel
 
@@ -61,13 +61,28 @@ class AiCallContext:
 
 @dataclass(frozen=True, slots=True)
 class AiInteractionResult(Generic[SchemaT]):
-    """The outcome of one `orchestrator.run_ai_interaction` call."""
+    """The outcome of one `orchestrator.run_ai_interaction` call.
+
+    `model_id` (E4-S3): the id of the model that actually produced
+    `structured_output`, read back from `CallAccumulator.last_model_id` --
+    exposed here because an advisory caller that persists its own governed
+    record (e.g. a stored `Recommendation`) needs to know which model
+    produced it, not just that *some* provider call happened. `None` when no
+    provider call ever returned a usable result.
+
+    `unavailable_reason` (E4-S3): distinguishes the two `SafeState
+    .AI_UNAVAILABLE` outcomes an advisory caller must treat differently per
+    api-contracts.md 3.5 ("AI failure" vs. "schema-invalid output after one
+    retry") -- `run_ai_interaction` itself never exposed which one occurred
+    before this field existed. `None` for every other outcome."""
 
     safe_state: SafeState
     structured_output: SchemaT | None
     domain_outcome: DomainWriteOutcome | None
     offer_handoff: bool
     governed: bool
+    model_id: str | None = None
+    unavailable_reason: Literal["PROVIDER_TIMEOUT", "SCHEMA_INVALID"] | None = None
 
 
 @dataclass(slots=True)

@@ -44,6 +44,7 @@ async def finish_provider_unavailable(accounting: Accounting) -> AiInteractionRe
         domain_outcome=None,
         offer_handoff=True,
         governed=False,
+        unavailable_reason="PROVIDER_TIMEOUT",
     )
 
 
@@ -68,6 +69,7 @@ async def finish_invalid_output(
         domain_outcome=None,
         offer_handoff=True,
         governed=False,
+        unavailable_reason="SCHEMA_INVALID",
     )
 
 
@@ -90,6 +92,7 @@ async def finish_advisory(
         domain_outcome=None,
         offer_handoff=False,
         governed=governed,
+        model_id=accounting.accumulator.last_model_id,
     )
 
 
@@ -112,6 +115,7 @@ async def finish_domain_write(
             domain_outcome=outcome,
             offer_handoff=False,
             governed=True,
+            model_id=accounting.accumulator.last_model_id,
         )
     draft = build_ai_interaction_draft(
         event_type=POLICY_CONFLICT_EVENT_TYPE,
@@ -129,6 +133,7 @@ async def finish_domain_write(
         domain_outcome=outcome,
         offer_handoff=False,
         governed=governed,
+        model_id=accounting.accumulator.last_model_id,
     )
 
 

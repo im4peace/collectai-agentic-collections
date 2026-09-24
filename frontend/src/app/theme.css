@@ -1,0 +1,462 @@
+/**
+ * Shared design tokens and shell chrome, ported from the neutral banking
+ * palette in specs/design/mockups/E3-S4.html (`:root` custom properties)
+ * and its dark-mode override. Imported once (see `main.tsx`). Colors are
+ * always referenced through these variables so nothing hardcodes a value
+ * that would break in dark mode.
+ */
+:root {
+  color-scheme: light dark;
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface2: #eaeff4;
+  --text: #14202b;
+  --muted: #4a5a69;
+  --line: #c3cfda;
+  --brand: #0b4a6f;
+  --brand-ink: #ffffff;
+  --rule: #0b4a6f;
+  --rule-bg: #e9f2f9;
+  --warn: #7d4a00;
+  --warn-bg: #fff3d9;
+  --danger: #a3201d;
+  --danger-bg: #fdecea;
+  --ok: #0f6a3a;
+  --ok-bg: #e6f5ec;
+  --focus: #0a58ca;
+  --shadow:
+    0 1px 2px rgba(20, 32, 43, 0.08),
+    0 4px 14px rgba(20, 32, 43, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1620;
+    --surface: #15212d;
+    --surface2: #1d2c3b;
+    --text: #e8eef4;
+    --muted: #a9b7c4;
+    --line: #34475b;
+    --brand: #62b6ea;
+    --brand-ink: #05131d;
+    --rule: #8ccbf0;
+    --rule-bg: #12293a;
+    --warn: #ffd27a;
+    --warn-bg: #3a2a08;
+    --danger: #ffa19b;
+    --danger-bg: #3d1614;
+    --ok: #84e0a4;
+    --ok-bg: #0f2e1d;
+    --focus: #8ab8ff;
+    --shadow: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d1620;
+  --surface: #15212d;
+  --surface2: #1d2c3b;
+  --text: #e8eef4;
+  --muted: #a9b7c4;
+  --line: #34475b;
+  --brand: #62b6ea;
+  --brand-ink: #05131d;
+  --rule: #8ccbf0;
+  --rule-bg: #12293a;
+  --warn: #ffd27a;
+  --warn-bg: #3a2a08;
+  --danger: #ffa19b;
+  --danger-bg: #3d1614;
+  --ok: #84e0a4;
+  --ok-bg: #0f2e1d;
+  --focus: #8ab8ff;
+  --shadow: none;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    15px/1.5 "Segoe UI",
+    system-ui,
+    -apple-system,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+}
+
+/* AC5: visible focus indicator for keyboard-only operation. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.appbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--brand);
+}
+
+.appbar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.appbar nav a {
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid transparent;
+}
+
+.appbar nav a:hover {
+  background: var(--surface2);
+}
+
+.appbar nav a[aria-current="page"] {
+  background: var(--rule-bg);
+  color: var(--rule);
+  border-color: var(--rule);
+  font-weight: 700;
+}
+
+.who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 1px 9px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.chip.demo {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-style: dashed;
+}
+
+main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+main:focus {
+  outline: none;
+}
+
+.forbidden {
+  max-width: 640px;
+  margin: 40px auto;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  padding: 26px;
+}
+
+.forbidden h1 {
+  color: var(--danger);
+}
+
+/* E3-S3: generic panel/table/chip/form primitives shared by DataTable,
+ * Badge and the Portfolio screen (ported from
+ * specs/design/mockups/E3-S3.html), reused by later screens rather than
+ * redefined per-feature. */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  font-size: 0.86em;
+}
+
+.small {
+  font-size: 0.82rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.num,
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.panel > .ph {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.panel > .ph h2 {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+label.f {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 36px;
+  max-width: 100%;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+legend {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0 4px;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.checks label {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-weight: 500;
+}
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 7px;
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: var(--brand-ink);
+  padding: 7px 13px;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.btn.secondary {
+  background: var(--surface);
+  color: var(--brand);
+}
+
+.btn:hover:not([disabled]) {
+  filter: brightness(1.08);
+}
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.chip.ok {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.chip.warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.chip.danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.chip.info {
+  color: var(--rule);
+  background: var(--rule-bg);
+}
+
+.chip.neutral {
+  color: var(--muted);
+  background: var(--surface2);
+}
+
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+
+.banner.danger {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.banner.info {
+  color: var(--rule);
+  background: var(--rule-bg);
+}
+
+.banner > div {
+  flex: 1;
+  min-width: 200px;
+  color: var(--text);
+}
+
+.banner .bi {
+  font-weight: 800;
+}
+
+.tablewrap {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--surface2);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tr.clickable {
+  cursor: pointer;
+}
+
+tr.clickable:hover td {
+  background: var(--surface2);
+}
+
+th button.sort {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  font-weight: 700;
+}
+
+th button.sort:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.empty {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.footnote {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 10px;
+}

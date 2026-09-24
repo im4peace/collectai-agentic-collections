@@ -1,16 +1,39 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { clearSession } from "./auth/sessionStore";
 
 describe("App", () => {
-  it("renders the CollectAI heading", () => {
-    render(<App />);
-    expect(screen.getByRole("heading", { name: "CollectAI" })).toBeInTheDocument();
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ personas: [], demo_customers: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
   });
 
-  it("renders the synthetic-data disclosure", () => {
+  afterEach(() => {
+    clearSession();
+    vi.unstubAllGlobals();
+  });
+
+  it("renders the router-driven shell without crashing", async () => {
     render(<App />);
-    expect(screen.getByText(/synthetic data only/i)).toBeInTheDocument();
+    expect(await screen.findByText("CollectAI")).toBeInTheDocument();
+  });
+
+  it("always shows the demo persona disclosure (AC4)", async () => {
+    render(<App />);
+    expect(await screen.findByText("Demo persona - not real authentication")).toBeInTheDocument();
+  });
+
+  it("lands on the persona switcher at the default route", async () => {
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Persona switcher" })).toBeInTheDocument();
   });
 });

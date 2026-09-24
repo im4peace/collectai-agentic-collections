@@ -59,10 +59,14 @@ class AuditService:
         session.add(orm)
         await session.flush()
 
-    async def record(self, draft: AuditEventDraft) -> None:
+    async def record(self, draft: AuditEventDraft) -> str:
         """Insert in its own transaction, for non-state-changing AI
-        activity. Raises `AuditUnavailable` on failure (AC5) and logs an
-        operational failure line with no customer data."""
+        activity. Returns the generated `audit_event_id` (E4-S3 AC4: a
+        caller that needs to reference this event from its own row, e.g.
+        `recommendation.audit_event_id`, never has to re-derive or guess an
+        id `AuditService` alone generates). Raises `AuditUnavailable` on
+        failure (AC5) and logs an operational failure line with no customer
+        data."""
         orm = self._draft_to_orm(draft)
         try:
             async with self._session_factory() as session:
@@ -80,6 +84,7 @@ class AuditService:
             raise AuditUnavailable(
                 event_type=draft.event_type, correlation_id=draft.correlation_id
             ) from exc
+        return orm.audit_event_id
 
     def _draft_to_orm(self, draft: AuditEventDraft) -> AuditEventOrm:
         redacted_fields = redact_value(draft.model_dump(mode="json"))

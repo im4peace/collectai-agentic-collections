@@ -6,9 +6,10 @@ unscoped), `CustomerRepository.get_by_id`, `DelinquencyRecordRepository
 `list_by_account_for_customer`) and existing rules-engine services
 (`priority.compute_priority`, `suppression.evaluate_suppression`,
 `consistency.check_consistency`, `freshness.check_freshness`). Read-only:
-never writes, never calls AI. `ai` is always NOT_GENERATED (E4-S3 does not
-exist yet); `payment_events`/`arrangements` stay at their schema-level
-empty default (E6-S3/E8-S1, also out of scope).
+never writes, never calls AI itself. `ai` (E4-S3) reads the latest already
+-stored `recommendation` row via `_customer360_ai_block.build_ai_block` --
+NOT_GENERATED when none exists yet; `payment_events`/`arrangements` stay at
+their schema-level empty default (E6-S3/E8-S1, out of scope).
 
 Pure ORM-to-wire mapping lives in `customer360_mapping.py` (split out past
 the 300-line block threshold, mirroring `error_types.py`/`errors.py`).
@@ -24,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.api.middleware.errors import NotFoundError
 from collectai.api.schemas.customer360 import (
-    AiBlock,
     Customer360,
     DeterministicBlock,
     SnapshotInfo,
@@ -32,6 +32,7 @@ from collectai.api.schemas.customer360 import (
 )
 from collectai.config.policy.provider import PolicyProvider
 from collectai.domain_services import customer360_mapping as mapping
+from collectai.domain_services._customer360_ai_block import build_ai_block
 from collectai.persistence.orm.account import AccountOrm
 from collectai.persistence.orm.customer import CustomerOrm
 from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
@@ -64,7 +65,6 @@ from collectai.types.enums import (
     Freshness,
     HardshipStatus,
     PtpStatus,
-    RecommendationStatus,
 )
 from collectai.types.models.delinquency_record import DelinquencyRecord
 from collectai.types.reason_codes import ReasonCode
@@ -134,7 +134,7 @@ async def build_customer360(
         account=mapping.to_account_block(account, record, undisputed_amount),
         items=mapping.to_items(items, disputed_item_ids),
         deterministic=_build_deterministic_block(record, customer, facts, policy_provider),
-        ai=AiBlock(status=RecommendationStatus.NOT_GENERATED, recommendation=None),
+        ai=await build_ai_block(session, account_id),
         interactions=mapping.to_interactions(interactions),
         ptp_history=mapping.to_ptp_history(ptps),
         hardship_cases=mapping.to_hardship_cases(hardship_cases),
