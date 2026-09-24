@@ -2,17 +2,20 @@
 # today. `data-safety` (E9-S4) owns tests/redteam and tests/security
 # exclusively, and `eval-mock` (E10-S1) owns tests/evaluation exclusively --
 # backend-db/backend-unit ignore all three so a db-marked test in any of
-# them never runs twice. Jobs still not added per specs/design/deployment.md
-# section 3 (their dependencies do not exist in this repo yet):
+# them never runs twice. `e2e` (E11-S5 AC5) runs `frontend/e2e`'s
+# accessibility suite (axe scans, keyboard-navigation and focus-management
+# tests, WCAG 2.1 AA target -- see `frontend/e2e/accessibility/README.md`
+# for that suite's own conformance-claim language) against the real stack.
+# Jobs still not added per specs/design/deployment.md section 3 (their
+# dependencies do not exist in this repo yet):
 #   - openapi-contract (scripts/generate_openapi.py)           -- a later
 #                        API-contract story
-#   - e2e              (frontend/e2e Playwright suites)        -- the UI
-#                        journey stories (E11-S1 onward)
 # MOCK only: no ANTHROPIC_API_KEY is set anywhere in this workflow, and no
 # repository secret is required, so LIVE evaluation never runs here --
 # `eval-mock`'s own name is a promise `collectai_eval.runner`'s own
 # `LiveEvalCiRefusedError` backs structurally, not just by this workflow's
-# omission of a key.
+# omission of a key. `e2e` likewise never runs LIVE (`LLM_MODE=MOCK` from
+# `.env.example`, unmodified).
 
 name: CI
 
@@ -137,3 +140,32 @@ jobs:
       - run: npm ci
       - run: npm run test:run
       - run: npm run build
+
+  e2e:
+    # E11-S5 AC5: the accessibility suite runs here, against the real
+    # stack -- `db` + `migrate` + `api` via docker compose (README.md's own
+    # documented bring-up), then Playwright's own `webServer` config starts
+    # the Vite dev server, which proxies `/api` to `api`'s published port
+    # 8000 (`vite.config.ts`). The `web` (nginx production build) compose
+    # service is intentionally not started: the dev server is the one this
+    # suite's own `playwright.config.ts` already points at.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose up --build -d db migrate api
+      - name: Wait for the API to report ready
+        run: |
+          timeout 180 bash -c \
+            'until curl -sf http://localhost:8000/api/ready > /dev/null; do sleep 3; done'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - working-directory: frontend
+        run: npm run e2e
+      - if: always()
+        run: docker compose down -v

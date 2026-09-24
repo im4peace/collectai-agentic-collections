@@ -26,7 +26,7 @@ from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.persistence.orm.payment_event import PaymentEventOrm
 from collectai.persistence.repositories.delinquency_repository import DelinquencyRecordRepository
 from collectai.types.clock import Clock
-from collectai.types.enums import ActorKind, AuditStage, Persona
+from collectai.types.enums import ActorKind, AuditStage, PaymentOutcome, PaymentSource, Persona
 from collectai.types.ids import EntityPrefix, generate_id
 from collectai.types.money import Money
 
@@ -52,51 +52,64 @@ async def record_simulated_payment(
     *,
     record: DelinquencyRecordOrm,
     amount: Money,
-    proposal_id: str,
     correlation_id: str,
     clock: Clock,
     audit_service: AuditService,
     persona: Persona,
+    proposal_id: str | None = None,
     applied_to_ptp_id: str | None = None,
+    source: PaymentSource = PaymentSource.CUSTOMER_CHAT,
+    outcome: PaymentOutcome = PaymentOutcome.SUCCEEDED,
 ) -> PaymentEventOrm:
-    """AC2 (E6-S3): exactly one `PaymentEvent`, outcome SUCCEEDED, and the
-    balance reduced by `amount` -- both writes in the caller's own
+    """AC2 (E6-S3): exactly one `PaymentEvent` and, for a SUCCEEDED outcome,
+    the balance reduced by `amount` -- both writes in the caller's own
     transaction (`application.confirmation_flow` commits). `record` must be
     the just-freshness-checked row for the proposal's account; its
     `record_version` is used as `expected_version` so a genuine concurrent
     change between the freshness check and this write is caught rather than
     silently overwritten. `applied_to_ptp_id` (E6-S4): the account's PENDING
-    PTP id, if the caller already found one -- see this module's docstring."""
+    PTP id, if the caller already found one -- see this module's docstring.
+    `source`/`outcome` (E9-S3, Group I): the chat confirmation path never
+    passes either, so its own CUSTOMER_CHAT/SUCCEEDED default is unchanged;
+    the demo-controls simulated-payment control passes `DEMO_CONTROL` and
+    whichever outcome the officer chose. A FAILED outcome writes the event
+    for audit/history but never touches the balance -- only a SUCCEEDED
+    payment is a real reduction, matching every other financial-state-change
+    rule in this codebase (deterministic services calculate, never a
+    caller's mere intent)."""
     now = clock.now()
-    new_outstanding = Money(record.outstanding_balance.amount - amount.amount)
-    new_overdue = Money(max(record.overdue_amount.amount - amount.amount, _ZERO))
-
-    updated = await _delinquency_repository.update_snapshot(
-        session,
-        account_id=record.account_id,
-        customer_id=record.customer_id,
-        expected_version=record.record_version,
-        outstanding_balance=new_outstanding,
-        overdue_amount=new_overdue,
-        dpd=record.dpd,
-        bucket=record.bucket,
-        collection_status=record.collection_status,
-        as_of=record.as_of,
-        updated_at=now,
-    )
-    if not updated:
-        raise PaymentBalanceUpdateConflictError(record.account_id)
+    if outcome is PaymentOutcome.SUCCEEDED:
+        new_outstanding = Money(record.outstanding_balance.amount - amount.amount)
+        new_overdue = Money(max(record.overdue_amount.amount - amount.amount, _ZERO))
+        updated = await _delinquency_repository.update_snapshot(
+            session,
+            account_id=record.account_id,
+            customer_id=record.customer_id,
+            expected_version=record.record_version,
+            outstanding_balance=new_outstanding,
+            overdue_amount=new_overdue,
+            dpd=record.dpd,
+            bucket=record.bucket,
+            collection_status=record.collection_status,
+            as_of=record.as_of,
+            updated_at=now,
+        )
+        if not updated:
+            raise PaymentBalanceUpdateConflictError(record.account_id)
+        balance_after = new_outstanding
+    else:
+        balance_after = record.outstanding_balance
 
     event = PaymentEventOrm(
         payment_event_id=generate_id(EntityPrefix.PAYMENT_EVENT),
         account_id=record.account_id,
         customer_id=record.customer_id,
         amount=amount,
-        outcome="SUCCEEDED",
-        source="CUSTOMER_CHAT",
+        outcome=outcome.value,
+        source=source.value,
         simulated=True,
         occurred_at=now,
-        balance_after=new_outstanding,
+        balance_after=balance_after,
         applied_to_ptp_id=applied_to_ptp_id,
         proposal_id=proposal_id,
         created_by_persona=persona.value,

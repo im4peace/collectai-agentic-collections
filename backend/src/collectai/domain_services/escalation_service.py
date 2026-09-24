@@ -107,6 +107,9 @@ async def create_escalation(
     summary: str | None = None,
     parent_case_id: str | None = None,
     dispute_id: str | None = None,
+    hardship_case_id: str | None = None,
+    requested_terms: dict[str, object] | None = None,
+    exception_types: list[str] | None = None,
 ) -> EscalationCreationResult:
     """AC1, AC2, AC4, AC6. Writes the case and its audit event in this
     caller's transaction: a flush failure (e.g. `AuditUnavailable`
@@ -115,7 +118,14 @@ async def create_escalation(
     `parent_case_id` (E7-S2, Group H): the case this one was re-routed from,
     via a reviewer's ESCALATE action -- `None` for every other trigger.
     `dispute_id` (E8-S3, Group H): the `Dispute` this case was opened for,
-    if any -- `None` for every other trigger."""
+    if any -- `None` for every other trigger. `hardship_case_id` (E8-S2,
+    Group I): the `HardshipCase` this case was opened for, if any.
+    `requested_terms`/`exception_types` (E7-S4, Group I): the customer's own
+    requested arrangement terms and which dimensions of it were exceptional
+    (`rules_engine.arrangement.classify_requested_terms`'s own output) --
+    both `None` for every trigger that is not an exceptional-arrangement
+    request; `review_service._assert_approval_permitted` reads
+    `exception_types` back to gate APPROVE (E7-S4 AC4)."""
     existing = await _find_open_duplicate(session, conversation_id, reason)
     if existing is not None:
         return EscalationCreationResult(case=existing, created=False)
@@ -138,6 +148,9 @@ async def create_escalation(
             summary=summary,
             parent_case_id=parent_case_id,
             dispute_id=dispute_id,
+            hardship_case_id=hardship_case_id,
+            requested_terms=requested_terms,
+            exception_types=exception_types,
         )
 
     case = await _insert_case(
@@ -155,6 +168,9 @@ async def create_escalation(
         summary=summary,
         parent_case_id=parent_case_id,
         dispute_id=dispute_id,
+        hardship_case_id=hardship_case_id,
+        requested_terms=requested_terms,
+        exception_types=exception_types,
     )
     return EscalationCreationResult(case=case, created=True)
 
@@ -193,6 +209,9 @@ async def _create_with_idempotency_key(
     summary: str | None,
     parent_case_id: str | None,
     dispute_id: str | None = None,
+    hardship_case_id: str | None = None,
+    requested_terms: dict[str, object] | None = None,
+    exception_types: list[str] | None = None,
 ) -> EscalationCreationResult:
     """AC6's other clause: "the same idempotency key ... returns the
     existing case and creates no duplicate", used by the `POST .../handoff`
@@ -215,6 +234,9 @@ async def _create_with_idempotency_key(
             summary=summary,
             parent_case_id=parent_case_id,
             dispute_id=dispute_id,
+            hardship_case_id=hardship_case_id,
+            requested_terms=requested_terms,
+            exception_types=exception_types,
         )
         return {"case_id": case.case_id}
 
@@ -251,6 +273,9 @@ async def _insert_case(
     summary: str | None,
     parent_case_id: str | None = None,
     dispute_id: str | None = None,
+    hardship_case_id: str | None = None,
+    requested_terms: dict[str, object] | None = None,
+    exception_types: list[str] | None = None,
 ) -> EscalationCaseOrm:
     routing = route_escalation(reason, policy_provider)
     now = clock.now()
@@ -267,9 +292,9 @@ async def _insert_case(
         status=CaseStatus.OPEN.value,
         source=source.value,
         summary=summary or _SUMMARY_TEMPLATES[reason],
-        requested_terms=None,
-        exception_types=None,
-        hardship_case_id=None,
+        requested_terms=requested_terms,
+        exception_types=exception_types,
+        hardship_case_id=hardship_case_id,
         dispute_id=dispute_id,
         recommendation_id=None,
         parent_case_id=parent_case_id,

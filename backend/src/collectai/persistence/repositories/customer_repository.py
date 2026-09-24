@@ -74,3 +74,23 @@ class CustomerRepository:
         )
         result = cast(CursorResult[Any], await session.execute(stmt))
         return result.rowcount or 0
+
+    async def bulk_upsert_update_on_conflict(
+        self, session: AsyncSession, rows: list[dict[str, Any]]
+    ) -> int:
+        """E9-S3's `reseed` demo control (see `CustomerScopedRepository
+        .bulk_upsert_update_on_conflict`'s own docstring for why this is an
+        UPDATE, never a `DELETE` + re-`INSERT`)."""
+        if not rows:
+            return 0
+        update_columns = [col for col in rows[0] if col != "customer_id"]
+        stmt = pg_insert(cast(Table, CustomerOrm.__table__)).values(rows)
+        if update_columns:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["customer_id"],
+                set_={col: stmt.excluded[col] for col in update_columns},
+            )
+        else:
+            stmt = stmt.on_conflict_do_nothing(index_elements=["customer_id"])
+        result = cast(CursorResult[Any], await session.execute(stmt))
+        return result.rowcount or 0

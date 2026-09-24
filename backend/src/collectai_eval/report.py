@@ -1,18 +1,19 @@
-"""Human-readable report for one `EvalRunResult` (E10-S1). The "30-case
-rule": a metric is only reported as statistically meaningful once it is
-computed over at least 30 cases -- below that, the report still shows the
-raw numbers but labels them a small-sample result rather than implying a
-confident accuracy figure. MOCK and LIVE render in separate, clearly
-labelled sections (this module never merges the two): a LIVE run's real
-model accuracy and a MOCK run's harness-only smoke check answer different
-questions and must never be compared as if they were the same metric.
-"""
+"""Human-readable report for one or two `EvalRunResult`s (E10-S1; reporting
+rules E10-S2). The 30-case rule and every pass/fail-vs-observation-only
+decision live in `reporting_rules.py`, not here -- this module only formats
+whatever that pure logic already decided. MOCK and LIVE render in separate,
+clearly labelled sections (`render_report` renders exactly one run;
+`render_combined_report` renders both, one after the other, never merged):
+a LIVE run's real model accuracy and a MOCK run's harness-only smoke check
+answer different questions and must never be compared as if they were the
+same metric (E10-S2 AC4)."""
 
 from __future__ import annotations
 
+from collectai_eval import reporting_rules
 from collectai_eval.schemas import EvalRunResult
 
-_MIN_CASES_FOR_CONFIDENCE = 30
+_MIN_CASES_FOR_CONFIDENCE = reporting_rules.MIN_CASES_FOR_CLAIM
 
 
 def render_report(result: EvalRunResult) -> str:
@@ -33,25 +34,53 @@ def render_report(result: EvalRunResult) -> str:
         )
 
     metrics = result.metrics
+    overall_claim = reporting_rules.evaluate_overall_accuracy_claim(
+        accuracy=metrics["accuracy"], case_count=result.case_count, mode=result.mode
+    )
     lines.append(
         f"accuracy:        {metrics['accuracy']:.2%} "
-        f"({metrics['passed_cases']}/{metrics['total_cases']})"
+        f"({metrics['passed_cases']}/{metrics['total_cases']}) "
+        f"[{overall_claim.status} vs "
+        f"{reporting_rules.OVERALL_ACCURACY_TARGET:.0%} overall target]"
     )
+    escalation = reporting_rules.compute_escalation_metrics(result.case_results)
     if metrics["escalation_accuracy"] is not None:
         lines.append(
             f"escalation_accuracy: {metrics['escalation_accuracy']:.2%} "
             f"({metrics['escalation_case_count']} scorable cases)"
         )
-    if metrics["safety_set_pass_rate"] is not None:
-        lines.append(
-            f"safety_set_pass_rate: {metrics['safety_set_pass_rate']:.2%} "
-            f"({metrics['safety_set_case_count']} cases)"
-        )
-    lines.append(f"critical_policy_violations: {metrics['critical_policy_violation_count']}")
+    lines.append(
+        "escalation_precision: "
+        f"{_render_ratio(escalation.precision)}  "
+        f"escalation_recall: {_render_ratio(escalation.recall)}  "
+        f"over_escalation_rate: {_render_ratio(escalation.over_escalation_rate)}"
+    )
 
+    safety = reporting_rules.evaluate_safety_set(result.case_results, mode=result.mode)
+    lines.append(
+        f"safety_set (VULNERABLE_CUSTOMER): {safety.case_count} cases, "
+        f"{safety.critical_violation_count} critical policy violation(s) "
+        "(missed escalation)"
+    )
+    if safety.pass_rate is not None:
+        lines.append(f"safety_set_pass_rate: {safety.pass_rate:.2%}")
+    else:
+        lines.append(
+            "safety_set_pass_rate: not published "
+            f"(requires a LIVE run with >= {reporting_rules.MIN_CASES_FOR_CLAIM} labelled cases)"
+        )
+
+    category_metrics = reporting_rules.compute_category_metrics(result.case_results)
+    category_claims = reporting_rules.evaluate_category_claims(category_metrics, mode=result.mode)
     lines.append("per_category_recall:")
-    for category, recall in sorted(metrics["per_category_recall"].items()):
-        lines.append(f"  {category}: {recall:.2%}")
+    for category in sorted(category_claims):
+        claim = category_claims[category]
+        mandatory = " (mandatory-escalation)" if claim.mandatory_escalation_category else ""
+        lines.append(
+            f"  {category}{mandatory}: {claim.metric.recall:.2%} "
+            f"(tp={claim.metric.true_positives} fn={claim.metric.false_negatives} "
+            f"n={claim.metric.case_count}) [{claim.status}]"
+        )
 
     if result.token_usage is not None:
         lines.append(
@@ -71,3 +100,26 @@ def render_report(result: EvalRunResult) -> str:
             )
 
     return "\n".join(lines)
+
+
+def render_combined_report(
+    *, mock_result: EvalRunResult | None, live_result: EvalRunResult | None
+) -> str:
+    """AC4: MOCK and LIVE in separate sections, never merged -- each
+    section is exactly `render_report`'s own output for that run, so a
+    MOCK section can never carry a LIVE-only pass/fail claim (`render_report`
+    itself only issues one when `result.mode == "LIVE"`). Either argument
+    may be omitted (e.g. no LIVE run has ever been confirmed yet)."""
+    sections: list[str] = []
+    if mock_result is not None:
+        sections.append(render_report(mock_result))
+    if live_result is not None:
+        sections.append(render_report(live_result))
+    if not sections:
+        return "=== Evaluation report ===\n(no runs to report)"
+    return "\n\n".join(sections)
+
+
+
+def _render_ratio(value: float | None) -> str:
+    return f"{value:.2%}" if value is not None else "n/a"

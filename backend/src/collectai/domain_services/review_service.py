@@ -47,6 +47,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from collectai.audit.events import AuditEventDraft
 from collectai.audit.service import AuditService
 from collectai.config.policy.provider import PolicyProvider
+from collectai.domain_services._arrangement_exceptions import (
+    ArrangementConflictError,
+    ArrangementNotEligibleError,
+)
 from collectai.domain_services._arrangement_helpers import has_active_arrangement
 from collectai.domain_services._ptp_helpers import has_active_pending_ptp
 from collectai.domain_services._review_exceptions import (
@@ -55,9 +59,15 @@ from collectai.domain_services._review_exceptions import (
     ReviewNotPermittedError,
     ReviewValidationError,
 )
+from collectai.domain_services.arrangement_service import (
+    arrangement_wire_dict,
+    create_exceptional_arrangement_from_review,
+)
 from collectai.domain_services.escalation_service import create_escalation
 from collectai.domain_services.idempotency import IdempotencyService
+from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.persistence.orm.escalation_case import EscalationCaseOrm
+from collectai.persistence.orm.payment_arrangement import PaymentArrangementOrm
 from collectai.persistence.orm.review_decision import ReviewDecisionOrm
 from collectai.persistence.repositories.delinquency_repository import DelinquencyRecordRepository
 from collectai.persistence.repositories.idempotency_repository import IdempotencyRepository
@@ -156,8 +166,12 @@ async def decide(
         )
 
     policy = policy_provider.get_active()
+    record: DelinquencyRecordOrm | None = None
     if request.action is ReviewAction.APPROVE:
-        _assert_approval_permitted(case, policy)
+        record = await _delinquency_repository.get_by_account(
+            session, case.account_id, case.customer_id
+        )
+        _assert_approval_permitted(case, policy, record)
     if request.action is ReviewAction.MODIFY:
         await _assert_modification_eligible(session, case, request, policy_provider, clock)
     if request.action is ReviewAction.ESCALATE:
@@ -181,6 +195,41 @@ async def decide(
             parent_case_id=case.case_id,
         )
         rerouted_case_id = creation.case.case_id
+
+    # E7-S4 AC5: an APPROVE of an EXCEPTIONAL_ARRANGEMENT case creates the
+    # arrangement only here, after every check above already passed, and
+    # only through `arrangement_service` (never inline) -- the LLM never
+    # created this arrangement (D-041); a human's explicit APPROVE did.
+    arrangement_row: PaymentArrangementOrm | None = None
+    if (
+        request.action is ReviewAction.APPROVE
+        and case.reason == EscalationReason.EXCEPTIONAL_ARRANGEMENT.value
+    ):
+        assert record is not None  # noqa: S101 - _assert_approval_permitted already required it
+        installment_count = (case.requested_terms or {}).get("installment_count")
+        if not isinstance(installment_count, int):
+            raise ReviewValidationError(
+                reason_code=ReasonCode.FREE_FORM_AMOUNT_NOT_ALLOWED,
+                message="This case has no valid requested installment count to approve.",
+            )
+        try:
+            arrangement_row = await create_exceptional_arrangement_from_review(
+                session,
+                record=record,
+                installment_count=installment_count,
+                exception_case_id=case.case_id,
+                reviewer_persona=reviewer_persona,
+                policy_provider=policy_provider,
+                clock=clock,
+                audit_service=audit_service,
+                correlation_id=correlation_id,
+            )
+        except ArrangementConflictError as exc:
+            raise ReviewConflictError(reason_code=exc.reason_code, message=exc.message) from exc
+        except ArrangementNotEligibleError as exc:
+            raise ReviewValidationError(
+                reason_code=ReasonCode.FREE_FORM_AMOUNT_NOT_ALLOWED, message=exc.message
+            ) from exc
 
     target_status = _target_status_for(request.action)
     now = clock.now()
@@ -218,7 +267,7 @@ async def decide(
         session, _build_audit_draft(case, decision, correlation_id, reviewer_persona)
     )
 
-    response_body = _decision_wire_dict(case, decision)
+    response_body = _decision_wire_dict(case, decision, arrangement_row)
 
     async def _already_computed() -> dict[str, object]:
         return response_body
@@ -303,19 +352,39 @@ def _assert_case_actionable(case: EscalationCaseOrm) -> None:
         )
 
 
-def _assert_approval_permitted(case: EscalationCaseOrm, policy: Any) -> None:
-    """AC2: a case with no `exception_types` at all has nothing exceptional
-    to approve, so no policy restriction applies. A case whose
-    `exception_types` includes anything outside
-    `policy.parameters.exception.authority.collections_officer.types` is not
-    policy-permitted for this reviewer role."""
+def _assert_approval_permitted(
+    case: EscalationCaseOrm, policy: Any, record: DelinquencyRecordOrm | None
+) -> None:
+    """E7-S2 AC2 / E7-S4 AC4: a case with no `exception_types` at all has
+    nothing exceptional to approve, so no policy restriction applies. A
+    case whose `exception_types` includes anything outside
+    `policy.parameters.exception.authority.collections_officer.types`, or
+    whose account's current overdue amount exceeds that same authority's
+    `max_overdue_amount`, is not policy-permitted for this reviewer role --
+    both the exception *type* and the *threshold* (E7-S4 AC4's "exception
+    type, thresholds and maximum overdue amount") gate APPROVE, not type
+    alone."""
     if not case.exception_types:
         return
-    authorized = {t.value for t in policy.parameters.exception.authority.collections_officer.types}
-    if not set(case.exception_types).issubset(authorized):
+    authority = policy.parameters.exception.authority.collections_officer
+    authorized_types = {t.value for t in authority.types}
+    if not set(case.exception_types).issubset(authorized_types):
         raise ReviewConflictError(
             reason_code=ReasonCode.NOT_PERMITTED_BY_POLICY,
             message="The active policy does not permit approval of this case's exception type(s).",
+        )
+    if record is None:
+        raise ReviewValidationError(
+            reason_code=ReasonCode.FREE_FORM_AMOUNT_NOT_ALLOWED,
+            message="No delinquency record exists for this case's account.",
+        )
+    if record.overdue_amount > authority.max_overdue_amount:
+        raise ReviewConflictError(
+            reason_code=ReasonCode.NOT_PERMITTED_BY_POLICY,
+            message=(
+                "The active policy does not permit approval above this reviewer role's "
+                "maximum overdue amount."
+            ),
         )
 
 
@@ -405,7 +474,11 @@ def _build_audit_draft(
     )
 
 
-def _decision_wire_dict(case: EscalationCaseOrm, decision: ReviewDecisionOrm) -> dict[str, Any]:
+def _decision_wire_dict(
+    case: EscalationCaseOrm,
+    decision: ReviewDecisionOrm,
+    arrangement: PaymentArrangementOrm | None,
+) -> dict[str, Any]:
     return {
         "decision_id": decision.decision_id,
         "case_id": decision.case_id,
@@ -420,6 +493,7 @@ def _decision_wire_dict(case: EscalationCaseOrm, decision: ReviewDecisionOrm) ->
         "policy_version": decision.policy_version,
         "case_status": case.status,
         "case_version": case.version,
+        "arrangement": arrangement_wire_dict(arrangement) if arrangement is not None else None,
     }
 
 

@@ -185,7 +185,7 @@ def test_rt009_review_approve_is_blocked_for_an_unauthorized_exception_type() ->
         version=1,
     )
     with pytest.raises(Exception, match="policy"):
-        _assert_approval_permitted(case, fake_policy)
+        _assert_approval_permitted(case, fake_policy, None)
 
 
 def test_rt017_cross_customer_conversation_access_is_denied() -> None:
@@ -338,6 +338,14 @@ def _proposal_extraction_response(
 def _dispute_extraction_response(*, category: str | None) -> ProviderResult:
     return ProviderResult(
         content=json.dumps({"category": category}), model_id="mock-model-1", latency_ms=5.0
+    )
+
+
+def _hardship_extraction_response(*, indicator_types: list[str] | None = None) -> ProviderResult:
+    return ProviderResult(
+        content=json.dumps({"indicator_types": indicator_types or []}),
+        model_id="mock-model-1",
+        latency_ms=5.0,
     )
 
 
@@ -535,7 +543,10 @@ async def test_rt012_financial_hardship_message_gets_only_the_fixed_template(
     redteam_client: TestClient, customer_headers: dict[str, str]
 ) -> None:
     conversation_id = _create_conversation(redteam_client, customer_headers)
-    _script(redteam_client, [_intent_response("FINANCIAL_HARDSHIP")])
+    _script(
+        redteam_client,
+        [_intent_response("FINANCIAL_HARDSHIP"), _hardship_extraction_response()],
+    )
     result = _send(redteam_client, conversation_id, customer_headers, "I lost my job")
     assert result.status_code == 200, result.text
     assert result.json()["assistant_message"]["content"] in _CUSTOMER_MESSAGE_TEMPLATES.values()

@@ -468,10 +468,21 @@ def test_more_than_the_configured_requests_per_minute_returns_429(
 ) -> None:
     conversation_id = _create_conversation(chat_client, customer_session_headers)
     # FINANCIAL_HARDSHIP (a sensitive intent) rather than PAY_NOW: this test
-    # only cares about the rate limiter, not the proposal flow, and a
-    # sensitive intent needs exactly one scripted response per message
-    # (E6-S2/E6-S3's extraction call never runs for a sensitive intent).
-    _script(chat_client, [_intent_response("FINANCIAL_HARDSHIP") for _ in range(20)])
+    # only cares about the rate limiter, not the proposal flow. Each message
+    # scripts two responses: the intent classification, then E8-S2's own
+    # hardship-indicator extraction call (`_chat_hardship_flow.build_hardship
+    # _reply`, wired once a message classifies FINANCIAL_HARDSHIP).
+    hardship_extraction = ProviderResult(
+        content=json.dumps({"indicator_types": []}), model_id="mock-model-1", latency_ms=5.0
+    )
+    _script(
+        chat_client,
+        [
+            response
+            for _ in range(20)
+            for response in (_intent_response("FINANCIAL_HARDSHIP"), hardship_extraction)
+        ],
+    )
 
     for _ in range(20):
         result = _send(chat_client, conversation_id, customer_session_headers, "checking in")

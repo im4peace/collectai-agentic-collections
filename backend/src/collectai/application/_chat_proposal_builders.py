@@ -244,9 +244,21 @@ async def build_arrangement_reply(
         )
         if classified.ok and classified.value is not None:
             classification = classified.value.classification
+            exception_types = [e.value for e in classified.value.exception_types]
         else:
             classification = EligibilityClass.EXCEPTIONAL
+            exception_types = []
         if classification is EligibilityClass.EXCEPTIONAL:
+            # E7-S4 AC1: the requested terms are stored on the case verbatim
+            # -- a reviewer's later APPROVE (`review_service.py`) rebuilds
+            # the actual arrangement schedule from this, never from the
+            # customer's own chat message text.
+            requested_terms = {
+                "installment_count": extraction.installment_count,
+                "first_installment_date": (
+                    clock.now().date() + timedelta(days=1)
+                ).isoformat(),
+            }
             await _escalate_arrangement(
                 session,
                 conversation=conversation,
@@ -256,6 +268,8 @@ async def build_arrangement_reply(
                 clock=clock,
                 audit_service=audit_service,
                 correlation_id=correlation_id,
+                requested_terms=requested_terms,
+                exception_types=exception_types,
             )
             return ProposalFlowOutcome(ARRANGEMENT_EXCEPTIONAL_MESSAGE, (), None, False, False)
         return ProposalFlowOutcome(arrangement_choice_message(options), (), None, False, False)
@@ -289,6 +303,8 @@ async def _escalate_arrangement(
     clock: Clock,
     audit_service: AuditService,
     correlation_id: str,
+    requested_terms: dict[str, object] | None = None,
+    exception_types: list[str] | None = None,
 ) -> None:
     await create_escalation(
         session,
@@ -302,4 +318,6 @@ async def _escalate_arrangement(
         clock=clock,
         audit_service=audit_service,
         correlation_id=correlation_id,
+        requested_terms=requested_terms,
+        exception_types=exception_types,
     )

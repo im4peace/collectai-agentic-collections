@@ -18,6 +18,8 @@ since the offer, even within the proposal's own TTL).
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.audit.events import AuditEventDraft
@@ -32,6 +34,16 @@ from collectai.domain_services._ptp_helpers import has_active_pending_ptp, has_o
 from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.persistence.orm.payment_arrangement import PaymentArrangementOrm
 from collectai.rules_engine.arrangement import ArrangementOption, get_eligible_options
+
+# `build_option` is not re-exported from `rules_engine.arrangement`'s public
+# surface (only the *standard*, policy-menu path -- `get_eligible_options`
+# -- is): E7-S4's exceptional-approval path needs the same exact-sum
+# schedule math for a customer-requested, off-menu installment count, so it
+# reaches into this private submodule directly rather than duplicating the
+# math. Still layer 5a (domain_services) importing layer 4a (rules_engine)
+# -- no architecture-boundary violation, just past the package's own
+# "public API" convention.
+from collectai.rules_engine.arrangement._schedule import build_option
 from collectai.types.clock import Clock
 from collectai.types.enums import (
     ActorKind,
@@ -96,14 +108,98 @@ async def create_arrangement_from_confirmed_proposal(
             "This arrangement option is no longer available; please ask for options again."
         )
 
+    return await _insert_arrangement(
+        session,
+        record=record,
+        option=option,
+        created_via=ArrangementCreatedVia.CUSTOMER_CONFIRMATION,
+        exception_case_id=None,
+        policy_version=policy.policy_version,
+        clock=clock,
+        audit_service=audit_service,
+        correlation_id=correlation_id,
+        actor_persona=Persona.CUSTOMER,
+    )
+
+
+async def create_exceptional_arrangement_from_review(
+    session: AsyncSession,
+    *,
+    record: DelinquencyRecordOrm,
+    installment_count: int,
+    exception_case_id: str,
+    reviewer_persona: Persona,
+    policy_provider: PolicyProvider,
+    clock: Clock,
+    audit_service: AuditService,
+    correlation_id: str,
+) -> PaymentArrangementOrm:
+    """E7-S4 AC5: revalidate authorization (the caller, `review_service
+    .decide`, only runs this after its own object-level/policy-authority
+    checks), an open dispute and an existing active PTP/arrangement (the
+    same hard safety block the standard path enforces -- exception
+    authority widens *which terms* an officer may approve, never whether a
+    second concurrent arrangement is allowed), then create with status
+    ACTIVE using the exact-sum schedule math for the customer's own
+    requested (off-menu) installment count -- never a value re-derived from
+    `EscalationCase.requested_terms`'s stored, possibly stale date; the
+    first installment date is always computed fresh, "tomorrow" relative to
+    *now* (approval time), exactly as the standard offer path does."""
+    if await has_open_dispute(session, account_id=record.account_id, item_id=None):
+        raise ArrangementConflictError(
+            reason_code=ReasonCode.DISPUTED_ITEM, message="This item is under an open dispute."
+        )
+    if await has_active_pending_ptp(
+        session, record.account_id
+    ) or await has_active_arrangement(session, record.account_id):
+        raise ArrangementConflictError(
+            reason_code=ReasonCode.CONFLICTING_ACTIVE_ITEM,
+            message="This account already has an active promise to pay or payment plan.",
+        )
+    try:
+        policy = policy_provider.get_active()
+    except PolicyUnavailable as exc:
+        raise ArrangementNotEligibleError(
+            "Arrangement options are not available right now."
+        ) from exc
+
+    first_date: date = clock.now().date() + timedelta(days=1)
+    option = build_option(installment_count, record.overdue_amount, first_date)
+    return await _insert_arrangement(
+        session,
+        record=record,
+        option=option,
+        created_via=ArrangementCreatedVia.EXCEPTION_APPROVAL,
+        exception_case_id=exception_case_id,
+        policy_version=policy.policy_version,
+        clock=clock,
+        audit_service=audit_service,
+        correlation_id=correlation_id,
+        actor_persona=reviewer_persona,
+    )
+
+
+async def _insert_arrangement(
+    session: AsyncSession,
+    *,
+    record: DelinquencyRecordOrm,
+    option: ArrangementOption,
+    created_via: ArrangementCreatedVia,
+    exception_case_id: str | None,
+    policy_version: str,
+    clock: Clock,
+    audit_service: AuditService,
+    correlation_id: str,
+    actor_persona: Persona,
+) -> PaymentArrangementOrm:
     now = clock.now()
     row = PaymentArrangementOrm(
         arrangement_id=generate_id(EntityPrefix.ARRANGEMENT),
         account_id=record.account_id,
         customer_id=record.customer_id,
         status=ArrangementStatus.ACTIVE.value,
-        created_via=ArrangementCreatedVia.CUSTOMER_CONFIRMATION.value,
-        exception_case_id=None,
+        created_via=created_via.value,
+        exception_case_id=exception_case_id,
         option_id=option.option_id,
         installment_count=option.installment_count,
         installment_amount=option.installment_amount,
@@ -119,7 +215,7 @@ async def create_arrangement_from_confirmed_proposal(
             }
             for entry in option.schedule
         ],
-        policy_version=policy.policy_version,
+        policy_version=policy_version,
         created_at=now,
         updated_at=now,
         version=1,
@@ -132,8 +228,8 @@ async def create_arrangement_from_confirmed_proposal(
             correlation_id=correlation_id,
             stage=AuditStage.FINAL_STATE,
             event_type=ARRANGEMENT_CREATED_EVENT_TYPE,
-            actor_kind=ActorKind.SYSTEM,
-            actor_persona=Persona.CUSTOMER,
+            actor_kind=ActorKind.STAFF if exception_case_id else ActorKind.SYSTEM,
+            actor_persona=actor_persona,
             customer_id=row.customer_id,
             account_id=row.account_id,
             policy_version=row.policy_version,

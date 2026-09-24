@@ -69,3 +69,33 @@ class CustomerScopedRepository(Generic[OrmT]):
         stmt = pg_insert(table).values(rows).on_conflict_do_nothing(index_elements=pk_columns)
         result = cast(CursorResult[Any], await session.execute(stmt))
         return result.rowcount or 0
+
+    async def bulk_upsert_update_on_conflict(
+        self,
+        session: AsyncSession,
+        rows: list[dict[str, Any]],
+        *,
+        pk_columns: list[str],
+    ) -> int:
+        """E9-S3's `reseed` demo control: `INSERT ... ON CONFLICT DO UPDATE`
+        on the deterministic seed ids, overwriting every non-pk column back
+        to its seeded value. Deliberately UPDATE, never `DELETE` +
+        re-`INSERT`: `collectai_app` holds no `DELETE` grant on any table
+        (`deploy/db/init-roles.sql`'s own least-privilege design,
+        CLAUDE.md), so a real "restore the seeded dataset" for this
+        deployment can only ever be an UPDATE-based reset of the rows it is
+        allowed to touch -- never a literal delete-and-reload."""
+        if not rows:
+            return 0
+        table = cast(Table, self._orm_class.__table__)
+        update_columns = [col for col in rows[0] if col not in pk_columns]
+        stmt = pg_insert(table).values(rows)
+        if update_columns:
+            stmt = stmt.on_conflict_do_update(
+                index_elements=pk_columns,
+                set_={col: stmt.excluded[col] for col in update_columns},
+            )
+        else:
+            stmt = stmt.on_conflict_do_nothing(index_elements=pk_columns)
+        result = cast(CursorResult[Any], await session.execute(stmt))
+        return result.rowcount or 0

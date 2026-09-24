@@ -31,11 +31,14 @@ from collectai.api.middleware.errors import (
 )
 from collectai.api.routers.me_ownership import LimitQuery, OffsetQuery, paginate
 from collectai.api.schemas.escalations import (
+    ComplianceDecisionRequest,
+    ComplianceDecisionResult,
     EscalationListItem,
     EscalationPage,
     ReviewDecisionRequest,
     ReviewDecisionResult,
 )
+from collectai.application._chat_persistence import persist_message
 from collectai.audit.service import AuditUnavailable
 from collectai.domain_services._escalation_queue_query import list_for_queue_view
 from collectai.domain_services._review_exceptions import (
@@ -44,15 +47,24 @@ from collectai.domain_services._review_exceptions import (
     ReviewNotPermittedError,
     ReviewValidationError,
 )
+from collectai.domain_services.compliance_service import (
+    ComplianceDecisionRequest as ComplianceRequest,
+)
+from collectai.domain_services.compliance_service import record_compliance_review_decision
 from collectai.domain_services.review_service import ReviewDecisionRequest as DecisionRequest
 from collectai.domain_services.review_service import decide
+from collectai.persistence.orm.escalation_case import EscalationCaseOrm
 from collectai.persistence.repositories.customer_repository import CustomerRepository
+from collectai.types.clock import Clock
 from collectai.types.enums import (
     CaseSource,
     CaseStatus,
+    ContentSource,
     EscalationPriority,
     EscalationReason,
+    MessageRole,
     Persona,
+    ReviewAction,
     ReviewerRole,
     ReviewQueue,
 )
@@ -145,6 +157,39 @@ async def list_escalations(
     return EscalationPage(items=items, page=page_info, policy_version=policy_version)
 
 
+async def _inform_customer_of_rejected_exception(
+    db: DbSession, *, case_id: str, clock: Clock
+) -> None:
+    """E7-S4 AC5: "a rejected exception ... informs the customer." Only
+    applies to an EXCEPTIONAL_ARRANGEMENT case with a real conversation to
+    post into -- a reviewer-raised case (no `conversation_id`) or any other
+    case reason has no customer-facing message to send here. A fixed
+    template (`content_source=TEMPLATE`), matching every other
+    customer-facing string in this codebase -- never free-form reviewer
+    text reaching the customer verbatim."""
+    case = await db.get(EscalationCaseOrm, case_id)
+    if (
+        case is None
+        or case.reason != EscalationReason.EXCEPTIONAL_ARRANGEMENT.value
+        or case.conversation_id is None
+    ):
+        return
+    await persist_message(
+        db,
+        conversation_id=case.conversation_id,
+        customer_id=case.customer_id,
+        role=MessageRole.ASSISTANT,
+        content=(
+            "A specialist has reviewed your payment plan request and was not able to "
+            "approve it as requested. You can talk to a human at any time to discuss "
+            "other options."
+        ),
+        content_source=ContentSource.TEMPLATE,
+        labels=[],
+        created_at=clock.now(),
+    )
+
+
 def _effective_queues(
     persona: Persona, requested: list[ReviewQueue] | None
 ) -> list[ReviewQueue] | None:
@@ -227,10 +272,80 @@ async def decide_case_endpoint(
         raise ConflictError(reason_code=exc.reason_code, message=exc.message) from exc
     except AuditUnavailable as exc:
         raise AuditUnavailableError() from exc
+
+    if not outcome.replayed and body.action is ReviewAction.REJECT:
+        await _inform_customer_of_rejected_exception(db, case_id=case_id, clock=clock)
+
     await db.commit()
     if outcome.replayed:
         response.status_code = status.HTTP_200_OK
         response.headers["Idempotent-Replayed"] = "true"
     return ReviewDecisionResult.model_validate(
+        {**outcome.response_body, "replayed": outcome.replayed}
+    )
+
+
+_COMPLIANCE_DECIDE = {"x-capability": "compliance:decide"}
+_require_compliance_decide = require_capability("compliance:decide")
+
+
+@router.post(
+    "/{case_id}/compliance-decision",
+    response_model=ComplianceDecisionResult,
+    status_code=status.HTTP_201_CREATED,
+    openapi_extra=_COMPLIANCE_DECIDE,
+)
+async def compliance_decision_endpoint(
+    case_id: str,
+    body: ComplianceDecisionRequest,
+    request: Request,
+    response: Response,
+    db: DbSession,
+    clock: ClockDep,
+    audit_service: AuditServiceDep,
+    policy_provider: PolicyProviderDep,
+    persona_context: Annotated[PersonaContext, Depends(_require_compliance_decide)],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+) -> ComplianceDecisionResult:
+    """E7-S5 AC1-AC6: `require_capability("compliance:decide")` already
+    restricts this to `COMPLIANCE_RISK` (AC6's persona-level half);
+    `domain_services.compliance_service` adds the object-level half (only a
+    case in COMPLIANCE_REVIEW, AC3) and is the only mutating endpoint
+    COMPLIANCE_RISK may call -- it never touches a financial table (AC4)."""
+    _require_idempotency_key(idempotency_key)
+    try:
+        outcome = await record_compliance_review_decision(
+            db,
+            request=ComplianceRequest(
+                case_id=case_id,
+                outcome=body.outcome,
+                reason=body.reason,
+                expected_version=body.expected_version,
+            ),
+            reviewer_persona=persona_context.persona,
+            idempotency_key=idempotency_key,
+            policy_provider=policy_provider,
+            clock=clock,
+            audit_service=audit_service,
+            correlation_id=resolve_correlation_id(request),
+        )
+    except ReviewCaseNotFoundError as exc:
+        raise NotFoundError(message=str(exc)) from exc
+    except ReviewValidationError as exc:
+        raise RequestValidationFailedError(
+            reason_code=exc.reason_code, message=exc.message
+        ) from exc
+    except ReviewNotPermittedError as exc:
+        raise ObjectForbiddenError(reason_code=exc.reason_code, message=exc.message) from exc
+    except ReviewConflictError as exc:
+        raise ConflictError(reason_code=exc.reason_code, message=exc.message) from exc
+    except AuditUnavailable as exc:
+        raise AuditUnavailableError() from exc
+
+    await db.commit()
+    if outcome.replayed:
+        response.status_code = status.HTTP_200_OK
+        response.headers["Idempotent-Replayed"] = "true"
+    return ComplianceDecisionResult.model_validate(
         {**outcome.response_body, "replayed": outcome.replayed}
     )

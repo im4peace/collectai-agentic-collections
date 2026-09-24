@@ -9,10 +9,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from collectai.api.schemas.me import PageInfo
+from collectai.api.schemas.me import PageInfo, PaymentArrangement
 from collectai.types.enums import (
     CaseSource,
     CaseStatus,
+    ComplianceOutcome,
     EscalationPriority,
     EscalationReason,
     ReviewAction,
@@ -92,6 +93,42 @@ class ReviewDecisionResult(BaseModel):
     modification_option_id: str | None
     escalate_reason: EscalationReason | None
     rerouted_case_id: str | None
+    reviewer_persona: str
+    decided_at: datetime
+    policy_version: str
+    case_status: CaseStatus
+    case_version: int
+    arrangement: PaymentArrangement | None = None
+    """E7-S4 AC5: the `PaymentArrangement` an APPROVE of an
+    EXCEPTIONAL_ARRANGEMENT case just created -- `None` for every other
+    action/case-reason combination."""
+    replayed: bool = False
+
+
+class ComplianceDecisionRequest(BaseModel):
+    """`POST /api/escalations/{case_id}/compliance-decision` (E7-S5).
+    `extra="forbid"`: no `action`/`note`/`modification_option_id`/
+    `escalate_reason` field exists here at all -- COMPLIANCE_RISK's one
+    capability is narrower than `ReviewDecisionRequest`'s, by the schema
+    itself, not just by `compliance_service`'s own checks."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    outcome: ComplianceOutcome
+    reason: str
+    expected_version: int
+
+
+class ComplianceDecisionResult(BaseModel):
+    """The recorded compliance decision plus the case's resulting status/
+    version (E7-S5 AC2, AC5)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    decision_id: str
+    case_id: str
+    compliance_outcome: ComplianceOutcome
+    reason: str
     reviewer_persona: str
     decided_at: datetime
     policy_version: str

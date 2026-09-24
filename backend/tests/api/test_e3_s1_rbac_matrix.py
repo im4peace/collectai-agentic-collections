@@ -22,10 +22,13 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from collectai.api.app import create_app
 from collectai.api.deps import PersonaContext, require_capability
 from collectai.api.rbac import CAPABILITY_MATRIX, PUBLIC_CAPABILITY, is_capability_allowed
 from collectai.audit import queries
-from collectai.types.enums import Persona
+from collectai.config.settings import Settings
+from collectai.types.clock import SimulatedClock
+from collectai.types.enums import LlmMode, Persona
 
 pytestmark = pytest.mark.db
 
@@ -66,6 +69,36 @@ def _build_probe_router() -> APIRouter:
     for capability in sorted(CAPABILITY_MATRIX):
         _register_probe_route(router, capability, mutating=capability in _MUTATING_CAPABILITIES)
     return router
+
+
+@pytest.fixture
+def api_client(migrated_schema: str, clock: SimulatedClock, clean_db: None) -> Iterator[TestClient]:
+    """Overrides `conftest.py`'s own `api_client` fixture for this module
+    only: `demo_controls_enabled=True` (every other field unchanged), so
+    the real `/api/demo-controls/*` routes this story's `_registered_routes`
+    walk (E9-S3's own `demo_controls:use` capability) are reachable enough
+    to exercise the *persona* check this file's tests are actually about --
+    with the flag off (every other file's shared fixture), those routes 404
+    before the persona dependency ever runs (E9-S3 AC1, by design), which
+    is a different, already-covered-elsewhere behaviour this generic
+    RBAC-matrix walk is not testing."""
+    settings = Settings(
+        llm_mode=LlmMode.MOCK,
+        anthropic_model=None,
+        anthropic_api_key=None,
+        tool_call_cap_per_turn=5,
+        ai_retry_bound=1,
+        max_clarification_turns=2,
+        chat_rate_limit_per_minute=20,
+        api_rate_limit_per_minute=300,
+        provider_timeout_seconds=20,
+        proposal_ttl_minutes=30,
+        demo_controls_enabled=True,
+        database_url=migrated_schema,
+    )
+    app = create_app(settings, clock=clock)
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture

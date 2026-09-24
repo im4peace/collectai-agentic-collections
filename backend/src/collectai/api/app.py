@@ -39,6 +39,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 
@@ -47,6 +48,8 @@ from collectai.api.routers.audit import router as audit_router
 from collectai.api.routers.chat import router as chat_router
 from collectai.api.routers.chat_proposals import router as chat_proposals_router
 from collectai.api.routers.customer360 import router as customer360_router
+from collectai.api.routers.demo_controls import router as demo_controls_router
+from collectai.api.routers.disputes import router as disputes_router
 from collectai.api.routers.escalations import router as escalations_router
 from collectai.api.routers.me import router as me_router
 from collectai.api.routers.portfolio import router as portfolio_router
@@ -60,7 +63,7 @@ from collectai.config.policy.provider import PolicyProvider
 from collectai.config.settings import Settings
 from collectai.llm_provider.factory import get_provider
 from collectai.persistence.db import build_engine, build_session_factory
-from collectai.types.clock import Clock, SystemClock
+from collectai.types.clock import Clock, SimulatedClock, SystemClock
 from collectai.types.enums import ProviderMode
 
 
@@ -83,10 +86,21 @@ def create_app(
 ) -> FastAPI:
     """Build the ASGI application for `settings`. Callers own the returned
     app's lifespan (uvicorn drives it in production; tests drive it via
-    `TestClient` as a context manager). `clock` defaults to `SystemClock()`;
-    tests inject a `SimulatedClock` for deterministic audit timestamps.
-    `policy_provider` defaults to a freshly activated seed `policy-v1`."""
-    active_clock = clock if clock is not None else SystemClock()
+    `TestClient` as a context manager). `clock` defaults to `SystemClock()`,
+    except when `settings.demo_controls_enabled` is true and no explicit
+    clock was given: then a `SimulatedClock` seeded to the real current
+    instant is installed instead (E9-S3 AC2's clock-advance control has
+    nothing to advance otherwise -- `api/routers/demo_controls.py`'s own
+    `advance_clock` asserts the installed clock is a `SimulatedClock`).
+    Tests inject their own `SimulatedClock` explicitly, which always wins
+    over this default. `policy_provider` defaults to a freshly activated
+    seed `policy-v1`."""
+    if clock is not None:
+        active_clock: Clock = clock
+    elif settings.demo_controls_enabled:
+        active_clock = SimulatedClock(datetime.now(UTC))
+    else:
+        active_clock = SystemClock()
     active_policy_provider = (
         policy_provider
         if policy_provider is not None
@@ -121,4 +135,6 @@ def create_app(
     app.include_router(chat_proposals_router)
     app.include_router(escalations_router)
     app.include_router(recommendations_router)
+    app.include_router(disputes_router)
+    app.include_router(demo_controls_router)
     return app

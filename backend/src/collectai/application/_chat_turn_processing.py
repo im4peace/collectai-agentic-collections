@@ -16,6 +16,7 @@ from collectai.ai_orchestration.safety_precedence import apply_safety_precedence
 from collectai.application._chat_classification import classify, respond_unclassifiable
 from collectai.application._chat_dispute_flow import build_dispute_reply
 from collectai.application._chat_escalation_reporting import report_escalation
+from collectai.application._chat_hardship_flow import build_hardship_reply
 from collectai.application._chat_persistence import persist_message, persist_turn
 from collectai.application._chat_proposal_flow import build_proposal_reply
 from collectai.application._chat_reply_planning import plan_reply
@@ -198,6 +199,26 @@ async def classify_and_respond(
         )
         escalation_case = dispute_outcome.result.escalation.case
         escalation_reason = EscalationReason.DISPUTE
+    elif plan.escalation_reason is None and intent_result.label is Intent.FINANCIAL_HARDSHIP:
+        # E8-S2 AC1/AC4: mirrors the DISPUTE branch immediately above --
+        # `_plan_sensitive` already chose the customer-facing message and
+        # left `escalation_reason` `None` by design; this branch does the
+        # actual `HardshipCase`/`EscalationCase` writes.
+        hardship_outcome = await build_hardship_reply(
+            session,
+            conversation=conversation,
+            customer_id=customer_id,
+            content=content,
+            correlation_id=correlation_id,
+            provider=provider,
+            provider_mode=provider_mode,
+            audit_service=audit_service,
+            ai_retry_bound=ai_retry_bound,
+            policy_provider=policy_provider,
+            clock=clock,
+        )
+        escalation_case = hardship_outcome.result.escalation.case
+        escalation_reason = EscalationReason.FINANCIAL_HARDSHIP
     elif (
         plan.escalation_reason is None
         and decision.proposal_execution_permitted
