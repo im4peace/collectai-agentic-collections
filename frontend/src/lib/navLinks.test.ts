@@ -35,14 +35,14 @@ describe("navLinksForCapabilities", () => {
     expect(links.map((l) => l.label)).toEqual(["Dashboard"]);
   });
 
-  it("shows COMPLIANCE_RISK exactly Audit Trail and the compliance review queue", () => {
+  it("shows COMPLIANCE_RISK exactly Escalations and Audit Trail (E7-S3 AC6: shared escalation:read)", () => {
     const links = navLinksForCapabilities(["audit:read", "compliance:decide", "escalation:read", "session:read"]);
-    expect(links.map((l) => l.label)).toEqual(["Audit Trail", "Compliance review queue"]);
+    expect(links.map((l) => l.label)).toEqual(["Escalations", "Audit Trail"]);
   });
 
-  it("hides the officer's escalation queue from a persona holding only escalation:read", () => {
+  it("shows Escalations to any persona holding escalation:read, not just escalation:review", () => {
     const links = navLinksForCapabilities(["audit:read", "escalation:read", "session:read"]);
-    expect(links.some((l) => l.label === "Escalations")).toBe(false);
+    expect(links.some((l) => l.label === "Escalations")).toBe(true);
   });
 
   it("shows nothing for a persona with no matching capabilities", () => {

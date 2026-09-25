@@ -114,19 +114,31 @@ async def advance_clock(
     *,
     clock: Clock,
     days: int,
+    refresh_snapshots: bool,
     reviewer_persona: Persona,
     audit_service: AuditService,
     correlation_id: str,
 ) -> dict[str, object]:
     """AC2: moves the installed `Clock` forward by `days`. `refresh_snapshots`
-    (api-contracts.md's optional DPD/bucket/`as_of` re-sync) is accepted by
-    the router but is a documented no-op here -- no core-sync/snapshot-
-    recompute service exists anywhere in this codebase yet (not a Group I
-    dependency, and out of E9-S3's own numbered acceptance criteria, which
-    only require the clock to move and a subsequent breakage run to see the
-    new date -- both true without it)."""
+    (api-contracts.md's optional DPD/bucket/`as_of` re-sync): only the
+    `as_of`/`updated_at` re-sync half is implemented -- `dpd`/`bucket`/
+    `overdue_amount` are never recomputed (no core-sync/DPD recomputation
+    service exists anywhere in this codebase; CLAUDE.md's documented known
+    item), only every delinquency record's snapshot timestamp is marked
+    fresh as of the now-advanced clock (`DelinquencyRecordRepository
+    .refresh_all_snapshots`), which is what actually made every seeded
+    account read `Freshness.STALE` (`rules_engine.freshness.check_
+    freshness`) as soon as real time passed the seed generator's fixed
+    reference date -- and so blocked every PTP/proposal confirm in the
+    whole app, not something E9-S3's original numbered ACs anticipated
+    needing."""
     assert isinstance(clock, SimulatedClock)  # noqa: S101 - only reachable when the flag installed one
     clock.advance(days)
+    snapshots_refreshed = 0
+    if refresh_snapshots:
+        snapshots_refreshed = await _delinquency_repository.refresh_all_snapshots(
+            session, now=clock.now()
+        )
     await audit_service.record_in(
         session,
         AuditEventDraft(
@@ -137,10 +149,10 @@ async def advance_clock(
             actor_persona=reviewer_persona,
             capability=_DEMO_CONTROLS_CAPABILITY,
             final_action=DEMO_CLOCK_ADVANCED_EVENT_TYPE,
-            rule_results={"days": days},
+            rule_results={"days": days, "snapshots_refreshed": snapshots_refreshed},
         ),
     )
-    return {"clock": clock_info(clock), "snapshots_refreshed": 0}
+    return {"clock": clock_info(clock), "snapshots_refreshed": snapshots_refreshed}
 
 
 async def run_ptp_lifecycle(

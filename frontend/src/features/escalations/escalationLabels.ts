@@ -1,5 +1,10 @@
 import type { BadgeVariant } from "../../components/Badge";
-import type { CaseStatus, EscalationPriority, EscalationReason } from "../../api/escalationsTypes";
+import type {
+  CaseStatus,
+  EscalationPriority,
+  EscalationReason,
+  ReviewQueue,
+} from "../../api/escalationsTypes";
 
 export interface PriorityDisplay {
   label: string;
@@ -36,6 +41,29 @@ export const REASON_LABELS: Record<EscalationReason, string> = {
   POLICY_EXCEPTION: "Policy exception request",
   HIGH_RISK_COMPLIANCE: "High-risk compliance flag",
 };
+
+/** E7-S3 AC5: the officer's queue filter needs a text label per queue (the
+ * COMPLIANCE_RISK-only queue is included for completeness, though that
+ * persona never sees the filter -- it is auto-scoped server-side). */
+export const QUEUE_LABELS: Record<ReviewQueue, string> = {
+  COLLECTIONS_REVIEW: "Collections review",
+  COLLECTIONS_EXCEPTION_REVIEW: "Collections exception review",
+  HARDSHIP_REVIEW: "Hardship review",
+  DISPUTE_REVIEW: "Dispute review",
+  VULNERABLE_CUSTOMER_REVIEW: "Vulnerable-customer review",
+  COMPLIANCE_REVIEW: "Compliance review",
+};
+
+/** AC5: the officer-facing queue filter checkboxes -- exactly the five
+ * queues an officer can be routed to (COMPLIANCE_REVIEW is COMPLIANCE_RISK-
+ * only and never offered here). */
+export const OFFICER_FILTERABLE_QUEUES: ReviewQueue[] = [
+  "COLLECTIONS_REVIEW",
+  "COLLECTIONS_EXCEPTION_REVIEW",
+  "HARDSHIP_REVIEW",
+  "DISPUTE_REVIEW",
+  "VULNERABLE_CUSTOMER_REVIEW",
+];
 
 /** AC1's "age" column: whole hours under a day, otherwise whole days --
  * always a plain number-plus-unit label, matching `aging_warning`'s own

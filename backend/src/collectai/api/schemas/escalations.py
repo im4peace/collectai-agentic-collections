@@ -9,6 +9,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from collectai.api.schemas._chat_message import ChatMessage
+from collectai.api.schemas.customer360 import Recommendation
 from collectai.api.schemas.me import PageInfo, PaymentArrangement
 from collectai.types.enums import (
     CaseSource,
@@ -135,3 +137,47 @@ class ComplianceDecisionResult(BaseModel):
     case_status: CaseStatus
     case_version: int
     replayed: bool = False
+
+
+class EscalationRuleResults(BaseModel):
+    """E7-S3 AC2's "deterministic rule results" section: the routing/
+    exception facts `rules_engine.routing.route_escalation` and the
+    exceptional-arrangement request itself already produced for this case --
+    never AI output, and never recomputed here."""
+
+    model_config = ConfigDict(frozen=True)
+
+    summary: str
+    requested_terms: dict[str, object] | None
+    exception_types: list[str] | None
+    routing_flags: list[str]
+    routing_policy_version: str | None
+
+
+class EscalationCaseDetail(BaseModel):
+    """E7-S3 AC2: case summary plus the conversation, AI recommendation and
+    deterministic rule results, each rendered in its own labelled section.
+    AC3: `approve_permitted` tells the screen whether to show APPROVE at
+    all, computed by `review_service.approval_readiness`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    case_id: str
+    reason: EscalationReason
+    queue: ReviewQueue
+    reviewer_role: ReviewerRole
+    priority: EscalationPriority
+    status: CaseStatus
+    source: CaseSource
+    created_at: datetime
+    age_hours: int
+    aging_warning: bool
+    customer_id: str
+    customer_name: str
+    account_id: str
+    customer_360_path: str
+    version: int
+    conversation: list[ChatMessage]
+    ai_recommendation: Recommendation | None
+    rule_results: EscalationRuleResults
+    approve_permitted: bool

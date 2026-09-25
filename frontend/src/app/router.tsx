@@ -3,6 +3,7 @@ import { createBrowserRouter, useLocation } from "react-router-dom";
 import { AuditTrailViewer } from "../features/audit/AuditTrailViewer";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { Customer360Screen } from "../features/customer360/Customer360Screen";
+import { EscalationCaseDetailScreen } from "../features/escalations/EscalationCaseDetailScreen";
 import { EscalationsScreen } from "../features/escalations/EscalationsScreen";
 import { PersonaSwitcher } from "../features/session/PersonaSwitcher";
 import { PortfolioScreen } from "../features/portfolio/PortfolioScreen";
@@ -28,8 +29,17 @@ function NotFoundRoute(): JSX.Element {
  * everyone (public, no `RequireCapability`) — it is how a fresh session is
  * created in the first place. Every other route is a guarded slot; Groups
  * E3-S3, E4-S2, E6-S5, E9-S2 and E7-S6 have all replaced their `RouteStub`
- * with a real screen. Only `/dashboard` (E10-S4) and `/compliance-review`
- * (E7-S5) remain stubs, for stories not yet built.
+ * with a real screen. Only `/dashboard` (E10-S4) remains a stub, for a
+ * story not yet built.
+ *
+ * `/escalations` widened from `escalation:review` to `escalation:read` by
+ * E7-S3 AC6: COLLECTIONS_OFFICER and COMPLIANCE_RISK share the one screen,
+ * which branches its own queue scope and action controls by persona rather
+ * than each getting a separate route -- so the `/compliance-review` stub
+ * (E7-S5's placeholder) is removed rather than built out; COMPLIANCE_RISK
+ * reaches its queue through `/escalations` now. `/escalations/:caseId`
+ * (E7-S3 AC2) is the case-detail view; both routes share the same
+ * capability so a denied persona never reaches either.
  */
 export const router = createBrowserRouter([
   {
@@ -55,8 +65,16 @@ export const router = createBrowserRouter([
       {
         path: "/escalations",
         element: (
-          <RequireCapability capability="escalation:review">
+          <RequireCapability capability="escalation:read">
             <EscalationsScreen />
+          </RequireCapability>
+        ),
+      },
+      {
+        path: "/escalations/:caseId",
+        element: (
+          <RequireCapability capability="escalation:read">
+            <EscalationCaseDetailScreen />
           </RequireCapability>
         ),
       },
@@ -73,14 +91,6 @@ export const router = createBrowserRouter([
         element: (
           <RequireCapability capability="audit:read">
             <AuditTrailViewer />
-          </RequireCapability>
-        ),
-      },
-      {
-        path: "/compliance-review",
-        element: (
-          <RequireCapability capability="compliance:decide">
-            <RouteStub title="Compliance review queue" />
           </RequireCapability>
         ),
       },

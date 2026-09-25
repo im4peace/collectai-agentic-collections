@@ -227,6 +227,51 @@ async def test_advance_clock_and_breakage_run_marks_due_ptps_broken(
     assert ptp.status == "BROKEN"
 
 
+async def test_advance_clock_with_refresh_snapshots_marks_every_record_fresh(
+    demo_client: TestClient, session: AsyncSession
+) -> None:
+    """Group J finding: every seeded `DelinquencyRecord.as_of` is a fixed
+    historical constant (`persistence.seed.generator._SEED_NOW`), so it
+    reads `Freshness.STALE` (`rules_engine.freshness.check_freshness`) as
+    soon as real/demo time has moved more than `policy.parameters.freshness
+    .max_snapshot_age_minutes` past it -- blocking every PTP/proposal
+    confirm in the app. `refresh_snapshots=true` (the default) fixes this by
+    marking every record's snapshot fresh as of the now-advanced clock."""
+    before = await session.get(DelinquencyRecordOrm, _ACCOUNT_ID)
+    assert before is not None
+    assert before.record_version == 1
+
+    advance_response = _post(demo_client, "/clock/advance", {"days": 5, "refresh_snapshots": True})
+    assert advance_response.status_code == 200, advance_response.text
+    body = advance_response.json()
+    assert body["snapshots_refreshed"] == 1
+
+    session.expire_all()
+    after = await session.get(DelinquencyRecordOrm, _ACCOUNT_ID)
+    assert after is not None
+    assert after.record_version == 2
+    assert after.as_of == _NOW + timedelta(days=5)
+    # dpd/overdue_amount/bucket are never recomputed by this endpoint (no
+    # core-sync/DPD recomputation service exists) -- only the snapshot
+    # timestamp and version move.
+    assert after.dpd == before.dpd
+    assert after.overdue_amount == before.overdue_amount
+
+
+async def test_advance_clock_with_refresh_snapshots_false_leaves_records_untouched(
+    demo_client: TestClient, session: AsyncSession
+) -> None:
+    advance_response = _post(demo_client, "/clock/advance", {"days": 5, "refresh_snapshots": False})
+    assert advance_response.status_code == 200, advance_response.text
+    assert advance_response.json()["snapshots_refreshed"] == 0
+
+    session.expire_all()
+    record = await session.get(DelinquencyRecordOrm, _ACCOUNT_ID)
+    assert record is not None
+    assert record.record_version == 1
+    assert record.as_of == _NOW
+
+
 # AC3 -------------------------------------------------------------------
 
 

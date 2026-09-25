@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Iterable
-from typing import Final
 
+from collectai.llm_provider import _mock_classifier
 from collectai.llm_provider.base import ProviderRequest, ProviderResult
-
-_DEFAULT_MODEL_ID: Final[str] = "mock-model-1"
 
 
 class MockProviderExhaustedError(Exception):
@@ -27,10 +25,16 @@ class MockProvider:
     Construct with a sequence of scripted outcomes consumed in order, one per
     `complete()` call. Each outcome is either a `ProviderResult` (returned
     as-is — valid, malformed or adversarial; this class never inspects or
-    judges `content`, only replays what it is told) or an `Exception`
-    instance (raised as-is, e.g. a pre-built `ProviderTimeout` to script a
-    timeout deterministically without sleeping). When `responses` is omitted,
-    every call returns a single fixed valid `ProviderResult`.
+    judges `content` when explicit `responses` are given, only replays what
+    it is told) or an `Exception` instance (raised as-is, e.g. a pre-built
+    `ProviderTimeout` to script a timeout deterministically without
+    sleeping). When `responses` is omitted (the exact construction
+    `llm_provider.factory.get_provider` uses for every real `LLM_MODE=MOCK`
+    server), each call instead goes through `_mock_classifier.classify`,
+    which pattern-matches the request and returns real, schema-valid
+    structured output for phrasing it recognizes (Group J: E11-S1, E11-S2),
+    falling back to the same fixed non-JSON `"Acknowledged."` response as
+    before for anything it does not.
     """
 
     def __init__(self, responses: Iterable[ProviderResult | Exception] | None = None) -> None:
@@ -40,23 +44,12 @@ class MockProvider:
         self._calls_made = 0
 
     async def complete(self, request: ProviderRequest) -> ProviderResult:
-        del request  # MockProvider never inspects the request; it only replays scripts.
         self._calls_made += 1
         if self._queue is None:
-            return _default_response()
+            return _mock_classifier.classify(request)
         if not self._queue:
             raise MockProviderExhaustedError(calls_made=self._calls_made)
         outcome = self._queue.popleft()
         if isinstance(outcome, Exception):
             raise outcome
         return outcome
-
-
-def _default_response() -> ProviderResult:
-    return ProviderResult(
-        content="Acknowledged.",
-        model_id=_DEFAULT_MODEL_ID,
-        latency_ms=0.0,
-        input_tokens=0,
-        output_tokens=0,
-    )

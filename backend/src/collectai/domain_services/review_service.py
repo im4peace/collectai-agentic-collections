@@ -88,6 +88,7 @@ from collectai.types.enums import (
 )
 from collectai.types.ids import EntityPrefix, generate_id
 from collectai.types.reason_codes import ReasonCode
+from collectai.types.results import PolicyUnavailable
 
 _IDEMPOTENCY_SCOPE = "review_decision"
 _REVIEW_DECISION_RECORDED_EVENT_TYPE = "REVIEW_DECISION_RECORDED"
@@ -324,6 +325,39 @@ async def _load_case(session: AsyncSession, case_id: str) -> EscalationCaseOrm:
     if case is None:
         raise ReviewCaseNotFoundError(case_id)
     return case
+
+
+async def approval_readiness(
+    session: AsyncSession,
+    case: EscalationCaseOrm,
+    *,
+    viewer_persona: Persona,
+    policy_provider: PolicyProvider,
+) -> bool:
+    """E7-S3 AC3: whether APPROVE would currently succeed for `case`, for a
+    read-only case-detail view to decide whether to show the action at all
+    -- reuses this module's own `decide()` gates (reviewer role, case
+    status, policy-permitted exception type/threshold) rather than
+    re-deriving them, so the detail view and the actual decision endpoint
+    can never disagree about whether APPROVE is available."""
+    if viewer_persona is not Persona.COLLECTIONS_OFFICER:
+        return False
+    try:
+        _assert_reviewer_may_act(case, viewer_persona)
+        _assert_case_actionable(case)
+        policy = policy_provider.get_active()
+        record = await _delinquency_repository.get_by_account(
+            session, case.account_id, case.customer_id
+        )
+        _assert_approval_permitted(case, policy, record)
+    except (
+        ReviewNotPermittedError,
+        ReviewConflictError,
+        ReviewValidationError,
+        PolicyUnavailable,
+    ):
+        return False
+    return True
 
 
 def _assert_reviewer_may_act(case: EscalationCaseOrm, reviewer_persona: Persona) -> None:

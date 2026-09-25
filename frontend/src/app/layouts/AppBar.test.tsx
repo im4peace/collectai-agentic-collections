@@ -55,7 +55,13 @@ describe("AppBar", () => {
     setSession(
       personaSession({
         persona: "COLLECTIONS_OFFICER",
-        capabilities: ["portfolio:read", "customer360:read", "escalation:review", "session:read"],
+        capabilities: [
+          "portfolio:read",
+          "customer360:read",
+          "escalation:read",
+          "escalation:review",
+          "session:read",
+        ],
       }),
     );
     renderAppBar();
@@ -74,7 +80,7 @@ describe("AppBar", () => {
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   });
 
-  it("shows Audit Trail and the compliance review queue for COMPLIANCE_RISK", () => {
+  it("shows Audit Trail and Escalations (E7-S3 AC6: shared with COLLECTIONS_OFFICER) for COMPLIANCE_RISK", () => {
     setSession(
       personaSession({
         persona: "COMPLIANCE_RISK",
@@ -83,7 +89,7 @@ describe("AppBar", () => {
     );
     renderAppBar();
     expect(screen.getByRole("link", { name: "Audit Trail" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Compliance review queue" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Escalations" })).toBeInTheDocument();
   });
 
   it("marks the active nav link with aria-current=page", () => {

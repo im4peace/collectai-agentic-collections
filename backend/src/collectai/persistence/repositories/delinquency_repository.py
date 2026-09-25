@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import Row, Table, select
+from sqlalchemy import CursorResult, Row, Table, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.persistence.orm.account import AccountOrm
@@ -67,6 +67,20 @@ class DelinquencyRecordRepository(CustomerScopedRepository[DelinquencyRecordOrm]
                 "record_version": expected_version + 1,
             },
         )
+
+    async def refresh_all_snapshots(self, session: AsyncSession, *, now: datetime) -> int:
+        """E9-S3 AC2 `refresh_snapshots`: marks every delinquency record's
+        snapshot as freshly reviewed at `now` -- `dpd`/`bucket`/`overdue_
+        amount` are never recomputed here (no core-sync/DPD recomputation
+        service exists, CLAUDE.md's documented known item), only `as_of`/
+        `updated_at` are touched; migration 0001's own `BEFORE UPDATE`
+        trigger bumps `record_version` for every row regardless of which
+        columns changed, so `rules_engine.freshness.check_freshness`'s
+        `snapshot_version == current_record.record_version` check still
+        holds immediately afterward. Returns the number of rows touched."""
+        stmt = update(DelinquencyRecordOrm).values(as_of=now, updated_at=now)
+        result = cast(CursorResult[Any], await session.execute(stmt))
+        return result.rowcount or 0
 
     async def list_portfolio_candidates(
         self,

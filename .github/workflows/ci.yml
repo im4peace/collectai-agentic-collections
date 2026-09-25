@@ -5,7 +5,9 @@
 # them never runs twice. `e2e` (E11-S5 AC5) runs `frontend/e2e`'s
 # accessibility suite (axe scans, keyboard-navigation and focus-management
 # tests, WCAG 2.1 AA target -- see `frontend/e2e/accessibility/README.md`
-# for that suite's own conformance-claim language) against the real stack.
+# for that suite's own conformance-claim language) plus Group J's
+# `frontend/e2e/journeys` end-to-end specs (E11-S1, E11-S2), against the
+# real stack.
 # Jobs still not added per specs/design/deployment.md section 3 (their
 # dependencies do not exist in this repo yet):
 #   - openapi-contract (scripts/generate_openapi.py)           -- a later
@@ -14,8 +16,8 @@
 # repository secret is required, so LIVE evaluation never runs here --
 # `eval-mock`'s own name is a promise `collectai_eval.runner`'s own
 # `LiveEvalCiRefusedError` backs structurally, not just by this workflow's
-# omission of a key. `e2e` likewise never runs LIVE (`LLM_MODE=MOCK` from
-# `.env.example`, unmodified).
+# omission of a key. `e2e` likewise never runs LIVE (`LLM_MODE=MOCK`,
+# forced by `docker-compose.test.yml` regardless of `.env`).
 
 name: CI
 
@@ -153,7 +155,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
-      - run: docker compose up --build -d db migrate api
+      # E11-S1 AC3 / E11-S5: `docker-compose.test.yml` (E1-S5's own CI/e2e
+      # override, already written for exactly this) forces MOCK and enables
+      # demo controls regardless of .env -- needed for the journey specs
+      # under frontend/e2e/journeys, which drive the demo clock and
+      # simulated PAY_NOW (`/api/demo-controls/*`, 404 when disabled).
+      - run: docker compose -f docker-compose.yml -f docker-compose.test.yml up --build -d db migrate api
       - name: Wait for the API to report ready
         run: |
           timeout 180 bash -c \
@@ -168,4 +175,4 @@ jobs:
       - working-directory: frontend
         run: npm run e2e
       - if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v

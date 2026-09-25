@@ -4,13 +4,19 @@ import { expect, test } from "@playwright/test";
 import { loginAsPersona } from "../fixtures/personaLogin";
 
 /**
- * E7-S6 AC1, AC3, AC4: the minimal escalation list is reachable only by
- * COLLECTIONS_OFFICER, zero serious/critical axe violations, and keyboard
- * operability. Reached via the real "Escalations" nav link (COLLECTIONS_
- * OFFICER's default landing route is Portfolio, not Escalations --
- * `lib/navLinks.ts`'s ordering -- so a nav click is the real path, not a
- * `page.goto`), matching `customer360.spec.ts`'s "reach it the way a real
- * officer would" convention.
+ * E7-S6 AC1, AC3, AC4 / E7-S3 AC6: the escalation list, zero serious/
+ * critical axe violations, and keyboard operability. Reached via the real
+ * "Escalations" nav link (COLLECTIONS_OFFICER's default landing route is
+ * Portfolio, not Escalations -- `lib/navLinks.ts`'s ordering -- so a nav
+ * click is the real path, not a `page.goto`), matching `customer360.spec
+ * .ts`'s "reach it the way a real officer would" convention.
+ *
+ * E7-S3 AC6 widened `/escalations` from COLLECTIONS_OFFICER-only
+ * (`escalation:review`) to shared with COMPLIANCE_RISK (`escalation:read`)
+ * -- COMPLIANCE_RISK now sees the same nav link and reaches the same
+ * screen, auto-scoped server-side to the COMPLIANCE_REVIEW queue, so the
+ * "COMPLIANCE_RISK is forbidden here" test this file had under E7-S6 no
+ * longer describes real behaviour and is replaced below.
  *
  * Requires a running backend reachable through the Vite dev proxy, per
  * `playwright.config.ts`.
@@ -34,12 +40,26 @@ test.describe("Escalations screen accessibility", () => {
     );
   });
 
-  test("shows the forbidden page with no escalation data for a persona without escalation:review (AC3)", async ({
+  test("COMPLIANCE_RISK sees the Escalations link and only the compliance review queue (E7-S3 AC6)", async ({
     page,
   }) => {
     await loginAsPersona(page, "COMPLIANCE_RISK");
-    await expect(page.getByRole("link", { name: "Escalations" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Escalations" }).click();
+    await expect(page.getByRole("heading", { name: "Escalations" })).toBeVisible();
 
+    // AC5: the officer-only queue filter checkboxes never render for
+    // COMPLIANCE_RISK -- its queue is fixed server-side, nothing to filter.
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+
+    const queueCells = page.locator("tbody td:nth-child(2)");
+    const count = await queueCells.count();
+    for (let i = 0; i < count; i++) {
+      await expect(queueCells.nth(i)).toHaveText("Compliance review");
+    }
+  });
+
+  test("a persona without escalation:read (CUSTOMER) is forbidden", async ({ page }) => {
+    await loginAsPersona(page, "CUSTOMER");
     await page.goto("/escalations");
     await expect(page.getByRole("heading", { name: /403|forbidden/i })).toBeVisible();
     await expect(page.getByRole("table")).toHaveCount(0);

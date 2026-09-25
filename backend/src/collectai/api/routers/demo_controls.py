@@ -114,14 +114,14 @@ async def advance_clock_endpoint(
     audit_service: AuditServiceDep,
     persona_context: Annotated[PersonaContext, Depends(_require_demo_controls_use)],
 ) -> ClockAdvanceResult:
-    """AC2: `body.refresh_snapshots` is accepted (schema-required by
-    api-contracts.md) but is a documented no-op -- see `demo_service
-    .advance_clock`'s own docstring."""
+    """AC2: `body.refresh_snapshots` -- see `demo_service.advance_clock`'s
+    own docstring for exactly what it does and does not refresh."""
     try:
         result = await demo_service.advance_clock(
             db,
             clock=clock,
             days=body.days,
+            refresh_snapshots=body.refresh_snapshots,
             reviewer_persona=persona_context.persona,
             audit_service=audit_service,
             correlation_id=resolve_correlation_id(request),

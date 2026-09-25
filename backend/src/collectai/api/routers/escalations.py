@@ -8,6 +8,7 @@ convention (see `api/routers/chat.py`'s own docstring for the precedent).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
@@ -29,12 +30,15 @@ from collectai.api.middleware.errors import (
     RequestValidationFailedError,
     resolve_correlation_id,
 )
+from collectai.api.routers._chat_views import message_view
 from collectai.api.routers.me_ownership import LimitQuery, OffsetQuery, paginate
 from collectai.api.schemas.escalations import (
     ComplianceDecisionRequest,
     ComplianceDecisionResult,
+    EscalationCaseDetail,
     EscalationListItem,
     EscalationPage,
+    EscalationRuleResults,
     ReviewDecisionRequest,
     ReviewDecisionResult,
 )
@@ -51,6 +55,8 @@ from collectai.domain_services.compliance_service import (
     ComplianceDecisionRequest as ComplianceRequest,
 )
 from collectai.domain_services.compliance_service import record_compliance_review_decision
+from collectai.domain_services.escalation_detail_service import get_case_detail
+from collectai.domain_services.recommendation_mapping import to_recommendation_schema
 from collectai.domain_services.review_service import ReviewDecisionRequest as DecisionRequest
 from collectai.domain_services.review_service import decide
 from collectai.persistence.orm.escalation_case import EscalationCaseOrm
@@ -120,41 +126,107 @@ async def list_escalations(
     )
     page_rows, page_info = paginate(rows, limit, offset)
 
-    policy_version: str | None
-    aging_warning_hours: dict[EscalationPriority, int] = {}
-    try:
-        policy = policy_provider.get_active()
-        policy_version = policy.policy_version
-        aging_warning_hours = dict(policy.parameters.routing.aging_warning_hours)
-    except PolicyUnavailable:
-        policy_version = None
+    policy_version, aging_warning_hours = await _resolve_policy_context(policy_provider)
 
     now = clock.now()
-    items: list[EscalationListItem] = []
-    for row in page_rows:
-        customer = await _customer_repo.get_by_id(db, row.customer_id)
-        age_hours = int((now - row.created_at).total_seconds() // 3600)
-        threshold = aging_warning_hours.get(EscalationPriority(row.priority))
-        items.append(
-            EscalationListItem(
-                case_id=row.case_id,
-                reason=EscalationReason(row.reason),
-                queue=ReviewQueue(row.queue),
-                reviewer_role=ReviewerRole(row.reviewer_role),
-                priority=EscalationPriority(row.priority),
-                status=CaseStatus(row.status),
-                source=CaseSource(row.source),
-                created_at=row.created_at,
-                age_hours=age_hours,
-                aging_warning=threshold is not None and age_hours >= threshold,
-                customer_id=row.customer_id,
-                customer_name=customer.display_name if customer is not None else "Unknown",
-                account_id=row.account_id,
-                customer_360_path=f"/customers/{row.account_id}",
-                version=row.version,
-            )
-        )
+    items: list[EscalationListItem] = [
+        await _list_item(db, row, now=now, aging_warning_hours=aging_warning_hours)
+        for row in page_rows
+    ]
     return EscalationPage(items=items, page=page_info, policy_version=policy_version)
+
+
+async def _resolve_policy_context(
+    policy_provider: PolicyProviderDep,
+) -> tuple[str | None, dict[EscalationPriority, int]]:
+    try:
+        policy = policy_provider.get_active()
+        return policy.policy_version, dict(policy.parameters.routing.aging_warning_hours)
+    except PolicyUnavailable:
+        return None, {}
+
+
+async def _list_item(
+    db: DbSession,
+    row: EscalationCaseOrm,
+    *,
+    now: datetime,
+    aging_warning_hours: dict[EscalationPriority, int],
+) -> EscalationListItem:
+    """Shared by `list_escalations` (AC1) and `get_case_detail_endpoint`
+    (E7-S3 AC2), which embeds the same summary fields alongside its detail
+    sections -- one place computes age/aging-warning/customer-name so the
+    list and the detail view can never disagree about them."""
+    customer = await _customer_repo.get_by_id(db, row.customer_id)
+    age_hours = int((now - row.created_at).total_seconds() // 3600)
+    threshold = aging_warning_hours.get(EscalationPriority(row.priority))
+    return EscalationListItem(
+        case_id=row.case_id,
+        reason=EscalationReason(row.reason),
+        queue=ReviewQueue(row.queue),
+        reviewer_role=ReviewerRole(row.reviewer_role),
+        priority=EscalationPriority(row.priority),
+        status=CaseStatus(row.status),
+        source=CaseSource(row.source),
+        created_at=row.created_at,
+        age_hours=age_hours,
+        aging_warning=threshold is not None and age_hours >= threshold,
+        customer_id=row.customer_id,
+        customer_name=customer.display_name if customer is not None else "Unknown",
+        account_id=row.account_id,
+        customer_360_path=f"/customers/{row.account_id}",
+        version=row.version,
+    )
+
+
+@router.get(
+    "/{case_id}", response_model=EscalationCaseDetail, openapi_extra=_ESCALATION_READ
+)
+async def get_case_detail_endpoint(
+    case_id: str,
+    db: DbSession,
+    clock: ClockDep,
+    policy_provider: PolicyProviderDep,
+    persona_context: Annotated[PersonaContext, Depends(_require_escalation_read)],
+) -> EscalationCaseDetail:
+    """E7-S3 AC2, AC3: case detail with the conversation, AI recommendation
+    and deterministic rule results in three separately labelled sections,
+    plus whether APPROVE is currently permitted. Object-level scoping
+    matches the list endpoint (AC6): COMPLIANCE_RISK may only open a
+    COMPLIANCE_REVIEW-queue case."""
+    try:
+        detail = await get_case_detail(
+            db,
+            case_id=case_id,
+            viewer_persona=persona_context.persona,
+            policy_provider=policy_provider,
+        )
+    except ReviewCaseNotFoundError as exc:
+        raise NotFoundError(message=str(exc)) from exc
+    except ReviewNotPermittedError as exc:
+        raise ObjectForbiddenError(reason_code=exc.reason_code, message=exc.message) from exc
+
+    _, aging_warning_hours = await _resolve_policy_context(policy_provider)
+    summary = await _list_item(
+        db, detail.case, now=clock.now(), aging_warning_hours=aging_warning_hours
+    )
+    return EscalationCaseDetail(
+        **summary.model_dump(),
+        conversation=[message_view(message) for message in detail.conversation],
+        ai_recommendation=(
+            to_recommendation_schema(detail.recommendation)
+            if detail.recommendation is not None
+            else None
+        ),
+        rule_results=EscalationRuleResults(
+            summary=detail.case.summary,
+            requested_terms=detail.case.requested_terms,
+            exception_types=detail.case.exception_types,
+            routing_flags=list(detail.case.routing_flags),
+            routing_policy_version=detail.case.routing_policy_version,
+        ),
+        approve_permitted=detail.approve_permitted,
+    )
 
 
 async def _inform_customer_of_rejected_exception(

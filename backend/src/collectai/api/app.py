@@ -33,6 +33,9 @@ fallbacks.
 Group G integration pass: `chat_proposals` (E6-S2/E6-S3 confirm/cancel/
 handoff) and `escalations` (E7-S1's `GET /api/escalations`) are wired in the
 same way.
+
+Group J integration pass: `kpi` (E10-S3's `GET /api/kpis` and
+`GET /api/kpis/eval-runs`) is wired in the same way.
 """
 
 from __future__ import annotations
@@ -51,6 +54,7 @@ from collectai.api.routers.customer360 import router as customer360_router
 from collectai.api.routers.demo_controls import router as demo_controls_router
 from collectai.api.routers.disputes import router as disputes_router
 from collectai.api.routers.escalations import router as escalations_router
+from collectai.api.routers.kpi import router as kpi_router
 from collectai.api.routers.me import router as me_router
 from collectai.api.routers.portfolio import router as portfolio_router
 from collectai.api.routers.ptps import router as ptps_router
@@ -137,4 +141,5 @@ def create_app(
     app.include_router(recommendations_router)
     app.include_router(disputes_router)
     app.include_router(demo_controls_router)
+    app.include_router(kpi_router)
     return app

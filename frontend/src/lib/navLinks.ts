@@ -6,10 +6,11 @@
  * 403, or hide one the API allows: whether a link appears is always
  * `capabilities.includes(link.capability)`, nothing persona-name-specific.
  *
- * COLLECTIONS_OFFICER and COMPLIANCE_RISK both hold `escalation:read`, but
- * only the officer holds `escalation:review` — the officer's own queue is
- * gated on `escalation:review` here, exactly as the design mockup does, so
- * COMPLIANCE_RISK never sees the officer's link.
+ * COLLECTIONS_OFFICER and COMPLIANCE_RISK both hold `escalation:read`
+ * (E7-S3 AC6): the "Escalations" link is gated on that shared capability,
+ * not `escalation:review` (COLLECTIONS_OFFICER-only), so both personas see
+ * it and land on the one screen, which branches its own queue scope and
+ * action controls by persona -- see `router.tsx`'s own note on this.
  *
  * Pure, framework-free (no React, no `auth` import) so it stays usable from
  * both `app/layouts` and `features/session` without crossing the
@@ -29,10 +30,9 @@ export const NAV_LINKS: readonly NavLinkConfig[] = [
   // (E3-S3), which will carry a real customer id. This nav item exists so
   // COLLECTIONS_OFFICER always has a direct link, per AC2.
   { label: "Customer 360", path: "/customers/acc_000123", capability: "customer360:read" },
-  { label: "Escalations", path: "/escalations", capability: "escalation:review" },
+  { label: "Escalations", path: "/escalations", capability: "escalation:read" },
   { label: "Dashboard", path: "/dashboard", capability: "kpi:read" },
   { label: "Audit Trail", path: "/audit", capability: "audit:read" },
-  { label: "Compliance review queue", path: "/compliance-review", capability: "compliance:decide" },
 ] as const;
 
 export function navLinksForCapabilities(capabilities: readonly string[]): NavLinkConfig[] {
