@@ -8,6 +8,7 @@ This directory holds the automated accessibility suite: axe scans, keyboard-navi
 - **Keyboard navigation**: every primary journey's interactive controls are reachable and operable without a mouse, with a visible focus indicator (`nav-and-switcher.spec.ts`).
 - **Focus management**: dialogs (`ConfirmDialog`, shared by the Record Promise-to-Pay form and the chat proposal Confirm/Cancel UI) move focus in on open, trap it while open, and return it to the trigger on close (`dialogs-and-live-region.spec.ts`). New assistant chat messages are announced through a polite `aria-live` region, not just appended silently.
 - **Color is never the only signal**: every AI, rules-engine, risk, priority and simulated-payment state renders through the shared `Badge` component, which requires real text (`color-not-alone.spec.ts`).
+- **Demo controls** (`demo-controls.spec.ts`, E9-S3): officer-only navigation and access, rendering, axe (including the open reseed dialog) and keyboard operation. **Read-only by design**: it never advances the shared simulated clock, runs the PTP lifecycle, records a payment or reseeds, and it aborts any non-GET demo-control request. Those write actions are covered by mocked Vitest tests and the backend API tests. This screen was added after the manual accessibility review (E11-S6) and is not part of it.
 
 ## Conformance statement
 

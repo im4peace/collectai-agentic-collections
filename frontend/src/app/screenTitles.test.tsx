@@ -8,6 +8,7 @@ import { AuditTrailViewer } from "../features/audit/AuditTrailViewer";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { Customer360Screen } from "../features/customer360/Customer360Screen";
 import { DashboardScreen } from "../features/dashboard/DashboardScreen";
+import { DemoControlsScreen } from "../features/demo-controls/DemoControlsScreen";
 import { EscalationCaseDetailScreen } from "../features/escalations/EscalationCaseDetailScreen";
 import { EscalationsScreen } from "../features/escalations/EscalationsScreen";
 import { PortfolioScreen } from "../features/portfolio/PortfolioScreen";
@@ -41,6 +42,7 @@ const SCREENS: { name: string; path: string; entry: string; element: ReactElemen
   { name: "Audit trail", path: "/audit", entry: "/audit", element: <AuditTrailViewer />, title: "Audit Trail | CollectAI" },
   { name: "Dashboard", path: "/dashboard", entry: "/dashboard", element: <DashboardScreen />, title: "Dashboard | CollectAI" },
   { name: "Chat", path: "/chat", entry: "/chat", element: <ChatScreen />, title: "Chat | CollectAI" },
+  { name: "Demo controls", path: "/demo-controls", entry: "/demo-controls", element: <DemoControlsScreen />, title: "Demo Controls | CollectAI" },
   { name: "Forbidden page", path: "/dashboard", entry: "/dashboard", element: <ForbiddenPage persona="CUSTOMER" route="/dashboard" />, title: "Forbidden | CollectAI" },
 ];
 

@@ -21,6 +21,10 @@ export interface NavLinkConfig {
   label: string;
   path: string;
   capability: string;
+  /** Shown only while the API's demo-controls flag is on (E9-S3 AC1). The flag
+   * is not part of the session, so the caller passes it in (see
+   * `navLinksForCapabilities`); the capability alone is never enough. */
+  requiresDemoControls?: boolean;
 }
 
 export const NAV_LINKS: readonly NavLinkConfig[] = [
@@ -33,10 +37,31 @@ export const NAV_LINKS: readonly NavLinkConfig[] = [
   { label: "Escalations", path: "/escalations", capability: "escalation:read" },
   { label: "Dashboard", path: "/dashboard", capability: "kpi:read" },
   { label: "Audit Trail", path: "/audit", capability: "audit:read" },
+  // Last, so it never becomes an officer's default landing route. Hidden
+  // unless the demo-controls flag is on (E9-S3 AC1: no dead link when off).
+  {
+    label: "Demo controls",
+    path: "/demo-controls",
+    capability: "demo_controls:use",
+    requiresDemoControls: true,
+  },
 ] as const;
 
-export function navLinksForCapabilities(capabilities: readonly string[]): NavLinkConfig[] {
-  return NAV_LINKS.filter((link) => capabilities.includes(link.capability));
+export interface NavLinkOptions {
+  /** Whether the API's demo-controls flag is on. Defaults to false, so a
+   * caller that does not know the flag never offers the link. */
+  demoControlsEnabled?: boolean;
+}
+
+export function navLinksForCapabilities(
+  capabilities: readonly string[],
+  options: NavLinkOptions = {},
+): NavLinkConfig[] {
+  return NAV_LINKS.filter(
+    (link) =>
+      capabilities.includes(link.capability) &&
+      (link.requiresDemoControls !== true || options.demoControlsEnabled === true),
+  );
 }
 
 /** Where the persona switcher sends a persona after a successful submit:

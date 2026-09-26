@@ -1,10 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import * as demoClient from "../../api/demoControlsClient";
+import { ApiError } from "../../api/errors";
 import { clearSession, setSession } from "../../auth/sessionStore";
 import type { SessionInfo } from "../../api/types";
 import { AppBar } from "./AppBar";
+
+// The AppBar only calls this for a persona holding `demo_controls:use`, so the
+// older tests below (which never grant it) make no request at all.
+vi.mock("../../api/demoControlsClient", () => ({ getDemoState: vi.fn() }));
 
 function personaSession(overrides: Partial<SessionInfo>): SessionInfo {
   return {
@@ -29,7 +35,9 @@ function renderAppBar(initialPath = "/") {
 
 describe("AppBar", () => {
   afterEach(() => {
+    cleanup(); // unmount before the session changes, so nothing re-renders outside act()
     clearSession();
+    vi.resetAllMocks();
   });
 
   it("always shows the demo persona disclosure, even with no session", () => {
@@ -70,6 +78,51 @@ describe("AppBar", () => {
     expect(screen.getByRole("link", { name: "Escalations" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Audit Trail" })).not.toBeInTheDocument();
+  });
+
+  describe("the Demo controls link (E9-S3 AC1)", () => {
+    const officerWithDemo = ["portfolio:read", "customer360:read", "escalation:read", "demo_controls:use"];
+
+    it("appears last for an officer when the API answers the demo state", async () => {
+      vi.mocked(demoClient.getDemoState).mockResolvedValue({
+        llm_mode: "MOCK",
+        clock: { mode: "SIMULATED", current_time: "2026-10-01T10:00:00Z" },
+        demo_controls_enabled: true,
+        policy_version: "policy-v1",
+      });
+      setSession(personaSession({ capabilities: officerWithDemo }));
+      renderAppBar();
+
+      const link = await screen.findByRole("link", { name: "Demo controls" });
+      const nav = screen.getByRole("navigation", { name: "Main navigation" });
+      expect(link).toHaveAttribute("href", "/demo-controls");
+      expect(Array.from(nav.querySelectorAll("a")).at(-1)).toBe(link);
+    });
+
+    it("stays hidden when the flag is off (the API answers 404)", async () => {
+      vi.mocked(demoClient.getDemoState).mockRejectedValue(
+        new ApiError(404, {
+          code: "NOT_FOUND",
+          reason_code: null,
+          message: "Demo controls are not enabled.",
+          correlation_id: "c1",
+        } as ConstructorParameters<typeof ApiError>[1]),
+      );
+      setSession(personaSession({ capabilities: officerWithDemo }));
+      renderAppBar();
+
+      await waitFor(() => expect(demoClient.getDemoState).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole("link", { name: "Demo controls" })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Portfolio" })).toBeInTheDocument();
+    });
+
+    it("is never offered, and never probed, for a persona without the capability", () => {
+      setSession(personaSession({ persona: "COLLECTIONS_MANAGER", capabilities: ["kpi:read", "session:read"] }));
+      renderAppBar();
+
+      expect(screen.queryByRole("link", { name: "Demo controls" })).not.toBeInTheDocument();
+      expect(demoClient.getDemoState).not.toHaveBeenCalled();
+    });
   });
 
   it("shows only Dashboard for COLLECTIONS_MANAGER", () => {

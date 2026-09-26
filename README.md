@@ -27,6 +27,56 @@ Reports `{"status": "ready", ...}` once the database is migrated, exactly one Po
 
 Reset everything (drops the database volume): `docker compose down -v`.
 
+## Demo controls (demo only)
+
+The demo journeys need the **demo controls**. They are **off by default**, are for demos and development only, and must never be enabled in a real deployment: they change shared demo state (the simulated clock, payments and the seed data).
+
+1. **Turn them on for the API** with `DEMO_CONTROLS_ENABLED=true` (in `.env`, or start with `docker compose -f docker-compose.yml -f docker-compose.test.yml up --build`, which also forces `LLM_MODE=MOCK`). With the flag off there is no navigation link and the `/demo-controls` page shows no control.
+2. **Open the app, choose the Collections Officer persona and open _Demo controls_** in the navigation.
+3. **Before running the demo journeys, use _Advance clock_ with _Refresh data snapshots_ ticked** (1 day is enough). The seeded data is dated in the past, so every account reads stale until then and customer confirmations (Promise-to-Pay, payment plans, simulated payments) are refused. Do this once for a fresh database, and again after a reseed, which restores the original dates.
+
+The screen also runs the PTP lifecycle job, records a simulated payment and reseeds the seed data. The clock only moves forward and restarting the API resets it. _Refresh data snapshots_ marks every account's snapshot fresh as of the new time; it does not recalculate days past due.
+
+**Known gap:** the stale-data banner's _Refresh_ button on Customer 360 only re-reads the account. It does not refresh the snapshot: the per-account refresh endpoint in the API design (`POST /api/customers/{account_id}/refresh`) is not implemented. Use _Advance clock_ as above.
+
+### Running without Docker (Windows PowerShell)
+
+Docker is not required. This uses the embedded PostgreSQL that the test suite already uses (a temporary database, deleted when you stop it) and needs the backend virtual environment and `npm install` from the sections below. Use three windows from the repository root and keep them open.
+
+```powershell
+# Window 1 - temporary database. Copy the DATABASE_URL it prints. Ctrl+C stops it and deletes its data.
+cd backend
+@'
+import tempfile, time
+import embedded_postgres as ep
+pgdata = tempfile.mkdtemp(prefix="collectai_pg_")
+server = ep.get_server(pgdata, cleanup_mode="delete")
+print("DATABASE_URL:", server.get_uri())
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    pass
+finally:
+    server.cleanup()
+'@ | .\.venv\Scripts\python.exe -
+
+# Window 2 - backend on http://localhost:8000 (MOCK mode, demo controls on)
+cd backend
+$env:DATABASE_URL = "<the URL from window 1>"
+$env:LLM_MODE = "MOCK"
+$env:DEMO_CONTROLS_ENABLED = "true"
+.\.venv\Scripts\python.exe -m collectai.bootstrap.cli migrate
+.\.venv\Scripts\python.exe -m collectai.bootstrap.cli seed
+.\.venv\Scripts\uvicorn.exe collectai.bootstrap.main:build_app --factory --host 127.0.0.1 --port 8000
+
+# Window 3 - the app on http://localhost:5173 (proxies /api to port 8000)
+cd frontend
+npm run dev
+```
+
+Then follow the demo-controls steps above. In this setup `GET /api/ready` reports `not_ready` because the `collectai_app` database role only exists in the Docker setup; use `GET /api/health` to check the backend is up. Stop with Ctrl+C in windows 3, 2 and 1, in that order.
+
 ## Applying migrations and seed data manually
 
 The `migrate` service does this automatically on `docker compose up`, but it can also be run on demand against a running `db`:

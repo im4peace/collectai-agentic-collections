@@ -50,6 +50,42 @@ describe("navLinksForCapabilities", () => {
   });
 });
 
+describe("the Demo controls link (E9-S3 AC1: no dead link when the flag is off)", () => {
+  const OFFICER = ["demo_controls:use", "portfolio:read", "customer360:read", "escalation:read"];
+
+  it("is hidden when the flag is unknown or off, even though the officer holds the capability", () => {
+    expect(navLinksForCapabilities(OFFICER).map((l) => l.label)).not.toContain("Demo controls");
+    expect(
+      navLinksForCapabilities(OFFICER, { demoControlsEnabled: false }).map((l) => l.label),
+    ).not.toContain("Demo controls");
+  });
+
+  it("is shown last for an officer when the flag is on", () => {
+    const links = navLinksForCapabilities(OFFICER, { demoControlsEnabled: true });
+
+    expect(links.map((l) => l.label)).toEqual([
+      "Portfolio",
+      "Customer 360",
+      "Escalations",
+      "Demo controls",
+    ]);
+    expect(links[links.length - 1].path).toBe("/demo-controls");
+  });
+
+  it("is never shown without the capability, whatever the flag says", () => {
+    for (const capabilities of [["kpi:read"], ["audit:read", "escalation:read"], ["chat:use"]]) {
+      expect(
+        navLinksForCapabilities(capabilities, { demoControlsEnabled: true }).map((l) => l.label),
+      ).not.toContain("Demo controls");
+    }
+  });
+
+  it("never becomes an officer's default landing route", () => {
+    expect(defaultRouteForCapabilities(OFFICER)).toBe("/portfolio");
+    expect(defaultRouteForCapabilities(["demo_controls:use"])).toBe("/");
+  });
+});
+
 describe("defaultRouteForCapabilities", () => {
   it("routes a fresh CUSTOMER session straight to /chat", () => {
     expect(defaultRouteForCapabilities(["chat:use"])).toBe("/chat");

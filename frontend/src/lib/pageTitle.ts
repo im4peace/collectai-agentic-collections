@@ -18,6 +18,7 @@ export const SCREEN_TITLES = {
   auditTrail: "Audit Trail",
   dashboard: "Dashboard",
   chat: "Chat",
+  demoControls: "Demo Controls",
   forbidden: "Forbidden",
 } as const;
 

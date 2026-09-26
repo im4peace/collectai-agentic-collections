@@ -4,6 +4,7 @@ import { AuditTrailViewer } from "../features/audit/AuditTrailViewer";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { Customer360Screen } from "../features/customer360/Customer360Screen";
 import { DashboardScreen } from "../features/dashboard/DashboardScreen";
+import { DemoControlsScreen } from "../features/demo-controls/DemoControlsScreen";
 import { EscalationCaseDetailScreen } from "../features/escalations/EscalationCaseDetailScreen";
 import { EscalationsScreen } from "../features/escalations/EscalationsScreen";
 import { PersonaSwitcher } from "../features/session/PersonaSwitcher";
@@ -90,6 +91,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireCapability capability="audit:read">
             <AuditTrailViewer />
+          </RequireCapability>
+        ),
+      },
+      {
+        path: "/demo-controls",
+        element: (
+          <RequireCapability capability="demo_controls:use">
+            <DemoControlsScreen />
           </RequireCapability>
         ),
       },
