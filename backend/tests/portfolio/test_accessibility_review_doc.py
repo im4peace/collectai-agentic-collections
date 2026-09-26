@@ -153,16 +153,33 @@ def test_every_resolved_finding_records_its_remediation_and_validation_date() ->
         assert finding["Severity"] in _SEVERITIES, "resolving keeps the original severity"
 
 
-def test_the_findings_not_yet_remediated_stay_open_and_the_screen_reader_is_not_run() -> None:
+def test_open_findings_stay_open_and_the_screen_reader_was_run_by_a_human() -> None:
     by_id = {finding["ID"]: finding for finding in _findings()}
 
     for finding_id in ("F-01", "F-02", "F-03"):
         assert by_id[finding_id]["Severity"] == "SERIOUS"
         assert by_id[finding_id]["Status"] == "RESOLVED"
-    for finding_id in ("F-04", "F-05", "F-06", "F-07", "F-08"):
+    # The human S3 run did not fix or re-rate these: they stay OPEN with their severities.
+    for finding_id, severity in (
+        ("F-04", "MODERATE"),
+        ("F-05", "MODERATE"),
+        ("F-06", "MODERATE"),
+        ("F-07", "MODERATE"),
+        ("F-08", "MINOR"),
+    ):
         assert by_id[finding_id]["Status"] == "OPEN", finding_id
+        assert by_id[finding_id]["Severity"] == severity, finding_id
     s3 = next(row for row in _checklist() if row["ID"] == "S3")
-    assert all(s3[journey] == "NOT_EXECUTED" for journey in _JOURNEYS)
+    assert all(s3[journey] == "PASS" for journey in _JOURNEYS)
+    assert s3["Reviewer"].startswith("Human reviewer"), "S3 is human evidence, not tooling"
+    assert _ISO_DATE.match(s3["Date"])
+
+
+def test_only_the_screen_reader_row_is_human_evidence_and_the_rest_stay_tooling_evidence() -> None:
+    for row in _checklist():
+        if row["ID"] == "S3":
+            continue
+        assert row["Reviewer"].startswith("Claude"), f"{row['ID']} is a tooling result"
 
 
 def test_the_status_block_matches_the_checklist_and_findings() -> None:
@@ -183,6 +200,11 @@ def test_the_status_block_matches_the_checklist_and_findings() -> None:
     assert block["Review status"] in {"INCOMPLETE", "COMPLETE"}
     if has_unexecuted:
         assert block["Review status"] == "INCOMPLETE", "unexecuted items mean an incomplete review"
+    else:
+        assert block["Review status"] == "COMPLETE", "every item executed means a complete review"
+        # COMPLETE finishes the checklist. It must never read as a conformance statement.
+        assert "does **not** mean the product conforms" in block["Why"]
+        assert block["Conformance statement"].startswith("None published")
 
 
 def test_no_conformance_claim_exists_unless_the_publishing_rule_is_met() -> None:
@@ -191,9 +213,11 @@ def test_no_conformance_claim_exists_unless_the_publishing_rule_is_met() -> None
     allowed = may_claim_conformance(_status_block()["Review status"], _findings(), _checklist())
 
     assert claims == [] or allowed, f"conformance claimed too early: {claims}"
-    # ...and today the review is incomplete, so the document must say so and claim nothing.
-    assert not allowed
+    # The rule may permit a statement (COMPLETE, no open CRITICAL or SERIOUS finding), but none
+    # has been decided on: the document must claim nothing and say so.
+    assert claims == [], f"no conformance statement has been approved: {claims}"
     assert "does **not** make a conformance claim" in text
+    assert "**No statement is made.**" in text
 
 
 def test_the_publishing_rule_blocks_on_each_condition() -> None:

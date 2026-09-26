@@ -81,7 +81,7 @@ npm run test:run
 
 ## Accessibility
 
-CollectAI **targets WCAG 2.1 Level AA**. It does **not** claim conformance. Automated axe, keyboard and focus tests run in CI (`frontend/e2e/accessibility/`), and a manual review of the primary journeys has been started but is not complete: it still has open findings and has not yet been run with a real screen reader. Results, findings and the rules for when a conformance statement may be made are in [`docs/portfolio/accessibility-review.md`](docs/portfolio/accessibility-review.md).
+CollectAI **targets WCAG 2.1 Level AA**. It does **not** claim conformance. Automated axe, keyboard and focus tests run in CI (`frontend/e2e/accessibility/`), and the manual review of the primary journeys is complete as a checklist, including a human run with Windows Narrator in Microsoft Edge. Five MODERATE and MINOR findings are still open and only that one screen-reader and browser pairing was used, so no conformance is claimed. Results, findings and the rules for when a conformance statement may be made are in [`docs/portfolio/accessibility-review.md`](docs/portfolio/accessibility-review.md).
 
 ## Repository layout
 

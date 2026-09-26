@@ -1,25 +1,37 @@
 # Manual accessibility review (E11-S6)
 
-CollectAI **targets WCAG 2.1 Level AA**. This document records a manual review of the primary journeys. It does **not** make a conformance claim, and the review is **INCOMPLETE** (see the status block below).
+CollectAI **targets WCAG 2.1 Level AA**. This document records a manual review of the primary journeys. It does **not** make a conformance claim. The review is **COMPLETE** as a checklist: every item has been executed, including S3 with a real screen reader. Five findings (4 MODERATE, 1 MINOR) are still OPEN (see the status block below).
 
 ## Review status
 
 | Field | Value |
 |---|---|
-| Review status | INCOMPLETE |
-| Why | Checklist item S3 (a real screen reader) has **not been executed**, and 5 findings (4 MODERATE, 1 MINOR) are still open |
+| Review status | COMPLETE |
+| Why | Every checklist item has been executed, including S3 with a real screen reader (Windows Narrator in Microsoft Edge, run by a human reviewer on 2026-09-26). COMPLETE means the checklist is finished. It does **not** mean the product conforms: 5 findings (4 MODERATE, 1 MINOR) are still OPEN |
 | Conformance statement | None published. The product targets WCAG 2.1 AA (BRD 14.3, D-029) |
 | Open CRITICAL findings | 0 |
 | Open SERIOUS findings | 0 (F-01, F-02 and F-03 were remediated and re-checked on 2026-09-26) |
-| Reviewer | Claude (AI-assisted, tooling-based review) |
+| Reviewer | Claude (AI-assisted, tooling-based review) for every item except S3; a human reviewer for S3 (Windows Narrator, Microsoft Edge) |
 | Review date | 2026-09-26 |
-| Code reviewed | `feat/domain-foundation` at commit `a102f94` (Group K); F-01 to F-03 re-checked on the remediated working tree |
+| Code reviewed | `feat/domain-foundation` at commit `a102f94` (Group K); F-01 to F-03 re-checked on the remediated working tree; S3 run on the application at `d78d3c6` |
 
-**Rule for publishing a conformance statement.** A WCAG 2.1 AA conformance statement may be published only when (1) the review is COMPLETE, meaning every checklist item has been executed, including S3 with a real screen reader, and (2) no CRITICAL finding is OPEN. This review applies a stricter house rule as well: no SERIOUS finding may be OPEN either. Until then the README and documentation say "targets WCAG 2.1 AA" and nothing more. `backend/tests/portfolio/test_accessibility_review_doc.py` enforces these rules.
+**Rule for publishing a conformance statement.** A WCAG 2.1 AA conformance statement may be published only when (1) the review is COMPLETE, meaning every checklist item has been executed, including S3 with a real screen reader, and (2) no CRITICAL finding is OPEN. This review applies a stricter house rule as well: no SERIOUS finding may be OPEN either. As of this update all of those conditions hold, so the rule no longer blocks a statement. **No statement is made.** This document, the README and the documentation continue to say "targets WCAG 2.1 AA" and nothing more. Making a claim would be a separate, deliberate decision that has to weigh the five open findings and the limits under "What this review does not cover". `backend/tests/portfolio/test_accessibility_review_doc.py` enforces these rules and also fails if a claim appears.
 
 ## Who reviewed, and what that means
 
-The review was done by an AI assistant driving Chromium with scripted measurements and reading the results. **No human assistive-technology user took part, and no real screen reader was run.** Everything marked PASS below is a tooling-observed result, not a lived-experience result. That is why S3 is `NOT_EXECUTED` and why the review is incomplete. A human reviewer (or a colleague) should run S3 against the checklist below and record their name and date against it.
+The review has two parts, and the results below keep them apart.
+
+**Tooling review (every item except S3).** An AI assistant drove Chromium with scripted measurements and read the results. No human took part in this part, and no real screen reader was involved. Everything marked PASS or FAIL in those rows is a tooling-observed result. The automated axe, keyboard and focus suite in CI (`frontend/e2e/accessibility/`) is a further, separate source of tooling evidence.
+
+**Human screen-reader review (S3).** A human reviewer ran the four primary journeys with a real screen reader: Windows Narrator in Microsoft Edge, against the application at `http://localhost:5173`, with the backend in `LLM_MODE=MOCK` on a temporary embedded PostgreSQL database and the demo snapshots refreshed first. The reviewer reported these results:
+
+- Journey A (Promise-to-Pay), Journey B1 (payment arrangement), Journey B2 (financial hardship) and Journey C (dispute): each **PASS**.
+- Keyboard navigation used together with Narrator: **PASS**.
+- The dynamic and status announcements these journeys rely on were heard correctly.
+- For the reviewer-decision behaviour remediated as F-03, Narrator announced the recorded decision and case status, and focus moved to the "Case status" area.
+- The reviewer identified no new CRITICAL finding.
+
+**What these S3 results are, and are not.** They are the reviewer's own results, reported per journey. No step-by-step log or verbatim Narrator output was recorded, and no personal name is recorded here. They are not measurements: nothing in the S3 row was produced by a script. They do not change the tooling rows above, and they do not change F-04 to F-08, which stay OPEN exactly as recorded.
 
 ## Scope and method
 
@@ -32,6 +44,7 @@ The review was done by an AI assistant driving Chromium with scripted measuremen
   - **Zoom (Z):** 200% zoom was emulated as a 640 CSS px viewport (a 1280 px window at 200%), checking page-level horizontal overflow, clipped text and content overflowing its container, with a full-page screenshot inspected for the worst screen.
   - **Focus order (F):** the Tab sequence was compared with the visual order (no backward jumps of more than one row, no positive `tabindex`), and where focus lands after route changes and completed actions was recorded.
   - **Announcements (S1, S2):** a `MutationObserver` recorded text added to `aria-live`, `role="status"` and `role="alert"` regions during each action. This shows what a screen reader **would be handed**, not what it would say.
+  - **Real screen reader (S3):** not a script. A human reviewer ran the four journeys with Windows Narrator in Microsoft Edge (see "Who reviewed, and what that means").
   - **Structure (extra):** page title, landmarks, heading order, form labels, `lang` and skip link.
 - **Automated axe scans** (both colour schemes) were run alongside; in the initial run they found only the issue recorded as F-02 (none remain after its remediation).
 - **The harness is not committed.** It was a temporary Playwright script; the method above is enough to repeat it.
@@ -49,7 +62,7 @@ Result values: `PASS`, `FAIL (F-nn)` (see the findings), `N/A` (the journey has 
 | K3 | Keyboard: no trap, and dialogs trap focus, return it on close and stay modal | FAIL (F-06) | FAIL (F-06) | FAIL (F-06) | N/A | Claude (AI-assisted) | 2026-09-26 |
 | S1 | Screen-reader announcement (live-region evidence) of chat messages, proposals and confirmations | PASS | PASS | PASS | PASS | Claude (AI-assisted) | 2026-09-26 |
 | S2 | Screen-reader announcement (live-region evidence) of review actions and outcomes | FAIL (F-04) | N/A | PASS | PASS | Claude (AI-assisted) | 2026-09-26 |
-| S3 | Screen-reader announcement with a real screen reader (NVDA, JAWS, VoiceOver or Narrator) | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | NOT_EXECUTED | not yet run | not yet run |
+| S3 | Screen-reader announcement with a real screen reader (NVDA, JAWS, VoiceOver or Narrator) | PASS | PASS | PASS | PASS | Human reviewer (Windows Narrator, Microsoft Edge) | 2026-09-26 |
 | C1 | Contrast: text at least 4.5:1 (3:1 large), light scheme | PASS | PASS | PASS | PASS | Claude (AI-assisted) | 2026-09-26 |
 | C2 | Contrast: text at least 4.5:1 (3:1 large), dark scheme | PASS | PASS | PASS | PASS | Claude (AI-assisted) | 2026-09-26 |
 | C3 | Contrast: non-text (form-control borders, focus indicators) at least 3:1 | PASS | PASS | PASS | PASS | Claude (AI-assisted) | 2026-09-26 |
@@ -65,6 +78,7 @@ Result values: `PASS`, `FAIL (F-nn)` (see the findings), `N/A` (the journey has 
 - **K3.** Tab inside an open dialog cycles between the dialog's own controls, Escape closes it, and focus returns to the control that opened it. But when a pointer user clicks the area outside the Confirm dialog (which stays open) and then presses Tab, focus goes to the controls **behind** it before returning (F-06). The Reject dialog uses the same component, so the same weakness applies to B2.
 - **S1.** The assistant's reply, the proposal text, the confirmation result, and the hardship and dispute replies each appear as a change in a polite live region (`role="status"`). The stale-version conflict is a `role="alert"`.
 - **S2.** Dispute "Start review" and "Resolve" are announced ("Dispute review started.", "Dispute resolved.", `role="status"`). Initially a reviewer's decision was **not** announced at all (F-03); **after remediation** it is announced ("Reject decision recorded. Case status: DECIDED.") in a polite status region. The Audit search still announces only "Searching…" and never the result (F-04, open).
+- **S3 (human, real screen reader).** Reported by the human reviewer, not measured: Windows Narrator in Microsoft Edge, all four journeys PASS, keyboard navigation with Narrator PASS, the dynamic and status announcements the journeys rely on heard correctly, and, after a reviewer's decision (the F-03 remediation), the recorded decision and case status announced with focus on "Case status". This is separate from the S1 and S2 rows above, which show what the page hands to a screen reader and were produced by script. Recorded per journey: there is no step-by-step transcript.
 - **C1–C3.** 1,444 visible text nodes were measured in the light scheme and the same screens again in dark: zero failures in either. No form-control border fell below 3:1.
 - **Z1.** No horizontal page overflow or clipping at 200% on 19 of the 20 screens. On the B2 hardship Customer 360 the page overflows horizontally, and a value in the factors table is cut off (`CONTACT_…`) inside a scroll region a keyboard user cannot focus (F-07, with F-02).
 - **F1.** No backward jumps in any tab sequence and no positive `tabindex` anywhere; the order follows the document order.
@@ -103,15 +117,15 @@ Unchanged by the re-run: contrast (0 failures in either scheme), tab order (no b
 
 ## What this review does not cover
 
-- **A real screen reader.** Not executed (S3). This is the main reason the review is incomplete.
+- **Other screen readers and pairings.** S3 used Windows Narrator in Microsoft Edge only. NVDA, JAWS, VoiceOver and other browser and screen-reader pairings were not run, and the human results are recorded per journey without a step-by-step transcript.
 - **400% zoom and reflow at 320 CSS px (1.4.10),** text-spacing overrides (1.4.12), and forced-colours or high-contrast modes.
 - **Touch and mobile,** although the customer chat is meant to be responsive.
-- **Other browsers** (only Chromium was used).
+- **Other browsers.** The tooling checks used Chromium and S3 used Microsoft Edge; Firefox and Safari were not tested.
 - **Criteria outside the checklist:** every other WCAG 2.1 success criterion is unreviewed, so absence of a finding is not evidence of conformance.
 - **Screens outside the four journeys** or states not reached: for example the Record Promise-to-Pay dialog and Portfolio filtering with assistive technology.
 
 ## Next steps
 
-1. Run S3 with a real screen reader on Journeys A, B1, B2 and C and record the reviewer and date against S3. This is the main remaining blocker.
-2. Decide whether to fix the open MODERATE and MINOR findings (F-04 to F-08). Each fix should re-run the affected checklist item and update the finding's status here.
-3. Only when S3 is done, no CRITICAL is open and (by the house rule) no SERIOUS is open, change the review status to COMPLETE and consider a conformance statement. The two conditions on findings hold today; S3 does not, so the review stays INCOMPLETE and the product continues to state only that it targets WCAG 2.1 AA.
+1. Done: S3 was run with a real screen reader (Windows Narrator in Microsoft Edge) on Journeys A, B1, B2 and C, and the review status is COMPLETE.
+2. Decide whether to fix the open MODERATE and MINOR findings (F-04 to F-08). They are OPEN, with their severities unchanged. Each fix should re-run the affected checklist item and update the finding's status here.
+3. Decide separately whether to make a conformance statement. The publishing rule no longer blocks one, but none is made, and the product continues to state only that it targets WCAG 2.1 AA. Any decision should weigh the open findings, the single screen-reader and browser pairing, and the criteria this review does not cover.
