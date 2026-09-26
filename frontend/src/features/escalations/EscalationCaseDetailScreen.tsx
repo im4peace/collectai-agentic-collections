@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 
 import { Badge } from "../../components/Badge";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { LiveRegion } from "../../components/LiveRegion";
+import { ScrollRegion } from "../../components/ScrollRegion";
 import { useSession } from "../../auth/sessionStore";
 import type { ComplianceOutcome, EscalationReason } from "../../api/escalationsTypes";
 import { ESCALATION_REASONS } from "../../api/escalationsTypes";
@@ -12,12 +14,21 @@ import { PRIORITY_DISPLAY, QUEUE_LABELS, REASON_LABELS, STATUS_DISPLAY, formatAg
 import { DisputeResolutionPanel } from "./DisputeResolutionPanel";
 import { ReasonActionDialog } from "./ReasonActionDialog";
 import { useCaseDecision } from "./useCaseDecision";
+import { useRecordedDecision } from "./useRecordedDecision";
 import { useEscalationCaseDetail } from "./useEscalationCaseDetail";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 type ActiveDialog = "REJECT" | "MODIFY" | "ESCALATE" | "APPROVE" | null;
 type ActiveComplianceDialog = ComplianceOutcome | null;
 
 const _ACTIONABLE_STATUSES = new Set(["OPEN", "IN_REVIEW", "AWAITING_INFORMATION"]);
+
+const REVIEW_ACTION_LABELS: Record<Exclude<ActiveDialog, null>, string> = {
+  APPROVE: "Approve",
+  REJECT: "Reject",
+  MODIFY: "Modify",
+  ESCALATE: "Escalate",
+};
 
 const COMPLIANCE_OUTCOME_LABELS: Record<ComplianceOutcome, string> = {
   CLEARED: "Clear",
@@ -33,6 +44,7 @@ const COMPLIANCE_OUTCOME_LABELS: Record<ComplianceOutcome, string> = {
  * reloads the case rather than silently failing.
  */
 export function EscalationCaseDetailScreen(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.escalationCase);
   const { caseId } = useParams<{ caseId: string }>();
   const session = useSession();
   const { status, data, errorMessage, refetch } = useEscalationCaseDetail(caseId ?? "");
@@ -40,6 +52,8 @@ export function EscalationCaseDetailScreen(): JSX.Element {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeComplianceDialog, setActiveComplianceDialog] = useState<ActiveComplianceDialog>(null);
   const [escalateReason, setEscalateReason] = useState<EscalationReason>(ESCALATION_REASONS[0]);
+  // E11-S6 F-03: announce a recorded decision and move focus to the case status.
+  const { announcement, statusRef, markRecorded } = useRecordedDecision(data);
 
   if (status === "loading" && data === null) {
     // A background refetch (e.g. AC4's post-conflict reload) keeps
@@ -100,6 +114,9 @@ export function EscalationCaseDetailScreen(): JSX.Element {
       reason,
       escalateReason: activeDialog === "ESCALATE" ? escalateReason : undefined,
     });
+    if (outcome === "success") {
+      markRecorded(`${REVIEW_ACTION_LABELS[activeDialog]} decision recorded`, data.version);
+    }
     if (outcome !== "error") closeAndReload(() => setActiveDialog(null));
   }
 
@@ -109,6 +126,9 @@ export function EscalationCaseDetailScreen(): JSX.Element {
       action: "APPROVE",
       reason: "Approved by reviewer.",
     });
+    if (outcome === "success") {
+      markRecorded("Approve decision recorded", data.version);
+    }
     if (outcome !== "error") closeAndReload(() => setActiveDialog(null));
   }
 
@@ -120,6 +140,12 @@ export function EscalationCaseDetailScreen(): JSX.Element {
       activeComplianceDialog,
       reason,
     );
+    if (outcome === "success") {
+      markRecorded(
+        `Compliance outcome recorded: ${COMPLIANCE_OUTCOME_LABELS[activeComplianceDialog]}`,
+        data.version,
+      );
+    }
     if (outcome !== "error") closeAndReload(() => setActiveComplianceDialog(null));
   }
 
@@ -128,6 +154,7 @@ export function EscalationCaseDetailScreen(): JSX.Element {
 
   return (
     <div className="pagehead-wrap">
+      <LiveRegion message={announcement} />
       <div className="pagehead">
         <div>
           <h1>{REASON_LABELS[data.reason]}</h1>
@@ -135,7 +162,7 @@ export function EscalationCaseDetailScreen(): JSX.Element {
             <Link to={data.customer_360_path}>{data.customer_name}</Link> &middot; {data.account_id}
           </p>
         </div>
-        <div className="row">
+        <div className="row" ref={statusRef} tabIndex={-1} role="group" aria-label="Case status">
           <Badge text={priorityDisplay.label} variant={priorityDisplay.variant} icon={priorityDisplay.icon} />
           <Badge text={statusDisplay.label} variant={statusDisplay.variant} />
         </div>
@@ -348,7 +375,7 @@ function humanizeActionName(action: string): string {
  * a small, self-contained renderer instead. */
 function ConversationTranscript({ messages }: { messages: ChatMessage[] }): JSX.Element {
   return (
-    <div className="chat-messages" aria-label="Conversation">
+    <ScrollRegion className="chat-messages" label="Conversation transcript">
       {messages.map((message) => (
         <div
           key={message.message_id}
@@ -358,7 +385,7 @@ function ConversationTranscript({ messages }: { messages: ChatMessage[] }): JSX.
           <span className="small muted">{formatDateTime(message.created_at)}</span>
         </div>
       ))}
-    </div>
+    </ScrollRegion>
   );
 }
 

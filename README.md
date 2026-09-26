@@ -79,6 +79,10 @@ npm run test:run
 
 `.github/workflows/ci.yml` runs on every push and pull request: `lint-type`, `backend-unit`, `backend-db`, `architecture`, `frontend`. No repository secret is configured and `ANTHROPIC_API_KEY` is never set in the workflow, so LIVE mode never runs in CI. See that file's header comment for which additional jobs later stories add (data safety scans, MOCK evaluation, OpenAPI contract drift, end-to-end journeys).
 
+## Accessibility
+
+CollectAI **targets WCAG 2.1 Level AA**. It does **not** claim conformance. Automated axe, keyboard and focus tests run in CI (`frontend/e2e/accessibility/`), and a manual review of the primary journeys has been started but is not complete: it still has open findings and has not yet been run with a real screen reader. Results, findings and the rules for when a conformance statement may be made are in [`docs/portfolio/accessibility-review.md`](docs/portfolio/accessibility-review.md).
+
 ## Repository layout
 
 See `specs/design/folder-structure.md` for the full target layout and `specs/design/component-map.md` for which story owns which file.

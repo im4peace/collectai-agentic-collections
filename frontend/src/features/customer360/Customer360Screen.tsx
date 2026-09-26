@@ -12,6 +12,7 @@ import { PaymentEventsPanel } from "./PaymentEventsPanel";
 import { ProfileAccountPanel } from "./ProfileAccountPanel";
 import { PtpHistoryPanel } from "./PtpHistoryPanel";
 import { useCustomer360Query } from "./useCustomer360Query";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 /** E4-S2: the officer-facing Customer 360 screen. Route param is named
  * `customerId` by `app/router.tsx` (`/customers/:customerId`), but the
@@ -19,6 +20,7 @@ import { useCustomer360Query } from "./useCustomer360Query";
  * -- matching the Portfolio screen's own row links (`/customers/${row
  * .account_id}`), which this screen is reached from. */
 export function Customer360Screen(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.customer360);
   const { customerId: accountId } = useParams<{ customerId: string }>();
   const session = useSession();
   const { status, data, errorMessage, refetch } = useCustomer360Query(accountId ?? "");

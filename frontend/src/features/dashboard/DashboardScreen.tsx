@@ -4,6 +4,7 @@ import { formatDateTime } from "../../lib/formatDateTime";
 import { EvalRunsTable } from "./EvalRunsTable";
 import { KpiTile } from "./KpiTile";
 import { useKpiQuery } from "./useKpiQuery";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 function TileGrid({ kpis, headingLevel }: { kpis: Kpi[]; headingLevel: 3 | 4 }): JSX.Element {
   return (
@@ -34,6 +35,7 @@ function EmptyNote({ children }: { children: string }): JSX.Element {
  * rather than filling it with MOCK numbers (BRD 4.6).
  */
 export function DashboardScreen(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.dashboard);
   const { status, data, errorMessage, evalRuns, refetch } = useKpiQuery();
 
   return (

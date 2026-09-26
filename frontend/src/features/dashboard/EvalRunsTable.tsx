@@ -1,5 +1,6 @@
 import type { EvalRunSummary } from "../../api/kpiTypes";
 import { Badge } from "../../components/Badge";
+import { ScrollRegion } from "../../components/ScrollRegion";
 import { formatDateTime } from "../../lib/formatDateTime";
 import { formatRatioAsPercent } from "./kpiFormat";
 
@@ -19,7 +20,7 @@ export function EvalRunsTable({ runs }: EvalRunsTableProps): JSX.Element {
     );
   }
   return (
-    <div className="tablewrap">
+    <ScrollRegion className="tablewrap" label="Stored evaluation runs">
       <table>
         <caption className="sr">Stored evaluation runs, newest first</caption>
         <thead>
@@ -61,6 +62,6 @@ export function EvalRunsTable({ runs }: EvalRunsTableProps): JSX.Element {
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }

@@ -10,6 +10,7 @@ import { defaultRouteForCapabilities } from "../../lib/navLinks";
 import { DemoCustomerSelect } from "./DemoCustomerSelect";
 import { PersonaRadioGroup } from "./PersonaRadioGroup";
 import { useSessionOptions } from "./useSessionOptions";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 const CUSTOMER_SELECT_ID = "demo-customer-select";
 
@@ -21,6 +22,7 @@ const CUSTOMER_SELECT_ID = "demo-customer-select";
  * routes to that persona's first permitted screen.
  */
 export function PersonaSwitcher(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.personaSwitcher);
   const { data, error, loading } = useSessionOptions();
   const navigate = useNavigate();
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);

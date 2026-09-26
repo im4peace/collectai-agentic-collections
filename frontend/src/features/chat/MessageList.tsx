@@ -1,4 +1,5 @@
 import { Badge } from "../../components/Badge";
+import { ScrollRegion } from "../../components/ScrollRegion";
 import { formatDateTime } from "../../lib/formatDateTime";
 import type { ChatMessage } from "../../api/chatTypes";
 import { MESSAGE_LABEL_TEXT } from "./chatLabels";
@@ -12,7 +13,7 @@ export interface MessageListProps {
  * a message is rendered as visible text, not inferred from role alone. */
 export function MessageList({ messages }: MessageListProps): JSX.Element {
   return (
-    <div className="chat-messages" aria-label="Conversation">
+    <ScrollRegion className="chat-messages" label="Conversation" alwaysNamed>
       {messages.map((message) => (
         <div
           key={message.message_id}
@@ -29,6 +30,6 @@ export function MessageList({ messages }: MessageListProps): JSX.Element {
           <span className="small muted">{formatDateTime(message.created_at)}</span>
         </div>
       ))}
-    </div>
+    </ScrollRegion>
   );
 }

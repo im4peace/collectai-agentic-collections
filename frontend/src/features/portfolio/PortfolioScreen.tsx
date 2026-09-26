@@ -15,6 +15,7 @@ import {
 import type { PortfolioSortBy, PortfolioUrlState } from "./usePortfolioUrlState";
 import { usePortfolioUrlState } from "./usePortfolioUrlState";
 import { usePortfolioQuery } from "./usePortfolioQuery";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 /** AC3: `aria-sort` for a sortable column, derived from the URL sort state
  * -- `"none"` for every column except the one currently active. */
@@ -162,6 +163,7 @@ function StatusFilter({
  * `usePortfolioQuery`'s request -- for a persona that cannot see it.
  */
 export function PortfolioScreen(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.portfolio);
   const navigate = useNavigate();
   const { state, setDpdMin, setDpdMax, setPriorityBands, setStatuses, setSortColumn, clearFilters } =
     usePortfolioUrlState();

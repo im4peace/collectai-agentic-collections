@@ -15,6 +15,7 @@ import {
   formatAge,
 } from "./escalationLabels";
 import { useEscalationsQuery } from "./useEscalationsQuery";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 function buildColumns(): DataTableColumn<EscalationListItem>[] {
   return [
@@ -116,6 +117,7 @@ function QueueFilter({ selected, onToggle }: QueueFilterProps): JSX.Element {
  * E7-S6's original behaviour.
  */
 export function EscalationsScreen(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.escalations);
   const navigate = useNavigate();
   const session = useSession();
   const [selectedQueues, setSelectedQueues] = useState<ReviewQueue[]>([]);

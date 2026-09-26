@@ -2,11 +2,13 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { Badge } from "../../components/Badge";
+import { ScrollRegion } from "../../components/ScrollRegion";
 import { formatDateTime } from "../../lib/formatDateTime";
 import type { AuditEvent } from "../../api/auditTypes";
 import { STAGE_LABELS } from "./auditLabels";
 import type { AuditSearchFilters } from "./useAuditSearch";
 import { EMPTY_AUDIT_FILTERS, useAuditSearch } from "./useAuditSearch";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 /** AC2: an AI step is one that actually carries AI-interaction metadata --
  * not every event has a model/prompt/policy version (e.g. a plain
@@ -75,6 +77,7 @@ function TimelineEvent({ event }: { event: AuditEvent }): JSX.Element {
  * `api/rbac.py`'s COMPLIANCE_RISK-only grant for this capability (AC4).
  */
 export function AuditTrailViewer(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.auditTrail);
   const [filters, setFilters] = useState<AuditSearchFilters>(EMPTY_AUDIT_FILTERS);
   const { status, chains, timeline, errorMessage, search, openChain } = useAuditSearch();
 
@@ -151,7 +154,7 @@ export function AuditTrailViewer(): JSX.Element {
       )}
 
       {status === "chain-list" && chains.length > 0 && (
-        <div className="tablewrap">
+        <ScrollRegion className="tablewrap" label="Matching audit chains">
           <table>
             <caption className="sr">{chains.length} matching audit chains</caption>
             <thead>
@@ -189,7 +192,7 @@ export function AuditTrailViewer(): JSX.Element {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollRegion>
       )}
 
       {status === "timeline" && timeline.length === 0 && (

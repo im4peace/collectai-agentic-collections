@@ -3,6 +3,7 @@ import { ChatComposer } from "./ChatComposer";
 import { MessageList } from "./MessageList";
 import { ProposalCard } from "./ProposalCard";
 import { useChatConversation } from "./useChatConversation";
+import { SCREEN_TITLES, usePageTitle } from "../../lib/pageTitle";
 
 function latestAssistantText(messages: { role: string; content: string }[]): string {
   const assistantMessages = messages.filter((message) => message.role === "ASSISTANT");
@@ -18,6 +19,7 @@ function latestAssistantText(messages: { role: string; content: string }[]): str
  * inside `ProposalCard` for the same reason.
  */
 export function ChatScreen(): JSX.Element {
+  usePageTitle(SCREEN_TITLES.chat);
   const {
     status,
     errorMessage,

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ScrollRegion } from "./ScrollRegion";
 export type DataTableAlign = "left" | "right";
 export type DataTableAriaSort = "ascending" | "descending" | "none";
 
@@ -28,6 +29,10 @@ export interface DataTableProps<T> {
   /** Visually hidden `<caption>` content (row count, current sort) so
    * assistive technology always has that context, per AC4. */
   caption: ReactNode;
+  /** Accessible name for the table's scroll region, used only while the table
+   * overflows and so becomes keyboard-focusable (see `ScrollRegion`). Defaults
+   * to `caption` when that is plain text. */
+  regionLabel?: string;
   /** Whole-row click, for mouse/pointer users. Never the only way to
    * activate a row -- a caller that needs keyboard/screen-reader
    * operability puts a real focusable element (e.g. a `Link`) in a cell's
@@ -55,9 +60,16 @@ function SortButton<T>({ column }: { column: DataTableColumn<T> }): JSX.Element 
  * particular domain shape -- Portfolio, Customer 360 and later screens all
  * reuse this rather than hand-rolling their own `<table>`.
  */
-export function DataTable<T>({ columns, rows, getRowKey, caption, onRowClick }: DataTableProps<T>): JSX.Element {
+export function DataTable<T>({
+  columns,
+  rows,
+  getRowKey,
+  caption,
+  regionLabel,
+  onRowClick,
+}: DataTableProps<T>): JSX.Element {
   return (
-    <div className="tablewrap">
+    <ScrollRegion className="tablewrap" label={regionLabel ?? (typeof caption === "string" ? caption : "Table")}>
       <table>
         <caption className="sr">{caption}</caption>
         <thead>
@@ -90,6 +102,6 @@ export function DataTable<T>({ columns, rows, getRowKey, caption, onRowClick }: 
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }

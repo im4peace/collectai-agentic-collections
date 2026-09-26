@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SCREEN_TITLES, usePageTitle } from "../lib/pageTitle";
 
 export interface ForbiddenPageProps {
   /** The resolved persona, or `null` when no demo session exists yet. */
@@ -15,6 +16,7 @@ export interface ForbiddenPageProps {
  * data-fetching screen never mounts and never fires a request.
  */
 export function ForbiddenPage({ persona, route }: ForbiddenPageProps): JSX.Element {
+  usePageTitle(SCREEN_TITLES.forbidden);
   const personaLabel = persona ?? "No persona selected";
   return (
     <section className="forbidden" role="alert" aria-labelledby="forbidden-heading">

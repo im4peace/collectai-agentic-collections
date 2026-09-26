@@ -103,6 +103,32 @@ test.describe("Escalation case detail", () => {
     await expect(trigger).toBeFocused();
   });
 
+  test("a recorded decision is announced and focus moves to the case status, not <body> (E11-S6 F-03)", async ({
+    page,
+  }) => {
+    await openCase(page);
+    await expect(page.getByRole("heading", { name: "Reviewer decision" })).toBeVisible();
+    await expect(page).toHaveTitle("Escalation Case | CollectAI"); // F-01, on the case screen
+
+    await page.getByRole("button", { name: "Reject" }).click();
+    const dialog = page.getByRole("dialog", { name: "Reject this case?" });
+    await dialog.getByLabel("Reason").fill("Reviewed; no action needed.");
+    await dialog.getByRole("button", { name: "Reject" }).click();
+
+    // The outcome is announced through a polite status region...
+    const announcement = page.getByText("Reject decision recorded. Case status: DECIDED.");
+    await expect(announcement).toBeAttached({ timeout: 15_000 });
+    await expect(page.locator('[role="status"][aria-live="polite"]').filter({ has: announcement })).toHaveCount(1);
+    // ...the dialog is gone, the decision controls left with the new status...
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("button", { name: "Reject" })).toHaveCount(0);
+    // ...and focus is on the case status, not dropped on <body>.
+    const status = page.getByRole("group", { name: "Case status" });
+    await expect(status).toBeFocused();
+    await expect(status).toContainText("DECIDED");
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
+  });
+
   test("a stale-version conflict shows a message and reloads the case (AC4)", async ({
     page,
     request,

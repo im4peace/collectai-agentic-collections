@@ -1,5 +1,6 @@
 import { Badge } from "../../components/Badge";
 import { MoneyText } from "../../components/MoneyText";
+import { ScrollRegion } from "../../components/ScrollRegion";
 import type { DeterministicBlock } from "../../api/customer360Types";
 import { PAYABLE_OPTION_LABELS, PRIORITY_BAND_DISPLAY, humanize } from "./customer360Labels";
 
@@ -42,7 +43,7 @@ export function DeterministicPanel({ deterministic }: DeterministicPanelProps): 
           </div>
           {/* AC1: "priority band with each contributing factor" -- every
            * factor the score was computed from, not just the final band. */}
-          <div className="tablewrap" style={{ marginTop: 6 }}>
+          <ScrollRegion className="tablewrap" label="Contributing factors" style={{ marginTop: 6 }}>
             <table className="tight">
               <caption className="sr">Contributing factors</caption>
               <thead>
@@ -70,7 +71,7 @@ export function DeterministicPanel({ deterministic }: DeterministicPanelProps): 
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         </div>
       )}
 

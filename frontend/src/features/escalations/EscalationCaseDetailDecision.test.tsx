@@ -166,6 +166,9 @@ describe("EscalationCaseDetailScreen decisions (E7-S3 AC4)", () => {
     await waitFor(() => expect(client.getEscalationCaseDetail).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("AWAITING INFORMATION")).toBeInTheDocument();
     expect(screen.queryByText("OPEN")).not.toBeInTheDocument();
+    // F-03: a conflict is not a success -- no success announcement, no focus theft.
+    expect(screen.queryByText(/decision recorded/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Case status" })).not.toHaveFocus();
   });
 
   it("never retries the rejected action automatically, and the next attempt uses the reloaded version and a new key", async () => {
@@ -219,6 +222,8 @@ describe("EscalationCaseDetailScreen decisions (E7-S3 AC4)", () => {
     expect(screen.getByRole("dialog", { name: "Reject this case?" })).toBeInTheDocument();
     expect(client.getEscalationCaseDetail).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/This case changed/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/decision recorded/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Case status" })).not.toHaveFocus();
   });
 
   it("a stale compliance decision behaves the same way", async () => {
@@ -240,5 +245,108 @@ describe("EscalationCaseDetailScreen decisions (E7-S3 AC4)", () => {
       expect(screen.queryByRole("dialog", { name: "Record outcome: Clear?" })).not.toBeInTheDocument(),
     );
     expect(client.postComplianceDecision).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("EscalationCaseDetailScreen decision result: announcement and focus (E11-S6 F-03)", () => {
+  it("announces the recorded decision and the new status, then focuses the case status (never <body>)", async () => {
+    vi.mocked(client.getEscalationCaseDetail)
+      .mockResolvedValueOnce(detail({ version: 1 }))
+      .mockResolvedValue(detail({ version: 2, status: "DECIDED" }));
+    vi.mocked(client.postReviewDecision).mockResolvedValue({} as never);
+    renderAs("COLLECTIONS_OFFICER");
+
+    await submitReject("Reviewed.");
+
+    const announcement = await screen.findByText("Reject decision recorded. Case status: DECIDED.");
+    // It sits in a polite status region, so assistive technology is told without being interrupted.
+    expect(announcement.closest("[role='status']")).toHaveAttribute("aria-live", "polite");
+    await waitFor(() => expect(screen.getByRole("group", { name: "Case status" })).toHaveFocus());
+    expect(document.body).not.toHaveFocus();
+    // The decision controls have gone with the new status; focus did not follow them.
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+  });
+
+  it("the announcement describes the action and status only -- no ids, versions or debug detail", async () => {
+    vi.mocked(client.getEscalationCaseDetail)
+      .mockResolvedValueOnce(detail({ version: 7 }))
+      .mockResolvedValue(detail({ version: 8, status: "DECIDED" }));
+    vi.mocked(client.postReviewDecision).mockResolvedValue({} as never);
+    renderAs("COLLECTIONS_OFFICER");
+
+    await submitReject("Reviewed.");
+
+    const text = (await screen.findByText(/decision recorded/i)).textContent ?? "";
+    expect(text).toBe("Reject decision recorded. Case status: DECIDED.");
+    expect(text).not.toMatch(/esc_|version|\b7\b|\b8\b|undefined|null|error/i);
+  });
+
+  it("waits for the reloaded case: nothing is announced or focused until the new status arrives", async () => {
+    let releaseReload: (value: EscalationCaseDetail) => void = () => undefined;
+    vi.mocked(client.getEscalationCaseDetail)
+      .mockResolvedValueOnce(detail({ version: 1 }))
+      .mockReturnValueOnce(new Promise((resolve) => (releaseReload = resolve)));
+    vi.mocked(client.postReviewDecision).mockResolvedValue({} as never);
+    renderAs("COLLECTIONS_OFFICER");
+
+    await submitReject("Reviewed.");
+    await waitFor(() => expect(client.getEscalationCaseDetail).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/decision recorded/i)).not.toBeInTheDocument();
+
+    releaseReload(detail({ version: 2, status: "DECIDED" }));
+
+    expect(await screen.findByText("Reject decision recorded. Case status: DECIDED.")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Case status" })).toHaveFocus();
+  });
+
+  it("an Approve decision is announced the same way", async () => {
+    vi.mocked(client.getEscalationCaseDetail)
+      .mockResolvedValueOnce(detail({ version: 1, approve_permitted: true }))
+      .mockResolvedValue(detail({ version: 2, status: "DECIDED" }));
+    vi.mocked(client.postReviewDecision).mockResolvedValue({} as never);
+    renderAs("COLLECTIONS_OFFICER");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = await screen.findByRole("dialog", { name: "Approve this case?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Approve" }));
+
+    expect(await screen.findByText("Approve decision recorded. Case status: DECIDED.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("group", { name: "Case status" })).toHaveFocus());
+  });
+
+  it("a compliance outcome is announced the same way", async () => {
+    const base = { queue: "COMPLIANCE_REVIEW", reviewer_role: "COMPLIANCE_RISK" } as const;
+    vi.mocked(client.getEscalationCaseDetail)
+      .mockResolvedValueOnce(detail({ ...base, version: 1 }))
+      .mockResolvedValue(detail({ ...base, version: 2, status: "DECIDED" }));
+    vi.mocked(client.postComplianceDecision).mockResolvedValue({} as never);
+    renderAs("COMPLIANCE_RISK");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Clear" }));
+    const dialog = await screen.findByRole("dialog", { name: "Record outcome: Clear?" });
+    fireEvent.change(within(dialog).getByLabelText("Reason"), { target: { value: "ok" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Record decision" }));
+
+    expect(
+      await screen.findByText("Compliance outcome recorded: Clear. Case status: DECIDED."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("group", { name: "Case status" })).toHaveFocus());
+  });
+
+  it("a stale-version conflict still shows the alert, still refetches, and never retries or announces success", async () => {
+    vi.mocked(client.getEscalationCaseDetail)
+      .mockResolvedValueOnce(detail({ version: 1 }))
+      .mockResolvedValue(detail({ version: 2, status: "AWAITING_INFORMATION" }));
+    vi.mocked(client.postReviewDecision).mockRejectedValue(staleVersion());
+    renderAs("COLLECTIONS_OFFICER");
+
+    await submitReject("Stale attempt.");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("This case changed");
+    await waitFor(() => expect(client.getEscalationCaseDetail).toHaveBeenCalledTimes(2));
+    await screen.findByText("AWAITING INFORMATION");
+    expect(client.postReviewDecision).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/decision recorded/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Case status" })).not.toHaveFocus();
   });
 });
