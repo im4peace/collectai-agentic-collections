@@ -9,9 +9,9 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-COPY pyproject.toml alembic.ini ./
+COPY pyproject.toml alembic.ini constraints.txt ./
 COPY src ./src
-RUN pip install --no-cache-dir --prefix=/install .
+RUN pip install --no-cache-dir -c constraints.txt --prefix=/install .
 
 FROM python:3.11-slim AS runtime
 WORKDIR /app

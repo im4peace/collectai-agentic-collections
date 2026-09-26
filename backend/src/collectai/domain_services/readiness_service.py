@@ -101,7 +101,7 @@ async def _check_policy_ruleset(session: AsyncSession) -> ReadinessCheck:
         result = await session.execute(
             text("SELECT count(*) FROM policy_rule_set WHERE is_active")
         )
-        active_count = result.scalar_one()
+        active_count: int = result.scalar_one()
     except SQLAlchemyError:
         await _safe_rollback(session)
         return ReadinessCheck(

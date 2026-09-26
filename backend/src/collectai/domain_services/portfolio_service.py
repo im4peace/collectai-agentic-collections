@@ -30,9 +30,8 @@ import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 
-from sqlalchemy import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.audit.events import AuditEventDraft
@@ -147,7 +146,7 @@ async def list_portfolio(
 
 async def _score_consistent_candidates(
     session: AsyncSession,
-    candidates: Sequence[Row[Any]],
+    candidates: Sequence[tuple[DelinquencyRecordOrm, AccountOrm, CustomerOrm]],
     policy_provider: PolicyProvider,
 ) -> RuleResult[tuple[list[PortfolioRow], int]]:
     """Exclude (never score) any candidate whose `DelinquencyRecord` fails

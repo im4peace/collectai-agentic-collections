@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: ruff check src tests
       - run: mypy src
       - uses: actions/setup-node@v4
@@ -67,7 +67,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: |
           python -m pytest -m "not db" \
             --ignore=tests/redteam --ignore=tests/security --ignore=tests/evaluation
@@ -83,7 +83,7 @@ jobs:
       # embedded PostgreSQL instance (embedded-postgres) per test session.
       # tests/redteam, tests/security and tests/evaluation are ignored here
       # -- `data-safety`/`eval-mock` own them exclusively.
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: |
           python -m pytest -m db \
             --ignore=tests/redteam --ignore=tests/security --ignore=tests/evaluation
@@ -99,7 +99,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: python scripts/scan_prohibited_patterns.py
       - run: python -m pytest tests/redteam tests/security
 
@@ -115,7 +115,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: python -m pytest tests/evaluation
 
   architecture:
@@ -125,7 +125,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
+      - run: pip install -c constraints.txt -e ".[dev]"
       - run: lint-imports
       - run: python -m pytest tests/architecture
 

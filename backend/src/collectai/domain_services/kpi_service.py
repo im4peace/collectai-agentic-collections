@@ -335,6 +335,7 @@ async def _compute_operational_kpis(session: AsyncSession) -> list[KpiRow]:
     time_to_review_total_seconds = sum(
         (first_reviewed_at - created_at).total_seconds()
         for created_at, first_reviewed_at in reviewed_cases
+        if first_reviewed_at is not None
     )
 
     officer_decisions = (

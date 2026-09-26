@@ -114,6 +114,8 @@ python -m venv .venv
 .venv/Scripts/python -m pytest
 ```
 
+**Reproducible dependencies.** CI and the backend Docker image install with `-c constraints.txt` (`pip install -c constraints.txt -e ".[dev]"`), which pins every backend dependency to an exact version so a new upstream release cannot change the build overnight. The file is resolved for Python 3.11 on Linux, so it is optional for a local virtualenv on another Python or OS and may not install cleanly there. To move to newer dependencies deliberately, run `python scripts/generate_constraints.py` (needs network, installs nothing) and review the diff; `tests/unit/config/test_dependency_constraints.py` checks the file against `pyproject.toml`.
+
 Point `DATABASE_URL` at a local PostgreSQL instance (or run `docker compose up db` and connect to `localhost:5432`) and run the API with `uvicorn collectai.bootstrap.main:build_app --factory --reload`.
 
 ## Local (non-Docker) frontend development

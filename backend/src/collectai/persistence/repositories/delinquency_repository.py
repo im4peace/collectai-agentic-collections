@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, Row, Table, select, update
+from sqlalchemy import CursorResult, Table, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.persistence.orm.account import AccountOrm
@@ -89,7 +89,7 @@ class DelinquencyRecordRepository(CustomerScopedRepository[DelinquencyRecordOrm]
         dpd_min: int | None,
         dpd_max: int | None,
         statuses: Sequence[str] | None,
-    ) -> Sequence[Row[Any]]:
+    ) -> Sequence[tuple[DelinquencyRecordOrm, AccountOrm, CustomerOrm]]:
         """SQL-filterable slice of the portfolio query (E3-S2 AC1-AC2):
         joins `delinquency_record` to `account` and `customer`, filtering
         only what is directly stored -- `overdue_amount > 0` (api-contracts.md
@@ -111,4 +111,4 @@ class DelinquencyRecordRepository(CustomerScopedRepository[DelinquencyRecordOrm]
         if statuses:
             stmt = stmt.where(DelinquencyRecordOrm.collection_status.in_(statuses))
         result = await session.execute(stmt)
-        return result.all()
+        return [(record, account, customer) for record, account, customer in result.all()]
