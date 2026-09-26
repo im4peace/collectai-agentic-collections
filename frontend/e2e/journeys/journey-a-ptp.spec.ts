@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { sessionHeaders } from "../fixtures/apiHelpers";
+import {
+  findFreshAccount,
+  loginAsCustomerFor,
+  refreshDemoSnapshots,
+  simulatedClockDriftDays,
+  simulatedNowIso,
+} from "../fixtures/journeyHelpers";
 import { loginAsPersona } from "../fixtures/personaLogin";
 
 /**
@@ -22,42 +29,23 @@ import { loginAsPersona } from "../fixtures/personaLogin";
  * snapshot fresh before the journey begins (a realistic "officer preps the
  * demo" action, and the only way any PTP/proposal confirm can succeed).
  *
+ * Repeatability: the journey no longer assumes "the first demo customer" is
+ * clean. It picks a currently-clean delinquent account (`findFreshAccount`),
+ * binds the CUSTOMER to that account's customer, and makes the MOCK provider's
+ * real-calendar "in N days" land in the policy window whatever the simulated
+ * clock has drifted to (`simulatedClockDriftDays`). It ends with both PTPs in a
+ * terminal state (KEPT and BROKEN), so the account is clean for the next run.
+ *
  * The AI chat surface in MOCK mode is driven by `llm_provider
  * ._mock_classifier`, a keyword-based classifier standing in for a real
  * model call -- it recognizes "I promise to pay <amount> in <N> days."
  * verbatim, which this spec's chat messages are written to match exactly.
  */
 
-interface CustomerAccount {
-  account_id: string;
-  overdue_amount: string;
-}
-
-async function refreshDemoSnapshots(page: import("@playwright/test").Page, request: import("@playwright/test").APIRequestContext): Promise<void> {
-  const headers = await sessionHeaders(page);
-  const response = await request.post("/api/demo-controls/clock/advance", {
-    headers,
-    data: { days: 1, refresh_snapshots: true },
-  });
-  expect(response.ok()).toBe(true);
-}
-
-async function boundCustomerAccount(
-  page: import("@playwright/test").Page,
-  request: import("@playwright/test").APIRequestContext,
-): Promise<CustomerAccount> {
-  const headers = await sessionHeaders(page);
-  const response = await request.get("/api/me/accounts", { headers });
-  expect(response.ok()).toBe(true);
-  const body = (await response.json()) as { items: CustomerAccount[] };
-  const [account] = body.items;
-  if (account === undefined) {
-    throw new Error("The bound CUSTOMER has no account to run the journey against.");
-  }
-  return account;
-}
-
 test.describe("Journey A: Promise-to-Pay", () => {
+  // Several persona logins, a chat and two PTP lifecycles: headroom for slower hardware.
+  test.describe.configure({ timeout: 90_000 });
+
   test("Portfolio -> Customer 360 -> AI chat PTP -> Confirm -> PENDING -> KEPT/BROKEN -> audit trail", async ({
     page,
     request,
@@ -65,6 +53,10 @@ test.describe("Journey A: Promise-to-Pay", () => {
     // --- AC1: officer opens Portfolio, selects an account, reaches Customer 360 ---
     await loginAsPersona(page, "COLLECTIONS_OFFICER");
     await refreshDemoSnapshots(page, request);
+    const fresh = await findFreshAccount(page, request, {});
+    const drift = await simulatedClockDriftDays(page, request);
+    const journeyStart = await simulatedNowIso(page, request);
+    const account = { account_id: fresh.accountId, overdue_amount: fresh.overdueAmount };
 
     await page.goto("/portfolio");
     await expect(page.getByRole("heading", { name: "Delinquent portfolio" })).toBeVisible();
@@ -78,20 +70,34 @@ test.describe("Journey A: Promise-to-Pay", () => {
     await expect(page.getByRole("table", { name: "Contributing factors" })).toBeVisible();
 
     // --- AC2: as the bound CUSTOMER, complete the PTP conversation ---
-    await loginAsPersona(page, "CUSTOMER");
-    const account = await boundCustomerAccount(page, request);
+    await loginAsCustomerFor(page, fresh.customerId);
+    const customerHeaders = await sessionHeaders(page);
+    const ptpsUrl = `/api/me/accounts/${account.account_id}/ptps`;
+    type PtpRow = { ptp_id: string; status: string; source: string; promised_amount: string };
+    const listPtps = async (): Promise<PtpRow[]> => {
+      const listResponse = await request.get(ptpsUrl, { headers: customerHeaders });
+      return ((await listResponse.json()) as { items: PtpRow[] }).items;
+    };
+    // Earlier runs may have left terminal PTPs on this account: only ever look
+    // at the ones this run creates, and key its payments to this run.
+    const priorPtpIds = new Set((await listPtps()).map((item) => item.ptp_id));
+    const runId = Date.now();
     const promisedAmount = (Number.parseFloat(account.overdue_amount) * 0.3).toFixed(2);
 
     await expect(page.getByRole("button", { name: "Talk to a human" })).toBeVisible();
     const composer = page.getByLabel("Message");
-    await composer.fill(`I promise to pay ${promisedAmount} in 5 days.`);
+    await composer.fill(`I promise to pay ${promisedAmount} in ${drift + 5} days.`);
     await composer.press("Enter");
 
     // The AI's service-returned values (never the customer's raw text) are
     // shown before any write happens.
-    await expect(page.getByText(new RegExp(`promise ${promisedAmount.replace(".", "\\.")}`))).toBeVisible({
-      timeout: 15_000,
-    });
+    // Scoped to the proposal card: the same sentence is also in the chat
+    // transcript and a screen-reader live region.
+    await expect(
+      page
+        .getByRole("group", { name: "Proposal awaiting confirmation" })
+        .getByText(new RegExp(`promise ${promisedAmount.replace(".", "\\.")}`)),
+    ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: "Confirm" })).toBeVisible();
 
     // An explicit Confirm click is required -- nothing was written yet.
@@ -99,28 +105,30 @@ test.describe("Journey A: Promise-to-Pay", () => {
     const confirmDialog = page.getByRole("dialog", { name: "Confirm this proposal?" });
     await expect(confirmDialog).toBeVisible();
     await confirmDialog.getByRole("button", { name: "Confirm" }).click();
-    await expect(page.getByText("has been recorded")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Conversation").getByText("has been recorded")).toBeVisible({ timeout: 15_000 });
 
-    const customerHeaders = await sessionHeaders(page);
-    const ptpListResponse = await request.get(`/api/me/accounts/${account.account_id}/ptps`, {
-      headers: customerHeaders,
-    });
-    const ptpList = (await ptpListResponse.json()) as {
-      items: { ptp_id: string; status: string; source: string; promised_amount: string }[];
-    };
-    const createdPtp = ptpList.items.find(
-      (item) => item.source === "CUSTOMER_CHAT" && item.promised_amount === promisedAmount,
+    const ptpItems = await listPtps();
+    const createdPtp = ptpItems.find(
+      (item) =>
+        !priorPtpIds.has(item.ptp_id) &&
+        item.source === "CUSTOMER_CHAT" &&
+        item.promised_amount === promisedAmount,
     );
-    expect(createdPtp, JSON.stringify(ptpList.items)).toBeTruthy();
+    expect(createdPtp, JSON.stringify(ptpItems)).toBeTruthy();
     expect(createdPtp?.status).toBe("PENDING");
 
     // --- AC3: KEPT via two partial simulated payments ---
     await loginAsPersona(page, "COLLECTIONS_OFFICER");
     const officerHeaders = await sessionHeaders(page);
-    const half = (Number.parseFloat(promisedAmount) / 2).toFixed(2);
-    for (const [index, amount] of [half, half].entries()) {
+    // Two partial payments that sum to the promised amount *exactly*, in integer
+    // cents (two independently rounded halves can fall a cent short, which
+    // would leave the PTP PENDING instead of KEPT).
+    const promisedCents = Math.round(Number.parseFloat(promisedAmount) * 100);
+    const firstCents = Math.floor(promisedCents / 2);
+    const payments = [firstCents, promisedCents - firstCents].map((cents) => (cents / 100).toFixed(2));
+    for (const [index, amount] of payments.entries()) {
       const paymentResponse = await request.post("/api/demo-controls/payments/simulate", {
-        headers: { ...officerHeaders, "Idempotency-Key": `journey-a-kept-${index}` },
+        headers: { ...officerHeaders, "Idempotency-Key": `journey-a-kept-${runId}-${index}` },
         data: { account_id: account.account_id, amount },
       });
       expect(paymentResponse.ok(), await paymentResponse.text()).toBe(true);
@@ -139,14 +147,14 @@ test.describe("Journey A: Promise-to-Pay", () => {
     expect(keptPtp?.status).toBe("KEPT");
 
     // --- AC3: BROKEN via a second PTP, advancing the clock past its due date ---
-    await loginAsPersona(page, "CUSTOMER");
+    await loginAsCustomerFor(page, fresh.customerId);
     const composer2 = page.getByLabel("Message");
-    await composer2.fill("I promise to pay 10 in 1 days.");
+    await composer2.fill(`I promise to pay 10 in ${drift + 1} days.`);
     await composer2.press("Enter");
     await expect(page.getByRole("button", { name: "Confirm" })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("button", { name: "Confirm" }).click();
     await page.getByRole("dialog", { name: "Confirm this proposal?" }).getByRole("button", { name: "Confirm" }).click();
-    await expect(page.getByText("has been recorded")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Conversation").getByText("has been recorded")).toBeVisible({ timeout: 15_000 });
 
     await loginAsPersona(page, "COLLECTIONS_OFFICER");
     const advanceResponse = await request.post("/api/demo-controls/clock/advance", {
@@ -166,7 +174,10 @@ test.describe("Journey A: Promise-to-Pay", () => {
       items: { ptp_id: string; status: string; promised_amount: string }[];
     };
     const brokenPtp = afterBroken.items.find(
-      (item) => item.promised_amount === "10.00" && item.ptp_id !== createdPtp?.ptp_id,
+      (item) =>
+        !priorPtpIds.has(item.ptp_id) &&
+        item.promised_amount === "10.00" &&
+        item.ptp_id !== createdPtp?.ptp_id,
     );
     expect(brokenPtp?.status).toBe("BROKEN");
 
@@ -180,7 +191,7 @@ test.describe("Journey A: Promise-to-Pay", () => {
 
     const complianceHeaders = await sessionHeaders(page);
     const auditResponse = await request.get(
-      `/api/audit?account_id=${account.account_id}&limit=200`,
+      `/api/audit?account_id=${account.account_id}&from=${encodeURIComponent(journeyStart)}&limit=200`,
       { headers: complianceHeaders },
     );
     expect(auditResponse.ok(), await auditResponse.text()).toBe(true);
@@ -191,17 +202,23 @@ test.describe("Journey A: Promise-to-Pay", () => {
     // One audit event per state transition (AC4): the AI's own intent
     // classification and proposal extraction (each `AI_RESPONSE_RECORDED`,
     // carrying model id + prompt version), the PTP write itself
-    // (`PTP_RECORDED`, carrying the PolicyRuleSet version), and this
-    // journey's own clock/lifecycle demo-control actions.
+    // (`PTP_RECORDED`, carrying the PolicyRuleSet version) and each lifecycle
+    // transition, all on this account.
     expect(eventTypes).toEqual(
-      expect.arrayContaining([
-        "AI_RESPONSE_RECORDED",
-        "PTP_RECORDED",
-        "PTP_KEPT",
-        "PTP_BROKEN",
-        "DEMO_CLOCK_ADVANCED",
-        "DEMO_PTP_LIFECYCLE_RUN",
-      ]),
+      expect.arrayContaining(["AI_RESPONSE_RECORDED", "PTP_RECORDED", "PTP_KEPT", "PTP_BROKEN"]),
+    );
+    // This journey's own clock/lifecycle demo-control actions are system-wide
+    // (they carry no account), so they are read from the journey's time window.
+    const windowResponse = await request.get(
+      `/api/audit?from=${encodeURIComponent(journeyStart)}&limit=200`,
+      { headers: complianceHeaders },
+    );
+    expect(windowResponse.ok(), await windowResponse.text()).toBe(true);
+    const windowTypes = ((await windowResponse.json()) as { items: { event_type: string }[] }).items.map(
+      (event) => event.event_type,
+    );
+    expect(windowTypes).toEqual(
+      expect.arrayContaining(["DEMO_CLOCK_ADVANCED", "DEMO_PTP_LIFECYCLE_RUN"]),
     );
     const aiEvent = auditBody.items.find((event) => event.model_id !== null);
     expect(aiEvent, JSON.stringify(auditBody.items)).toBeTruthy();

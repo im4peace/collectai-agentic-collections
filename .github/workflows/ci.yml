@@ -5,9 +5,9 @@
 # them never runs twice. `e2e` (E11-S5 AC5) runs `frontend/e2e`'s
 # accessibility suite (axe scans, keyboard-navigation and focus-management
 # tests, WCAG 2.1 AA target -- see `frontend/e2e/accessibility/README.md`
-# for that suite's own conformance-claim language) plus Group J's
-# `frontend/e2e/journeys` end-to-end specs (E11-S1, E11-S2), against the
-# real stack.
+# for that suite's own conformance-claim language) plus the
+# `frontend/e2e/journeys` end-to-end specs (E11-S1, E11-S2 and Group K's
+# E11-S3, E11-S4), against the real stack.
 # Jobs still not added per specs/design/deployment.md section 3 (their
 # dependencies do not exist in this repo yet):
 #   - openapi-contract (scripts/generate_openapi.py)           -- a later

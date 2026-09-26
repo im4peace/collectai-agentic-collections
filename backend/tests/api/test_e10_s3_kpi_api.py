@@ -5,9 +5,11 @@ decision.py`'s fixtures and seeding style.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -36,6 +38,7 @@ from collectai.types.money import Money
 pytestmark = pytest.mark.db
 
 _NOW = datetime(2026, 10, 1, 9, 0, 0, tzinfo=UTC)
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _CUSTOMER_ID = "cus_kpi01"
 _MANAGER_HEADERS = {"X-Persona": Persona.COLLECTIONS_MANAGER.value}
 _OFFICER_HEADERS = {"X-Persona": Persona.COLLECTIONS_OFFICER.value}
@@ -631,3 +634,40 @@ def test_eval_runs_endpoint_is_manager_only_and_lists_stored_runs(
     )
     assert live_only.status_code == 200, live_only.text
     assert [item["eval_run_id"] for item in live_only.json()["items"]] == ["evr_kpi_live"]
+
+
+# Group K (E10-S5 AC1): the P1 document matches what the API really returns ------
+
+
+def test_the_kpi_tree_document_lists_exactly_the_kpis_the_api_implements(
+    kpi_client: TestClient,
+) -> None:
+    """`docs/portfolio/kpi-tree.md` must document every `kpi_id` the API
+    returns, and must not claim IMPLEMENTED for one it does not. The
+    per-category recall KPIs only appear once a run holds that category, so
+    the expected set also includes every sensitive category the service
+    computes them for."""
+    from collectai.domain_services.kpi_service import _SENSITIVE_CATEGORIES
+
+    body = kpi_client.get("/api/kpis", headers=_MANAGER_HEADERS).json()
+    api_ids = {
+        item["kpi_id"]
+        for item in (
+            *body["business"],
+            *body["operational"],
+            *body["ai_quality"]["mock"],
+            *body["ai_quality"]["live"],
+        )
+    }
+    computable_ids = api_ids | {
+        f"sensitive_category_recall_{category.lower()}" for category in _SENSITIVE_CATEGORIES
+    }
+
+    doc = (_REPO_ROOT / "docs" / "portfolio" / "kpi-tree.md").read_text(encoding="utf-8")
+    documented_implemented = {
+        match.group(1)
+        for match in re.finditer(r"^\|.*?\| `([a-z_]+)` \|.*\| IMPLEMENTED \|$", doc, re.MULTILINE)
+    }
+
+    assert api_ids <= documented_implemented, api_ids - documented_implemented
+    assert documented_implemented == computable_ids

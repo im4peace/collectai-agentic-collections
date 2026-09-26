@@ -15,6 +15,19 @@ export interface ReviewDecisionInput {
   modificationOptionId?: string;
 }
 
+/**
+ * What one submit attempt came to, returned by the awaited call itself so the
+ * caller reacts to *this* invocation's outcome -- never to hook state read from
+ * its own render closure, which still holds the previous render's value right
+ * after the `await` (the E7-S3 AC4 bug this type exists to prevent).
+ *
+ * - `success`: the decision was recorded.
+ * - `version_conflict`: the API answered 409 VERSION_CONFLICT -- the case
+ *   changed since it was loaded. Nothing was written and nothing is retried.
+ * - `error`: any other failure (its message is in `errorMessage`).
+ */
+export type DecisionOutcome = "success" | "version_conflict" | "error";
+
 export interface UseCaseDecisionResult {
   busy: boolean;
   errorMessage: string | null;
@@ -27,13 +40,13 @@ export interface UseCaseDecisionResult {
     caseId: string,
     expectedVersion: number,
     input: ReviewDecisionInput,
-  ) => Promise<boolean>;
+  ) => Promise<DecisionOutcome>;
   submitComplianceDecision: (
     caseId: string,
     expectedVersion: number,
     outcome: ComplianceOutcome,
     reason: string,
-  ) => Promise<boolean>;
+  ) => Promise<DecisionOutcome>;
 }
 
 function isVersionConflict(caught: unknown): boolean {
@@ -45,8 +58,9 @@ function isVersionConflict(caught: unknown): boolean {
 }
 
 /** Submits a reviewer or compliance decision (E7-S2/E7-S5, surfaced by
- * E7-S3's action dialogs). Returns whether the submit succeeded, so the
- * caller can close its dialog only on success. */
+ * E7-S3's action dialogs). Each call sends the `expectedVersion` it is given
+ * and a fresh `Idempotency-Key`, is never retried, and resolves to a
+ * `DecisionOutcome` so the caller decides what to do next. */
 export function useCaseDecision(): UseCaseDecisionResult {
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,7 +72,11 @@ export function useCaseDecision(): UseCaseDecisionResult {
   }, []);
 
   const submitReviewDecision = useCallback(
-    async (caseId: string, expectedVersion: number, input: ReviewDecisionInput): Promise<boolean> => {
+    async (
+      caseId: string,
+      expectedVersion: number,
+      input: ReviewDecisionInput,
+    ): Promise<DecisionOutcome> => {
       setBusy(true);
       clearError();
       try {
@@ -73,16 +91,16 @@ export function useCaseDecision(): UseCaseDecisionResult {
           },
           crypto.randomUUID(),
         );
-        return true;
+        return "success";
       } catch (caught) {
         if (isVersionConflict(caught)) {
           setVersionConflict(true);
-        } else {
-          setErrorMessage(
-            caught instanceof ApiError ? caught.body.message : "Could not record that decision.",
-          );
+          return "version_conflict";
         }
-        return false;
+        setErrorMessage(
+          caught instanceof ApiError ? caught.body.message : "Could not record that decision.",
+        );
+        return "error";
       } finally {
         setBusy(false);
       }
@@ -96,7 +114,7 @@ export function useCaseDecision(): UseCaseDecisionResult {
       expectedVersion: number,
       outcome: ComplianceOutcome,
       reason: string,
-    ): Promise<boolean> => {
+    ): Promise<DecisionOutcome> => {
       setBusy(true);
       clearError();
       try {
@@ -105,16 +123,16 @@ export function useCaseDecision(): UseCaseDecisionResult {
           { outcome, reason, expected_version: expectedVersion },
           crypto.randomUUID(),
         );
-        return true;
+        return "success";
       } catch (caught) {
         if (isVersionConflict(caught)) {
           setVersionConflict(true);
-        } else {
-          setErrorMessage(
-            caught instanceof ApiError ? caught.body.message : "Could not record that decision.",
-          );
+          return "version_conflict";
         }
-        return false;
+        setErrorMessage(
+          caught instanceof ApiError ? caught.body.message : "Could not record that decision.",
+        );
+        return "error";
       } finally {
         setBusy(false);
       }

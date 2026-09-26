@@ -55,6 +55,7 @@ from collectai.domain_services.compliance_service import (
     ComplianceDecisionRequest as ComplianceRequest,
 )
 from collectai.domain_services.compliance_service import record_compliance_review_decision
+from collectai.domain_services.customer360_mapping import to_disputes
 from collectai.domain_services.escalation_detail_service import get_case_detail
 from collectai.domain_services.recommendation_mapping import to_recommendation_schema
 from collectai.domain_services.review_service import ReviewDecisionRequest as DecisionRequest
@@ -226,6 +227,7 @@ async def get_case_detail_endpoint(
             routing_policy_version=detail.case.routing_policy_version,
         ),
         approve_permitted=detail.approve_permitted,
+        dispute=to_disputes([detail.dispute])[0] if detail.dispute is not None else None,
     )
 
 

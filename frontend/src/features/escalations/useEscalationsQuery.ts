@@ -4,6 +4,11 @@ import { getEscalations } from "../../api/escalationsClient";
 import type { EscalationPage, ReviewQueue } from "../../api/escalationsTypes";
 import { ApiError } from "../../api/errors";
 
+/** The API's own page-size ceiling for `GET /api/escalations`
+ * (`api/routers/me_ownership.py`'s `LimitQuery`, `le=50`): asking for more is
+ * a 422 and the whole queue fails to load. */
+export const ESCALATIONS_PAGE_LIMIT = 50;
+
 export type EscalationsQueryStatus = "loading" | "loaded" | "error";
 
 export interface UseEscalationsQueryResult {
@@ -29,7 +34,10 @@ export function useEscalationsQuery(queues?: ReviewQueue[]): UseEscalationsQuery
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
-    getEscalations({ limit: 100, queue: queues && queues.length > 0 ? queues : undefined })
+    getEscalations({
+      limit: ESCALATIONS_PAGE_LIMIT,
+      queue: queues && queues.length > 0 ? queues : undefined,
+    })
       .then((page) => {
         if (cancelled) return;
         setData(page);

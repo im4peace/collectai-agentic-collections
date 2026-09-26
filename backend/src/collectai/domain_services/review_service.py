@@ -52,6 +52,7 @@ from collectai.domain_services._arrangement_exceptions import (
     ArrangementNotEligibleError,
 )
 from collectai.domain_services._arrangement_helpers import has_active_arrangement
+from collectai.domain_services._hardship_decision import mark_hardship_decided
 from collectai.domain_services._ptp_helpers import has_active_pending_ptp
 from collectai.domain_services._review_exceptions import (
     ReviewCaseNotFoundError,
@@ -262,6 +263,7 @@ async def decide(
         case.first_reviewed_at = now
     if target_status is CaseStatus.DECIDED:
         case.decided_at = now
+        await mark_hardship_decided(session, case, now=now)
     await session.flush()
 
     await audit_service.record_in(

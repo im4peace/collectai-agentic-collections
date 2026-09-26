@@ -581,3 +581,75 @@ th button.sort:focus-visible {
 .audit-event:first-of-type {
   border-top: none;
 }
+
+/* E10-S4: manager dashboard KPI tiles. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tile .tile-name {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.tile .v {
+  font-size: 1.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.tile.mock {
+  border-left: 5px solid var(--warn);
+}
+
+.tile.live {
+  border-left: 5px solid var(--ok);
+}
+
+.tile.ill {
+  border-left: 5px dashed var(--muted);
+}
+
+.tile summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.tile .kpi-details {
+  margin: 4px 0 0;
+}
+
+.tile .kpi-details dt {
+  font-weight: 700;
+}
+
+.tile .kpi-details dd {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.sec {
+  margin-top: 22px;
+}
+
+.sec > h2 {
+  font-size: 1.25rem;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 4px;
+}

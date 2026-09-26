@@ -1,6 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+import {
+  closeCase,
+  createHandoffCase,
+  findFreshAccount,
+  refreshDemoSnapshots,
+} from "../fixtures/journeyHelpers";
 import { loginAsPersona } from "../fixtures/personaLogin";
 
 /**
@@ -65,25 +71,46 @@ test.describe("Escalations screen accessibility", () => {
     await expect(page.getByRole("table")).toHaveCount(0);
   });
 
-  test("the list is keyboard operable: Tab reaches a row's customer link", async ({ page }) => {
+  test("the list is keyboard operable: Tab reaches a row's customer link", async ({
+    page,
+    request,
+  }) => {
+    // The list needs at least one row, and a fresh database has none (cases are
+    // created by the real app flow, never seeded): create exactly the one this
+    // test needs as a real customer handoff, and close it afterwards through the
+    // real review endpoint, so no other spec's data is assumed or left behind.
     await loginAsPersona(page, "COLLECTIONS_OFFICER");
-    await page.getByRole("link", { name: "Escalations" }).click();
-    await expect(page.getByRole("heading", { name: "Escalations" })).toBeVisible();
+    await refreshDemoSnapshots(page, request);
+    const account = await findFreshAccount(page, request, {});
+    const caseId = await createHandoffCase(page, account.customerId);
 
-    // A just-navigated page has no document focus yet in Chromium/Playwright
-    // (nav-and-switcher.spec.ts's own precedent): the preceding nav-link
-    // click triggered a client-side route change, so the very first Tab can
-    // land nowhere without this harmless click on a non-interactive
-    // landmark first, matching customer360.spec.ts's own keyboard test.
-    await page.getByRole("heading", { name: "Escalations" }).click();
-
-    for (let i = 0; i < 20; i++) {
-      await page.keyboard.press("Tab");
-      const focused = page.locator(":focus");
-      if ((await focused.getAttribute("href"))?.startsWith("/customers/")) {
-        break;
-      }
+    try {
+      await loginAsPersona(page, "COLLECTIONS_OFFICER");
+      await page.getByRole("link", { name: "Escalations" }).click();
+      await expect(page.getByRole("heading", { name: "Escalations" })).toBeVisible();
+      await expect(page.locator(`a[href="/escalations/${caseId}"]`)).toBeVisible();
+      await expectTabReachesCustomerLink(page);
+    } finally {
+      await loginAsPersona(page, "COLLECTIONS_OFFICER");
+      await closeCase(page, request, caseId, "Test cleanup.");
     }
-    await expect(page.locator(":focus")).toHaveAttribute("href", /^\/customers\//);
   });
 });
+
+async function expectTabReachesCustomerLink(page: import("@playwright/test").Page): Promise<void> {
+  // A just-navigated page has no document focus yet in Chromium/Playwright
+  // (nav-and-switcher.spec.ts's own precedent): the preceding nav-link
+  // click triggered a client-side route change, so the very first Tab can
+  // land nowhere without this harmless click on a non-interactive
+  // landmark first, matching customer360.spec.ts's own keyboard test.
+  await page.getByRole("heading", { name: "Escalations" }).click();
+
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.press("Tab");
+    const focused = page.locator(":focus");
+    if ((await focused.getAttribute("href"))?.startsWith("/customers/")) {
+      break;
+    }
+  }
+  await expect(page.locator(":focus")).toHaveAttribute("href", /^\/customers\//);
+}

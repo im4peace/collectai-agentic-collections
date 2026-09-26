@@ -23,6 +23,7 @@ from collectai.domain_services._review_exceptions import (
 )
 from collectai.domain_services.review_service import approval_readiness
 from collectai.persistence.orm.chat_message import ChatMessageOrm
+from collectai.persistence.orm.dispute import DisputeOrm
 from collectai.persistence.orm.escalation_case import EscalationCaseOrm
 from collectai.persistence.orm.recommendation import RecommendationOrm
 from collectai.persistence.repositories.chat_message_repository import ChatMessageRepository
@@ -40,6 +41,12 @@ class CaseDetailResult:
     conversation: list[ChatMessageOrm]
     recommendation: RecommendationOrm | None
     approve_permitted: bool
+    dispute: DisputeOrm | None
+    """E11-S4 AC3: the `Dispute` this case was opened for, so the review
+    screen can drive `POST /api/disputes/{id}/start-review|resolve`. Only
+    loaded for a COLLECTIONS_OFFICER viewer -- the same persona `dispute:read`
+    / `dispute:resolve` are scoped to (`api/rbac.py`); every other viewer
+    gets `None`, so this read never widens who can see dispute data."""
 
 
 async def get_case_detail(
@@ -81,11 +88,16 @@ async def get_case_detail(
         session, case, viewer_persona=viewer_persona, policy_provider=policy_provider
     )
 
+    dispute: DisputeOrm | None = None
+    if case.dispute_id is not None and viewer_persona is Persona.COLLECTIONS_OFFICER:
+        dispute = await session.get(DisputeOrm, case.dispute_id)
+
     return CaseDetailResult(
         case=case,
         conversation=conversation,
         recommendation=recommendation,
         approve_permitted=approve_permitted,
+        dispute=dispute,
     )
 
 

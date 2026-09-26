@@ -20,4 +20,14 @@ export async function loginAsPersona(page: Page, persona: string): Promise<void>
   }
 
   await page.getByRole("button", { name: "Use this persona" }).click();
+  // The submit is async (`POST /api/session`, then a client-side navigation):
+  // wait until this persona's session is really stored, so a caller that reads
+  // it immediately (`sessionHeaders`) never races the request on a slow load.
+  await page.waitForFunction(
+    (expected) => {
+      const raw = window.sessionStorage.getItem("collectai.demoSession");
+      return raw !== null && (JSON.parse(raw) as { persona: string }).persona === expected;
+    },
+    persona,
+  );
 }

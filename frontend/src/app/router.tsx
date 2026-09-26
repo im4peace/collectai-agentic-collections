@@ -3,6 +3,7 @@ import { createBrowserRouter, useLocation } from "react-router-dom";
 import { AuditTrailViewer } from "../features/audit/AuditTrailViewer";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { Customer360Screen } from "../features/customer360/Customer360Screen";
+import { DashboardScreen } from "../features/dashboard/DashboardScreen";
 import { EscalationCaseDetailScreen } from "../features/escalations/EscalationCaseDetailScreen";
 import { EscalationsScreen } from "../features/escalations/EscalationsScreen";
 import { PersonaSwitcher } from "../features/session/PersonaSwitcher";
@@ -12,7 +13,6 @@ import { ForbiddenPage } from "./ForbiddenPage";
 import { RequireCapability } from "./guards";
 import { CustomerLayout } from "./layouts/CustomerLayout";
 import { InternalLayout } from "./layouts/InternalLayout";
-import { RouteStub } from "./RouteStub";
 
 /** An unknown path is treated the same as a forbidden one: nothing this
  * persona (or no persona at all) may open, so it gets the same page. */
@@ -28,9 +28,8 @@ function NotFoundRoute(): JSX.Element {
  * `CAPABILITY_MATRIX`. `/` is the persona switcher and is reachable by
  * everyone (public, no `RequireCapability`) — it is how a fresh session is
  * created in the first place. Every other route is a guarded slot; Groups
- * E3-S3, E4-S2, E6-S5, E9-S2 and E7-S6 have all replaced their `RouteStub`
- * with a real screen. Only `/dashboard` (E10-S4) remains a stub, for a
- * story not yet built.
+ * E3-S3, E4-S2, E6-S5, E9-S2, E7-S6 and E10-S4 have all replaced their
+ * `RouteStub` with a real screen, so no stub route remains.
  *
  * `/escalations` widened from `escalation:review` to `escalation:read` by
  * E7-S3 AC6: COLLECTIONS_OFFICER and COMPLIANCE_RISK share the one screen,
@@ -82,7 +81,7 @@ export const router = createBrowserRouter([
         path: "/dashboard",
         element: (
           <RequireCapability capability="kpi:read">
-            <RouteStub title="Dashboard" />
+            <DashboardScreen />
           </RequireCapability>
         ),
       },

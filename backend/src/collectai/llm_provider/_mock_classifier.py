@@ -28,6 +28,15 @@ other meaning of that label in this codebase (CLAUDE.md, `api-contracts.md`
 `DataLabel.MOCK`): this is pattern-matching against synthetic demo text,
 never a real model call, and is never evidence of real-model quality.
 
+Group K (E11-S3, E11-S4) adds three more narrow, deterministic recognitions
+on the same path: a bereavement wording sets the advisory
+`vulnerability_detected` signal, a job-loss wording yields the `JOB_LOSS`
+hardship indicator, and a few dispute wordings yield a dispute category.
+Production behaviour, `LIVE` mode and every explicitly scripted
+`MockProvider(responses=[...])` are untouched; the normal orchestration,
+schema validation, rules, escalation and audit run exactly as before on the
+output.
+
 Date extraction uses the real wall clock (`date.today()`), not the
 application's injectable `Clock` -- this module has no access to it (a
 provider only ever receives a `ProviderRequest`). This is safe for the
@@ -47,6 +56,8 @@ from collectai.llm_provider.base import ProviderRequest, ProviderResult
 _MODEL_ID = "mock-model-1"
 _INTENT_SYSTEM_PREFIX = "You are CollectAI's chat intent classifier."
 _PROPOSAL_SYSTEM_PREFIX = "You are CollectAI's chat proposal-extraction assistant."
+_HARDSHIP_SYSTEM_PREFIX = "You are CollectAI's chat hardship-classification assistant."
+_DISPUTE_SYSTEM_PREFIX = "You are CollectAI's chat dispute-classification assistant."
 
 _ACKNOWLEDGED = ProviderResult(
     content="Acknowledged.", model_id=_MODEL_ID, latency_ms=0.0, input_tokens=0, output_tokens=0
@@ -68,6 +79,25 @@ _HARDSHIP_PATTERN = re.compile(
 )
 _HUMAN_PATTERN = re.compile(r"\bhuman\b|\bspeak\s+to\s+(?:someone|an?\s+agent)\b", re.IGNORECASE)
 
+# Group K (E11-S3, E11-S4): the narrow, deterministic phrasing the two
+# journeys need beyond intent labels -- a bereavement wording for the
+# vulnerability signal, a job-loss wording for the hardship indicator, and
+# three dispute-category wordings. Deliberately not a general classifier:
+# anything else yields the schema's own safe default (no vulnerability, an
+# empty indicator list, dispute category OTHER), which the domain services
+# already handle.
+_BEREAVEMENT_PATTERN = re.compile(r"passed\s+away|bereave(?:d|ment)|\bfuneral\b", re.IGNORECASE)
+_JOB_LOSS_PATTERN = re.compile(
+    r"lost\s+my\s+job|laid\s+off|made\s+redundant|lost\s+my\s+employment", re.IGNORECASE
+)
+_NOT_MY_DEBT_PATTERN = re.compile(
+    r"not\s+my\s+(?:debt|charge)|didn'?t\s+(?:make|buy)\s+this", re.IGNORECASE
+)
+_ALREADY_PAID_PATTERN = re.compile(r"already\s+paid", re.IGNORECASE)
+_AMOUNT_INCORRECT_PATTERN = re.compile(
+    r"(?:wrong|incorrect)\s+amount|amount\s+is\s+(?:wrong|incorrect)", re.IGNORECASE
+)
+
 _AMOUNT_PATTERN = re.compile(r"pay\s+(?:aed\s*)?(\d+(?:\.\d{1,2})?)", re.IGNORECASE)
 _DAYS_PATTERN = re.compile(r"in\s+(\d+)\s+days?", re.IGNORECASE)
 _INSTALLMENTS_PATTERN = re.compile(r"(\d+)\s*[- ]?installments?", re.IGNORECASE)
@@ -86,6 +116,10 @@ def classify(request: ProviderRequest) -> ProviderResult:
         return _classify_intent(message)
     if system.startswith(_PROPOSAL_SYSTEM_PREFIX):
         return _extract_proposal(message)
+    if system.startswith(_HARDSHIP_SYSTEM_PREFIX):
+        return _extract_hardship(message)
+    if system.startswith(_DISPUTE_SYSTEM_PREFIX):
+        return _extract_dispute(message)
     return _ACKNOWLEDGED
 
 
@@ -114,13 +148,17 @@ def _intent_label(message: str) -> tuple[str, str]:
 
 def _classify_intent(message: str) -> ProviderResult:
     label, rationale = _intent_label(message)
+    vulnerable = _BEREAVEMENT_PATTERN.search(message) is not None
     content: dict[str, object] = {
         "label": label,
         "confidence": 0.95,
         "rationale": rationale,
-        "vulnerability_detected": False,
+        "vulnerability_detected": vulnerable,
         "special_request": "NONE",
     }
+    if vulnerable:
+        content["vulnerability_category"] = "BEREAVEMENT"
+        content["vulnerability_rationale"] = "Message mentioned a recent bereavement."
     return ProviderResult(
         content=content, model_id=_MODEL_ID, latency_ms=0.0, input_tokens=0, output_tokens=0
     )
@@ -139,6 +177,37 @@ def _extract_proposal(message: str) -> ProviderResult:
         content["installment_count"] = int(installments_match.group(1))
     return ProviderResult(
         content=content, model_id=_MODEL_ID, latency_ms=0.0, input_tokens=0, output_tokens=0
+    )
+
+
+def _extract_hardship(message: str) -> ProviderResult:
+    indicators = ["JOB_LOSS"] if _JOB_LOSS_PATTERN.search(message) else []
+    return ProviderResult(
+        content={"indicator_types": indicators},
+        model_id=_MODEL_ID,
+        latency_ms=0.0,
+        input_tokens=0,
+        output_tokens=0,
+    )
+
+
+def _dispute_category(message: str) -> str:
+    if _NOT_MY_DEBT_PATTERN.search(message):
+        return "NOT_MY_DEBT"
+    if _ALREADY_PAID_PATTERN.search(message):
+        return "ALREADY_PAID"
+    if _AMOUNT_INCORRECT_PATTERN.search(message):
+        return "AMOUNT_INCORRECT"
+    return "OTHER"
+
+
+def _extract_dispute(message: str) -> ProviderResult:
+    return ProviderResult(
+        content={"category": _dispute_category(message)},
+        model_id=_MODEL_ID,
+        latency_ms=0.0,
+        input_tokens=0,
+        output_tokens=0,
     )
 
 

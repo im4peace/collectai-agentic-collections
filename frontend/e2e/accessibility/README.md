@@ -4,7 +4,7 @@ This directory holds the automated accessibility suite: axe scans, keyboard-navi
 
 ## Scope
 
-- **Axe scans** (zero serious/critical violations): persona switcher, forbidden page, Portfolio, Customer 360, Chat, Escalations (list and case detail), Audit Trail.
+- **Axe scans** (zero serious/critical violations): persona switcher, forbidden page, Portfolio, Customer 360, Chat, Escalations (list and case detail), Audit Trail, and the manager Dashboard (`dashboard.spec.ts`, E10-S4: three headed sections, text data-label badges, no mutation controls, keyboard operation, and the forbidden page with no KPI request for every other persona).
 - **Keyboard navigation**: every primary journey's interactive controls are reachable and operable without a mouse, with a visible focus indicator (`nav-and-switcher.spec.ts`).
 - **Focus management**: dialogs (`ConfirmDialog`, shared by the Record Promise-to-Pay form and the chat proposal Confirm/Cancel UI) move focus in on open, trap it while open, and return it to the trigger on close (`dialogs-and-live-region.spec.ts`). New assistant chat messages are announced through a polite `aria-live` region, not just appended silently.
 - **Color is never the only signal**: every AI, rules-engine, risk, priority and simulated-payment state renders through the shared `Badge` component, which requires real text (`color-not-alone.spec.ts`).

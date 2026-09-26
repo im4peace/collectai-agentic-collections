@@ -11,12 +11,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from collectai.persistence.orm.eval_case_result import EvalCaseResultOrm
 from collectai.persistence.orm.eval_run import EvalRunOrm
 from collectai.types.ids import EntityPrefix, generate_id
-from collectai_eval.schemas import EvalRunResult
+from collectai_eval.schemas import EvalCaseResult, EvalRunResult, TokenUsage
 
 
 async def store_eval_run(session: AsyncSession, result: EvalRunResult) -> str:
@@ -62,3 +63,62 @@ async def store_eval_run(session: AsyncSession, result: EvalRunResult) -> str:
         )
     await session.commit()
     return eval_run_id
+
+
+async def load_latest_run(session: AsyncSession, mode: str) -> EvalRunResult | None:
+    """The most recent stored run for `mode` ("MOCK" or "LIVE"), rebuilt as an
+    `EvalRunResult` -- what `report_markdown.render_markdown_report` renders.
+    `None` when no run of that mode was ever stored (never a substitute from
+    the other mode)."""
+    run = (
+        await session.execute(
+            select(EvalRunOrm)
+            .where(EvalRunOrm.mode == mode)
+            .order_by(EvalRunOrm.run_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if run is None:
+        return None
+    rows = (
+        (
+            await session.execute(
+                select(EvalCaseResultOrm)
+                .where(EvalCaseResultOrm.eval_run_id == run.eval_run_id)
+                .order_by(EvalCaseResultOrm.case_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    token_usage = (
+        TokenUsage(input_tokens=run.input_tokens, output_tokens=run.output_tokens)
+        if run.input_tokens is not None and run.output_tokens is not None
+        else None
+    )
+    return EvalRunResult(
+        mode=run.mode,
+        dataset_version=run.dataset_version,
+        dataset_provenance={str(key): str(value) for key, value in run.dataset_provenance.items()},
+        model_id=run.model_id,
+        prompt_version=run.prompt_version,
+        policy_version=run.policy_version,
+        run_at=run.run_at,
+        case_results=[
+            EvalCaseResult(
+                case_id=row.case_id,
+                category=row.category,
+                expected=row.expected,
+                actual=row.actual,
+                passed=row.passed,
+                critical_policy_violation=row.critical_policy_violation,
+            )
+            for row in rows
+        ],
+        metrics=dict(run.metrics),
+        token_usage=token_usage,
+        estimated_cost_usd=(
+            float(run.estimated_cost_usd) if run.estimated_cost_usd is not None else None
+        ),
+        triggered_by=run.triggered_by,
+    )

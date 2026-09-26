@@ -22,11 +22,12 @@ test.describe("Audit trail viewer accessibility", () => {
   test("is reachable by COMPLIANCE_RISK, has zero serious/critical axe violations and no edit/delete controls", async ({
     page,
   }) => {
-    // `loginAsPersona` already lands on COMPLIANCE_RISK's default route
-    // (Audit Trail is first in its nav list) via client-side navigation; a
-    // redundant `page.goto("/audit")` here would force a full reload that
-    // can race the session write and land on a 403 instead.
+    // Since E7-S3 COMPLIANCE_RISK also holds `escalation:read`, so its first
+    // nav link -- and therefore its landing route -- is Escalations, not Audit
+    // Trail. Reach the viewer the way a real user does: click its nav link
+    // (client-side, so no full reload racing the session write).
     await loginAsPersona(page, "COMPLIANCE_RISK");
+    await page.getByRole("link", { name: "Audit Trail" }).click();
 
     await expect(page.getByRole("heading", { name: "Audit trail" })).toBeVisible();
 
@@ -44,6 +45,7 @@ test.describe("Audit trail viewer accessibility", () => {
 
   test("the search form is keyboard navigable from the top of the page", async ({ page }) => {
     await loginAsPersona(page, "COMPLIANCE_RISK");
+    await page.getByRole("link", { name: "Audit Trail" }).click();
 
     await page.getByRole("heading", { name: "Audit trail" }).click();
     await page.keyboard.press("Tab");

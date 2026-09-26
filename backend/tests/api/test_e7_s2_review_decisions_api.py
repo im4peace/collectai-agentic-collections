@@ -24,6 +24,7 @@ from collectai.persistence.orm.account import AccountOrm
 from collectai.persistence.orm.customer import CustomerOrm
 from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
 from collectai.persistence.orm.escalation_case import EscalationCaseOrm
+from collectai.persistence.orm.hardship_case import HardshipCaseOrm
 from collectai.rules_engine.arrangement import get_eligible_options
 from collectai.types.clock import SimulatedClock
 from collectai.types.enums import AccountType, Bucket, CollectionStatus, LlmMode, Persona
@@ -62,6 +63,7 @@ async def _seed_case(
     status: str = "OPEN",
     exception_types: list[str] | None = None,
     version: int = 1,
+    hardship_case_id: str | None = None,
 ) -> None:
     session.add(
         EscalationCaseOrm(
@@ -79,7 +81,7 @@ async def _seed_case(
             summary="Test case",
             requested_terms=None,
             exception_types=exception_types,
-            hardship_case_id=None,
+            hardship_case_id=hardship_case_id,
             dispute_id=None,
             recommendation_id=None,
             parent_case_id=None,
@@ -510,3 +512,82 @@ async def test_a_decision_against_an_already_decided_case_is_rejected_even_with_
     )
     assert second.status_code == 409, second.text
     assert second.json()["error"]["reason_code"] == "CASE_ALREADY_DECIDED"
+
+
+# Group K: a final reviewer decision closes the linked hardship case (E8-S2 AC3) ----
+
+
+async def _seed_hardship_case(session: AsyncSession, hardship_case_id: str) -> None:
+    session.add(
+        HardshipCaseOrm(
+            hardship_case_id=hardship_case_id,
+            account_id=_ACCOUNT_ID,
+            customer_id=_CUSTOMER_ID,
+            conversation_id=None,
+            status="OPEN",
+            indicators=[{"indicator_type": "JOB_LOSS", "customer_statement": "I lost my job."}],
+            escalation_case_id=None,
+            created_at=_NOW,
+            decided_at=None,
+            updated_at=_NOW,
+            version=1,
+        )
+    )
+    await session.commit()
+
+
+async def test_a_final_decision_marks_the_linked_hardship_case_decided(
+    review_client: TestClient, session: AsyncSession
+) -> None:
+    await _seed_hardship_case(session, "hsp_decided_1")
+    await _seed_case(
+        session,
+        case_id="esc_hardship_decide",
+        queue="HARDSHIP_REVIEW",
+        hardship_case_id="hsp_decided_1",
+    )
+
+    response = _decide(
+        review_client,
+        "esc_hardship_decide",
+        {"action": "REJECT", "expected_version": 1, "reason": "Reviewed with the customer."},
+        idempotency_key="hardship-decide-1",
+    )
+
+    assert response.status_code == 201, response.text
+    hardship = await session.get(HardshipCaseOrm, "hsp_decided_1")
+    assert hardship is not None
+    await session.refresh(hardship)
+    assert hardship.status == "DECIDED"
+    assert hardship.decided_at == _NOW
+    assert hardship.version == 2
+
+
+async def test_a_non_final_action_leaves_the_hardship_case_open(
+    review_client: TestClient, session: AsyncSession
+) -> None:
+    await _seed_hardship_case(session, "hsp_open_1")
+    await _seed_case(
+        session,
+        case_id="esc_hardship_more_info",
+        queue="HARDSHIP_REVIEW",
+        hardship_case_id="hsp_open_1",
+    )
+
+    response = _decide(
+        review_client,
+        "esc_hardship_more_info",
+        {
+            "action": "REQUEST_MORE_INFORMATION",
+            "expected_version": 1,
+            "note": "Please send proof of the change in income.",
+        },
+        idempotency_key="hardship-more-info-1",
+    )
+
+    assert response.status_code == 201, response.text
+    hardship = await session.get(HardshipCaseOrm, "hsp_open_1")
+    assert hardship is not None
+    await session.refresh(hardship)
+    assert hardship.status == "OPEN"
+    assert hardship.decided_at is None

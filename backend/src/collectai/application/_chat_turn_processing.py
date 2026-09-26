@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from collectai.ai_orchestration.safety_precedence import apply_safety_precedence
 from collectai.application._chat_classification import classify, respond_unclassifiable
 from collectai.application._chat_dispute_flow import build_dispute_reply
-from collectai.application._chat_escalation_reporting import report_escalation
+from collectai.application._chat_escalation_reporting import open_reported_escalation
 from collectai.application._chat_hardship_flow import build_hardship_reply
 from collectai.application._chat_persistence import persist_message, persist_turn
 from collectai.application._chat_proposal_flow import build_proposal_reply
@@ -24,13 +24,11 @@ from collectai.application._chat_templates import HANDED_OFF_HOLDING_MESSAGE, SA
 from collectai.application._chat_types import TurnOutcome
 from collectai.audit.service import AuditService
 from collectai.config.policy.provider import PolicyProvider
-from collectai.domain_services.escalation_service import create_escalation
 from collectai.llm_provider.base import LlmProvider
 from collectai.persistence.orm.chat_message import ChatMessageOrm
 from collectai.persistence.orm.conversation import ConversationOrm
 from collectai.types.clock import Clock
 from collectai.types.enums import (
-    CaseSource,
     ContentSource,
     EscalationReason,
     Intent,
@@ -148,28 +146,32 @@ async def classify_and_respond(
 
     escalation_case = None
     if plan.escalation_reason is not None:
-        await report_escalation(
+        escalation_case = await open_reported_escalation(
             session=session,
             audit_service=audit_service,
+            policy_provider=policy_provider,
+            clock=clock,
             correlation_id=correlation_id,
-            customer_id=customer_id,
-            account_id=conversation.account_id,
-            reason=plan.escalation_reason,
-        )
-        creation = await create_escalation(
-            session,
-            reason=plan.escalation_reason,
             customer_id=customer_id,
             account_id=conversation.account_id,
             conversation_id=conversation.conversation_id,
-            item_id=None,
-            source=_case_source_for(plan.escalation_reason),
+            reason=plan.escalation_reason,
+        )
+    vulnerability_case = None
+    if intent_result.vulnerability_detected:
+        # E7-S1 AC1, BRD 13.1 row 12: always opens a routed (never
+        # model-chosen) VULNERABLE_CUSTOMER case, on top of any other.
+        vulnerability_case = await open_reported_escalation(
+            session=session,
+            audit_service=audit_service,
             policy_provider=policy_provider,
             clock=clock,
-            audit_service=audit_service,
             correlation_id=correlation_id,
+            customer_id=customer_id,
+            account_id=conversation.account_id,
+            conversation_id=conversation.conversation_id,
+            reason=EscalationReason.VULNERABLE_CUSTOMER,
         )
-        escalation_case = creation.case
 
     escalation_reason = plan.escalation_reason
     reply_content = plan.content
@@ -254,6 +256,11 @@ async def classify_and_respond(
             reply_labels = list(proposal_outcome.labels)
             proposal_row = proposal_outcome.proposal
 
+    if vulnerability_case is not None:
+        # The reply template is already the vulnerable one (D-016 precedence).
+        escalation_case = vulnerability_case
+        escalation_reason = EscalationReason.VULNERABLE_CUSTOMER
+
     assistant_message = await persist_message(
         session,
         conversation_id=conversation.conversation_id,
@@ -289,11 +296,3 @@ async def classify_and_respond(
         proposal=proposal_row,
         escalation_case=escalation_case,
     )
-
-
-def _case_source_for(reason: EscalationReason) -> CaseSource:
-    """AC1's two Group-G-wired triggers: REQUEST_HUMAN is a direct customer
-    ask (`CaseSource.CUSTOMER`); UNRESOLVED_UNKNOWN is the deterministic chat
-    flow giving up after `max_clarification_turns` (`CaseSource.SYSTEM`),
-    never `CaseSource.AI` -- no LLM output decides this trigger."""
-    return CaseSource.CUSTOMER if reason is EscalationReason.REQUEST_HUMAN else CaseSource.SYSTEM

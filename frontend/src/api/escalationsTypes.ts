@@ -4,7 +4,7 @@
  * E7-S5/E7-S3).
  */
 import type { ChatMessage } from "./chatTypes";
-import type { Recommendation } from "./customer360Types";
+import type { Dispute, Recommendation } from "./customer360Types";
 import type { PageInfo } from "./types";
 
 export const ESCALATION_REASONS = [
@@ -81,6 +81,9 @@ export interface EscalationCaseDetail extends EscalationListItem {
   ai_recommendation: Recommendation | null;
   rule_results: EscalationRuleResults;
   approve_permitted: boolean;
+  /** E11-S4: the linked dispute for a DISPUTE_REVIEW case, COLLECTIONS_OFFICER
+   * viewers only (absent or null otherwise). */
+  dispute?: Dispute | null;
 }
 
 export const REVIEW_ACTIONS = [

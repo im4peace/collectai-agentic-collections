@@ -328,10 +328,13 @@ def test_transactional_intent_alone_gets_a_templated_acknowledgement(
     assert body["safe_state"] == "NONE"
 
 
-def test_transactional_intent_with_vulnerability_detected_is_overridden_by_sensitivity(
-    chat_client: TestClient, customer_session_headers: dict[str, str]
+@pytest.mark.asyncio
+async def test_transactional_intent_with_vulnerability_detected_is_overridden_by_sensitivity(
+    chat_client: TestClient, customer_session_headers: dict[str, str], session: AsyncSession
 ) -> None:
-    """AC4's explicit dual-signal case."""
+    """AC4's explicit dual-signal case. Group K correction: a vulnerability
+    signal also opens a real VULNERABLE_CUSTOMER escalation (E7-S1 AC1) --
+    the earlier `escalation_reported is False` here encoded the gap."""
     conversation_id = _create_conversation(chat_client, customer_session_headers)
     _script(
         chat_client,
@@ -356,7 +359,13 @@ def test_transactional_intent_with_vulnerability_detected_is_overridden_by_sensi
     assert body["intent"]["vulnerability_detected"] is True
     assert "promise to pay" not in body["assistant_message"]["content"].lower()
     assert "specialist" in body["assistant_message"]["content"].lower()
-    assert body["escalation_reported"] is False
+    assert body["escalation_reported"] is True
+    assert body["escalation_reason"] == "VULNERABLE_CUSTOMER"
+
+    cases = (await session.execute(select(EscalationCaseOrm))).scalars().all()
+    assert [(c.reason, c.queue) for c in cases] == [
+        ("VULNERABLE_CUSTOMER", "VULNERABLE_CUSTOMER_REVIEW")
+    ]
 
 
 async def test_dispute_intent_opens_a_dispute_and_a_real_escalation(
@@ -392,6 +401,101 @@ async def test_dispute_intent_opens_a_dispute_and_a_real_escalation(
     assert len(dispute_cases) == 1
     assert dispute_cases[0].queue == "DISPUTE_REVIEW"
     assert dispute_cases[0].dispute_id == disputes[0].dispute_id
+
+
+# Group K: vulnerability escalation (E7-S1 AC1; E11-S3 AC4) ------------------
+
+
+@pytest.mark.asyncio
+async def test_vulnerability_signal_opens_a_routed_escalation_with_its_audit_events(
+    chat_client: TestClient, customer_session_headers: dict[str, str], session: AsyncSession
+) -> None:
+    conversation_id = _create_conversation(chat_client, customer_session_headers)
+    _script(
+        chat_client,
+        [
+            _intent_response(
+                "UNKNOWN", vulnerability_detected=True, vulnerability_category="BEREAVEMENT"
+            )
+        ],
+    )
+
+    result = _send(
+        chat_client, conversation_id, customer_session_headers, "My husband passed away last week"
+    )
+
+    assert result.status_code == 200, result.body
+    assert result.body["escalation_reported"] is True
+    assert result.body["escalation_reason"] == "VULNERABLE_CUSTOMER"
+    content = result.body["assistant_message"]["content"].lower()
+    assert "specialist" in content
+    for approving_word in ("approved", "waive", "relief", "restructur"):
+        assert approving_word not in content
+
+    (case,) = (await session.execute(select(EscalationCaseOrm))).scalars().all()
+    assert case.reason == "VULNERABLE_CUSTOMER"
+    assert case.queue == "VULNERABLE_CUSTOMER_REVIEW"
+    assert case.status == "OPEN"
+    assert case.conversation_id == conversation_id
+    assert case.source == "SYSTEM"
+
+    events = await queries.list_by_correlation_id(session, result.body["correlation_id"])
+    types = [e.event_type for e in events]
+    assert ESCALATION_REQUIRED_EVENT_TYPE in types
+    assert "ESCALATION_CASE_CREATED" in types
+
+
+@pytest.mark.asyncio
+async def test_repeated_vulnerability_signal_does_not_duplicate_the_open_case(
+    chat_client: TestClient, customer_session_headers: dict[str, str], session: AsyncSession
+) -> None:
+    conversation_id = _create_conversation(chat_client, customer_session_headers)
+    signal = _intent_response(
+        "UNKNOWN", vulnerability_detected=True, vulnerability_category="BEREAVEMENT"
+    )
+    _script(chat_client, [signal, signal])
+
+    first = _send(chat_client, conversation_id, customer_session_headers, "A family bereavement")
+    second = _send(chat_client, conversation_id, customer_session_headers, "Still grieving")
+
+    assert first.status_code == second.status_code == 200
+    cases = (await session.execute(select(EscalationCaseOrm))).scalars().all()
+    assert [c.reason for c in cases] == ["VULNERABLE_CUSTOMER"]
+
+
+@pytest.mark.asyncio
+async def test_vulnerability_with_a_dispute_opens_both_cases_and_reports_vulnerability(
+    chat_client: TestClient, customer_session_headers: dict[str, str], session: AsyncSession
+) -> None:
+    """The vulnerability case never replaces the dispute's own record and
+    suppression -- both are created (safety precedence is about the reply
+    and reported reason, not about dropping the dispute)."""
+    conversation_id = _create_conversation(chat_client, customer_session_headers)
+    _script(
+        chat_client,
+        [
+            _intent_response(
+                "DISPUTE", vulnerability_detected=True, vulnerability_category="BEREAVEMENT"
+            ),
+            _dispute_extraction_response(),
+        ],
+    )
+
+    result = _send(
+        chat_client,
+        conversation_id,
+        customer_session_headers,
+        "This is not mine, and I am grieving",
+    )
+
+    assert result.status_code == 200, result.body
+    assert result.body["escalation_reason"] == "VULNERABLE_CUSTOMER"
+    disputes = (await session.execute(select(DisputeOrm))).scalars().all()
+    assert len(disputes) == 1
+    reasons = sorted(
+        c.reason for c in (await session.execute(select(EscalationCaseOrm))).scalars().all()
+    )
+    assert reasons == ["DISPUTE", "VULNERABLE_CUSTOMER"]
 
 
 # AC5 -------------------------------------------------------------------

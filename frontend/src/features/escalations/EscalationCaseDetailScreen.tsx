@@ -9,6 +9,7 @@ import { ESCALATION_REASONS } from "../../api/escalationsTypes";
 import { formatDateTime } from "../../lib/formatDateTime";
 import type { ChatMessage } from "../../api/chatTypes";
 import { PRIORITY_DISPLAY, QUEUE_LABELS, REASON_LABELS, STATUS_DISPLAY, formatAge } from "./escalationLabels";
+import { DisputeResolutionPanel } from "./DisputeResolutionPanel";
 import { ReasonActionDialog } from "./ReasonActionDialog";
 import { useCaseDecision } from "./useCaseDecision";
 import { useEscalationCaseDetail } from "./useEscalationCaseDetail";
@@ -82,46 +83,44 @@ export function EscalationCaseDetailScreen(): JSX.Element {
   const showComplianceControls =
     persona === "COMPLIANCE_RISK" && data.queue === "COMPLIANCE_REVIEW" && isActionable;
 
+  /** After a decision attempt that reached the server's verdict -- recorded
+   * (`success`) or rejected as stale (`version_conflict`) -- close the dialog
+   * and reload the case, so the screen shows the server's current version and
+   * the next action uses it. Any other failure leaves the dialog open with its
+   * error message, exactly as before. Nothing is ever retried automatically. */
+  function closeAndReload(closeDialog: () => void): void {
+    closeDialog();
+    refetch();
+  }
+
   async function handleReviewConfirm(reason: string): Promise<void> {
     if (data === null || activeDialog === null) return;
-    const ok = await decision.submitReviewDecision(data.case_id, data.version, {
+    const outcome = await decision.submitReviewDecision(data.case_id, data.version, {
       action: activeDialog,
       reason,
       escalateReason: activeDialog === "ESCALATE" ? escalateReason : undefined,
     });
-    if (ok) {
-      setActiveDialog(null);
-      refetch();
-    } else if (decision.versionConflict) {
-      setActiveDialog(null);
-      refetch();
-    }
+    if (outcome !== "error") closeAndReload(() => setActiveDialog(null));
   }
 
   async function handleApproveConfirm(): Promise<void> {
     if (data === null) return;
-    const ok = await decision.submitReviewDecision(data.case_id, data.version, {
+    const outcome = await decision.submitReviewDecision(data.case_id, data.version, {
       action: "APPROVE",
       reason: "Approved by reviewer.",
     });
-    if (ok || decision.versionConflict) {
-      setActiveDialog(null);
-      refetch();
-    }
+    if (outcome !== "error") closeAndReload(() => setActiveDialog(null));
   }
 
   async function handleComplianceConfirm(reason: string): Promise<void> {
     if (data === null || activeComplianceDialog === null) return;
-    const ok = await decision.submitComplianceDecision(
+    const outcome = await decision.submitComplianceDecision(
       data.case_id,
       data.version,
       activeComplianceDialog,
       reason,
     );
-    if (ok || decision.versionConflict) {
-      setActiveComplianceDialog(null);
-      refetch();
-    }
+    if (outcome !== "error") closeAndReload(() => setActiveComplianceDialog(null));
   }
 
   const priorityDisplay = PRIORITY_DISPLAY[data.priority];
@@ -218,6 +217,14 @@ export function EscalationCaseDetailScreen(): JSX.Element {
           </p>
         )}
       </section>
+
+      {data.dispute != null && (
+        <DisputeResolutionPanel
+          dispute={data.dispute}
+          canResolve={session?.capabilities.includes("dispute:resolve") === true}
+          onChanged={refetch}
+        />
+      )}
 
       {showOfficerControls && (
         <section className="panel" aria-labelledby="officer-actions-heading">

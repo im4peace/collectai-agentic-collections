@@ -21,6 +21,7 @@ from collectai.persistence.orm.chat_message import ChatMessageOrm
 from collectai.persistence.orm.conversation import ConversationOrm
 from collectai.persistence.orm.customer import CustomerOrm
 from collectai.persistence.orm.delinquency import DelinquencyRecordOrm
+from collectai.persistence.orm.dispute import DisputeOrm
 from collectai.persistence.orm.escalation_case import EscalationCaseOrm
 from collectai.persistence.orm.recommendation import RecommendationOrm
 from collectai.types.clock import SimulatedClock
@@ -61,6 +62,7 @@ async def _seed_case(
     recommendation_id: str | None = None,
     exception_types: list[str] | None = None,
     requested_terms: dict[str, object] | None = None,
+    dispute_id: str | None = None,
 ) -> None:
     session.add(
         EscalationCaseOrm(
@@ -79,7 +81,7 @@ async def _seed_case(
             requested_terms=requested_terms,
             exception_types=exception_types,
             hardship_case_id=None,
-            dispute_id=None,
+            dispute_id=dispute_id,
             recommendation_id=recommendation_id,
             parent_case_id=None,
             rerouted_to_case_id=None,
@@ -348,3 +350,84 @@ async def test_unknown_case_id_returns_404(
     del session
     response = detail_client.get("/api/escalations/esc_does_not_exist", headers=_OFFICER_HEADERS)
     assert response.status_code == 404, response.text
+
+
+# Group K (E11-S4 AC3): the additive `dispute` block ----------------------------
+
+
+async def _seed_dispute(session: AsyncSession, dispute_id: str) -> None:
+    session.add(
+        DisputeOrm(
+            dispute_id=dispute_id,
+            account_id=_ACCOUNT_ID,
+            customer_id=_CUSTOMER_ID,
+            item_id=None,
+            category="NOT_MY_DEBT",
+            customer_reason="This is not my debt.",
+            status="OPEN",
+            outcome=None,
+            resolution_reason=None,
+            conversation_id=None,
+            escalation_case_id=None,
+            created_at=_NOW,
+            resolved_at=None,
+            updated_at=_NOW,
+            version=1,
+        )
+    )
+    await session.commit()
+
+
+async def test_dispute_case_detail_includes_the_linked_dispute_for_an_officer(
+    detail_client: TestClient, session: AsyncSession
+) -> None:
+    await _seed_dispute(session, "dsp_detail_1")
+    await _seed_case(
+        session,
+        case_id="esc_detail_dispute",
+        queue="DISPUTE_REVIEW",
+        dispute_id="dsp_detail_1",
+    )
+
+    response = detail_client.get("/api/escalations/esc_detail_dispute", headers=_OFFICER_HEADERS)
+
+    assert response.status_code == 200, response.text
+    dispute = response.json()["dispute"]
+    assert dispute["dispute_id"] == "dsp_detail_1"
+    assert dispute["status"] == "OPEN"
+    assert dispute["category"] == "NOT_MY_DEBT"
+    assert dispute["version"] == 1
+    assert dispute["outcome"] is None
+
+
+async def test_case_detail_without_a_dispute_has_a_null_dispute_block(
+    detail_client: TestClient, session: AsyncSession
+) -> None:
+    await _seed_case(session, case_id="esc_detail_no_dispute")
+
+    response = detail_client.get("/api/escalations/esc_detail_no_dispute", headers=_OFFICER_HEADERS)
+
+    assert response.status_code == 200
+    assert response.json()["dispute"] is None
+
+
+async def test_dispute_block_is_never_shown_to_compliance_risk(
+    detail_client: TestClient, session: AsyncSession
+) -> None:
+    """`dispute:read` is officer-only (`api/rbac.py`); the case-detail read
+    must not become a side door to dispute data for another persona."""
+    await _seed_dispute(session, "dsp_detail_2")
+    await _seed_case(
+        session,
+        case_id="esc_detail_dispute_compliance",
+        queue="COMPLIANCE_REVIEW",
+        reviewer_role="COMPLIANCE_RISK",
+        dispute_id="dsp_detail_2",
+    )
+
+    response = detail_client.get(
+        "/api/escalations/esc_detail_dispute_compliance", headers=_COMPLIANCE_HEADERS
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["dispute"] is None

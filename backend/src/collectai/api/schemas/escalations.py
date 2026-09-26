@@ -10,7 +10,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from collectai.api.schemas._chat_message import ChatMessage
-from collectai.api.schemas.customer360 import Recommendation
+from collectai.api.schemas.customer360 import Dispute, Recommendation
 from collectai.api.schemas.me import PageInfo, PaymentArrangement
 from collectai.types.enums import (
     CaseSource,
@@ -181,3 +181,6 @@ class EscalationCaseDetail(BaseModel):
     ai_recommendation: Recommendation | None
     rule_results: EscalationRuleResults
     approve_permitted: bool
+    dispute: Dispute | None = None
+    """E11-S4 AC3 (additive): the linked dispute for a DISPUTE_REVIEW case,
+    COLLECTIONS_OFFICER viewers only; `None` for every other case/viewer."""
