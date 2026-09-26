@@ -18,13 +18,14 @@ import re
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
 
 import embedded_postgres as ep
 import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from collectai.domain_services import readiness_service
@@ -40,11 +41,27 @@ _MIGRATIONS_DIR = _BACKEND / "src" / "collectai" / "persistence" / "migrations"
 _INSERT_ONLY = ("audit_event", "chat_message", "payment_event", "review_decision")
 
 
-def _uri(server_uri: str, *, user: str, database: str) -> str:
-    """The server's trust-auth URI, rewritten for another role and database."""
-    parts = urlsplit(server_uri)
-    netloc = f"{user}:@{parts.hostname}:{parts.port}"
-    return urlunsplit((parts.scheme, netloc, f"/{database}", "", ""))
+# `pg_server.get_uri()` is `postgresql://postgres:@localhost:<port>/postgres` where the server
+# listens on TCP (Windows) but `postgresql://postgres:@/postgres?host=<socket dir>` where it
+# listens on a unix socket (Linux, macOS, CI). Both helpers parse the URI with the drivers' own
+# parsers and change only the role, the password and the database, so whichever transport the
+# server uses is carried over unchanged.
+
+
+def _dsn(server_uri: str, *, user: str, database: str) -> str:
+    """A libpq connection string for the same server, as another role and database."""
+    params = conninfo_to_dict(server_uri)
+    params.pop("password", None)  # embedded PostgreSQL trusts every local connection
+    params.update(user=user, dbname=database)
+    return make_conninfo(**params)
+
+
+def _async_url(server_uri: str, *, user: str, database: str) -> URL:
+    """The same server for SQLAlchemy's asyncpg driver, as another role and database."""
+    # the server URI carries an empty password (trust authentication), which is kept as is
+    return make_url(server_uri).set(
+        drivername="postgresql+asyncpg", username=user, database=database
+    )
 
 
 def _run(dsn: str, sql: str) -> None:
@@ -93,10 +110,10 @@ class _Databases:
         return name
 
     def dsn(self, database: str, user: str = "postgres") -> str:
-        return _uri(self._server_uri, user=user, database=database)
+        return _dsn(self._server_uri, user=user, database=database)
 
-    def async_url(self, database: str, user: str) -> str:
-        return self.dsn(database, user).replace("postgresql://", "postgresql+asyncpg://", 1)
+    def async_url(self, database: str, user: str) -> URL:
+        return _async_url(self._server_uri, user=user, database=database)
 
     def admin(self, sql: str) -> None:
         _run(self.dsn("postgres"), sql)
@@ -115,7 +132,8 @@ class _Databases:
         )
         config = Config(str(_BACKEND / "alembic.ini"))
         config.set_main_option("script_location", str(_MIGRATIONS_DIR))
-        config.set_main_option("sqlalchemy.url", self.async_url(self.template, "collectai_owner"))
+        url = self.async_url(self.template, "collectai_owner").render_as_string(hide_password=False)
+        config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))  # ConfigParser escaping
         command.upgrade(config, "head")
 
     def clone(self) -> str:
@@ -154,6 +172,74 @@ async def _app_role_grants(databases: _Databases, database: str) -> tuple[bool, 
         await engine.dispose()
     check = next(c for c in result.checks if c.name == "app_role_grants")
     return check.ok, check.detail
+
+
+# ---- the URI helpers (no server needed) -----------------------------------------------------
+
+_TCP_URI = "postgresql://postgres:@localhost:54321/postgres"
+_SOCKET_URI = "postgresql://postgres:@/postgres?host=/tmp/pytest-of-runner/pytest-0/pgdata0"
+
+
+def test_dsn_keeps_the_tcp_host_and_port() -> None:
+    params = conninfo_to_dict(_dsn(_TCP_URI, user="collectai_owner", database="grants_db"))
+
+    assert params == {
+        "host": "localhost",
+        "port": "54321",
+        "user": "collectai_owner",
+        "dbname": "grants_db",
+    }
+
+
+def test_dsn_keeps_the_unix_socket_directory() -> None:
+    dsn = _dsn(_SOCKET_URI, user="collectai_owner", database="grants_db")
+
+    assert conninfo_to_dict(dsn) == {
+        "host": "/tmp/pytest-of-runner/pytest-0/pgdata0",
+        "user": "collectai_owner",
+        "dbname": "grants_db",
+    }
+    assert "None" not in dsn  # the bug: host and port were rebuilt from a URI that had neither
+
+
+def test_async_url_keeps_the_tcp_host_and_port() -> None:
+    url = _async_url(_TCP_URI, user="collectai_app", database="grants_db")
+
+    assert (url.drivername, url.username, url.host, url.port, url.database) == (
+        "postgresql+asyncpg",
+        "collectai_app",
+        "localhost",
+        54321,
+        "grants_db",
+    )
+    assert not url.password
+    assert dict(url.query) == {}
+
+
+def test_async_url_keeps_the_unix_socket_directory() -> None:
+    url = _async_url(_SOCKET_URI, user="collectai_app", database="grants_db")
+
+    assert (url.drivername, url.username, url.database) == (
+        "postgresql+asyncpg",
+        "collectai_app",
+        "grants_db",
+    )
+    assert (url.host, url.port) == (None, None)
+    assert dict(url.query) == {"host": "/tmp/pytest-of-runner/pytest-0/pgdata0"}
+
+
+@pytest.mark.parametrize("server_uri", [_TCP_URI, _SOCKET_URI])
+def test_the_alembic_url_survives_configparser_interpolation(server_uri: str) -> None:
+    """Alembic keeps the URL in a ConfigParser value, where a bare `%` (the encoding of `/` in
+    the socket directory) would be read as interpolation."""
+    url = _async_url(server_uri, user="collectai_owner", database="grants_db")
+    rendered = url.render_as_string(hide_password=False)
+    config = Config()
+
+    config.set_main_option("sqlalchemy.url", rendered.replace("%", "%%"))
+
+    assert config.get_main_option("sqlalchemy.url") == rendered
+    assert make_url(rendered) == url
 
 
 # ---- the init sequence ----------------------------------------------------------------------

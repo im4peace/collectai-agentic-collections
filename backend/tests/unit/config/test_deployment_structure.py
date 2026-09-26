@@ -152,7 +152,8 @@ def test_docker_smoke_covers_the_startup_sequence_and_always_cleans_up(
     assert job["env"] == {"COMPOSE_FILE": "docker-compose.yml:docker-compose.test.yml"}
     assert "docker compose config -q" in text
     assert "up --build -d db migrate grants api" in text
-    assert "app_role_grants" in text
+    assert text.count("api-readiness.sh wait") == 2  # after the fresh start and after the restart
+    assert text.count("api-readiness.sh check") == 2
     assert text.count("verify-app-grants.sh") == 2  # after the fresh start and after the restart
     assert "docker compose down\n" in text  # restart keeps the volume ...
     assert "up -d db migrate grants api" in text
@@ -171,3 +172,46 @@ def test_ci_never_configures_a_live_key_or_a_repository_secret(jobs: dict[str, A
 
     assert all("ANTHROPIC_API_KEY" not in env for env in configured)
     assert "secrets." not in (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+
+def test_no_workflow_command_contains_a_literal_backslash_n(jobs: dict[str, Any]) -> None:
+    """A shell line continuation written as backslash + `n` instead of backslash + newline made
+    the docker-smoke wait steps run `bash -c n ...` and never wait for the API."""
+    backslash_n = chr(92) + "n"
+    for name, job in jobs.items():
+        for step in job["steps"]:
+            assert backslash_n not in step.get("run", ""), f"{name}: {step.get('name')}"
+
+
+def test_the_readiness_waits_use_the_diagnostic_script_and_keep_the_180_second_limit(
+    jobs: dict[str, Any],
+) -> None:
+    wait_name = "Wait for the API to report ready"
+    e2e = {s.get("name"): s for s in jobs["e2e"]["steps"]}
+    smoke = {s.get("name"): s for s in jobs["docker-smoke"]["steps"]}
+    script = (ROOT / "deploy" / "ci" / "api-readiness.sh").read_text(encoding="utf-8")
+
+    assert e2e[wait_name]["run"] == "bash deploy/ci/api-readiness.sh wait"
+    assert e2e[wait_name]["env"] == {
+        "COMPOSE_CMD": "docker compose -f docker-compose.yml -f docker-compose.test.yml"
+    }
+    assert smoke[wait_name]["run"] == "bash deploy/ci/api-readiness.sh wait"
+    assert smoke["Health and readiness"]["run"] == "bash deploy/ci/api-readiness.sh check"
+    assert 'WAIT_SECONDS="${WAIT_SECONDS:-180}"' in script
+
+
+def test_the_readiness_script_reports_service_logs_and_the_failure_kind_without_a_pipe() -> None:
+    script = (ROOT / "deploy" / "ci" / "api-readiness.sh").read_text(encoding="utf-8")
+
+    for service in ("api", "db", "migrate", "grants"):
+        assert service in script.split("for service in", 1)[1].split(";", 1)[0]
+    for kind in ("API unavailable", "non-2xx HTTP response", "failed check", "malformed"):
+        assert kind in script
+    assert "app_role_grants" in script
+    assert "curl -s -o" in script  # curl's own exit status is captured, never piped
+    code_lines = [line for line in script.splitlines() if not line.lstrip().startswith("#")]
+    assert not [line for line in code_lines if "curl" in line and " | " in line]
+    # nothing prints the environment or the compose configuration (which interpolates it)
+    code = "\n".join(code_lines)
+    for leak in ("printenv", "compose config", "${COMPOSE[@]}\" config", "docker inspect"):
+        assert leak not in code

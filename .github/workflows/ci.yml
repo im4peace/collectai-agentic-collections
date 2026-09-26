@@ -168,10 +168,12 @@ jobs:
       # under frontend/e2e/journeys, which drive the demo clock and
       # simulated PAY_NOW (`/api/demo-controls/*`, 404 when disabled).
       - run: docker compose -f docker-compose.yml -f docker-compose.test.yml up --build -d db migrate api
+      # On timeout this prints the last HTTP status/body, `docker compose ps` and the
+      # api/db/migrate/grants logs (deploy/ci/api-readiness.sh); the limit is still 180 s.
       - name: Wait for the API to report ready
-        run: |
-          timeout 180 bash -c \
-            'until curl -sf http://localhost:8000/api/ready > /dev/null; do sleep 3; done'
+        env:
+          COMPOSE_CMD: docker compose -f docker-compose.yml -f docker-compose.test.yml
+        run: bash deploy/ci/api-readiness.sh wait
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -206,29 +208,20 @@ jobs:
       - name: Start on a fresh volume (db, migrate, grants, api)
         run: docker compose up --build -d db migrate grants api
       - name: Wait for the API to report ready
-        run: |
-          timeout 180 bash -c \n            'until curl -sf http://localhost:8000/api/ready > /dev/null; do sleep 3; done'
+        run: bash deploy/ci/api-readiness.sh wait
+      # One request each, no retry. A failure names its kind (API unavailable, non-2xx, a failed
+      # check in a 200 body, malformed body) and prints the readiness JSON, `docker compose ps`
+      # and the api/db/migrate/grants logs.
       - name: Health and readiness
-        run: |
-          curl -sf http://localhost:8000/api/health
-          curl -sf http://localhost:8000/api/ready | tee ready.json
-          python3 - <<'PY'
-          import json
-          body = json.load(open("ready.json"))
-          checks = {c["name"]: c["ok"] for c in body["checks"]}
-          assert body["status"] == "ready", body
-          assert checks.get("app_role_grants") is True, body
-          assert all(checks.values()), body
-          PY
+        run: bash deploy/ci/api-readiness.sh check
       - name: Grants work as designed (allowed and intentionally denied)
         run: docker compose exec -T db bash -s < deploy/db/verify-app-grants.sh
       - name: Restart on the existing volume
         run: |
           docker compose down
           docker compose up -d db migrate grants api
-          timeout 180 bash -c \n            'until curl -sf http://localhost:8000/api/ready > /dev/null; do sleep 3; done'
-          curl -sf http://localhost:8000/api/ready -o ready.json
-          grep -Eq '"status": ?"ready"' ready.json
+          bash deploy/ci/api-readiness.sh wait
+          bash deploy/ci/api-readiness.sh check
       - name: Grants still hold after the restart
         run: docker compose exec -T db bash -s < deploy/db/verify-app-grants.sh
       - if: failure()
