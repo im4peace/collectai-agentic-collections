@@ -15,7 +15,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-This starts four services: `db` (PostgreSQL 16), `migrate` (applies migrations, then loads synthetic seed data, then exits), `api` (FastAPI on port 8000), and `web` (the SPA on port 8080, nginx-served, proxying `/api` to `api`).
+This starts five services in order: `db` (PostgreSQL 16; creates the database roles), `migrate` (applies migrations, then loads synthetic seed data, then exits), `grants` (then gives the application and read-only roles their table privileges, then exits), `api` (FastAPI on port 8000, started only after `grants` succeeds), and `web` (the SPA on port 8080, nginx-served, proxying `/api` to `api`).
 
 Once `migrate` finishes, check readiness:
 
@@ -23,9 +23,11 @@ Once `migrate` finishes, check readiness:
 curl http://localhost:8000/api/ready
 ```
 
-Reports `{"status": "ready", ...}` once the database is migrated, exactly one PolicyRuleSet version is active, and the `audit_event` table's role grants are intact. The app is at `http://localhost:8080`.
+Reports `{"status": "ready", ...}` once the database is migrated, exactly one PolicyRuleSet version is active, and the application role's privileges on the tables (including the `audit_event` grants) are intact. The app is at `http://localhost:8080`.
 
 Reset everything (drops the database volume): `docker compose down -v`.
+
+**Existing database volume from before the `grants` service?** Run `docker compose down -v` once, then start again. Earlier versions applied the table grants before the tables existed, so a volume created that way is missing them (`/api/ready` reports `app_role_grants` as not ok). To re-apply the grants to a volume you want to keep, run `docker compose run --rm grants`.
 
 ## Demo controls (demo only)
 
@@ -84,6 +86,7 @@ The `migrate` service does this automatically on `docker compose up`, but it can
 ```bash
 make migrate   # alembic upgrade head, as the collectai_owner role
 make seed      # generate, validate, scan and idempotently load synthetic seed data
+make grants    # re-apply the role grants after migrations (the `grants` service does this on `up`)
 ```
 
 `make seed` refuses to load any dataset that fails validation or the prohibited-pattern scan (`backend/src/collectai/persistence/seed/scanner.py`) — it never loads real-looking PII.
@@ -129,7 +132,7 @@ npm run test:run
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push and pull request: `lint-type`, `backend-unit`, `backend-db`, `architecture`, `frontend`. No repository secret is configured and `ANTHROPIC_API_KEY` is never set in the workflow, so LIVE mode never runs in CI. See that file's header comment for which additional jobs later stories add (data safety scans, MOCK evaluation, OpenAPI contract drift, end-to-end journeys).
+`.github/workflows/ci.yml` runs on every push and pull request: `lint-type`, `backend-unit`, `backend-db`, `architecture`, `frontend`, `docker-smoke` (Docker startup order and database grants) and `e2e`. No repository secret is configured and `ANTHROPIC_API_KEY` is never set in the workflow, so LIVE mode never runs in CI. See that file's header comment for which additional jobs later stories add (data safety scans, MOCK evaluation, OpenAPI contract drift, end-to-end journeys).
 
 ## Accessibility
 

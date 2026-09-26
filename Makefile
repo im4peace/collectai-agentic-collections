@@ -3,7 +3,7 @@
 # added by the stories that build those subsystems (frontend e2e stories,
 # E10-S1), not stubbed ahead of time.
 
-.PHONY: up down logs migrate seed test test-backend test-frontend lint arch build
+.PHONY: up down logs migrate grants seed test test-backend test-frontend lint arch build
 
 up:
 	docker compose up --build
@@ -16,6 +16,9 @@ logs:
 
 migrate:
 	docker compose run --rm migrate python -m collectai.bootstrap.cli migrate
+
+grants:
+	docker compose run --rm grants
 
 seed:
 	docker compose run --rm migrate python -m collectai.bootstrap.cli seed

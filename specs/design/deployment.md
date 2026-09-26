@@ -17,9 +17,10 @@ Future (not built): a single-VM hosted demo could reuse the same images with an 
 
 | Service | Image / build | Role | Notes |
 |---|---|---|---|
-| `db` | `postgres:16` | Database | Volume `pgdata`; init script `deploy/db/init-roles.sql` creates `collectai_owner` and `collectai_app`; healthcheck `pg_isready` |
+| `db` | `postgres:16` | Database | Volume `pgdata`; init script `deploy/db/init-roles.sql` creates the three roles only (no tables exist yet, so its table grants are skipped); healthcheck `pg_isready` |
 | `migrate` | `backend/Dockerfile` (one-shot) | `python -m collectai.bootstrap migrate` as owner role, then `python -m collectai.bootstrap seed` (idempotent; validation + prohibited-pattern scan), then exits | `depends_on: db (healthy)`; re-runnable |
-| `api` | `backend/Dockerfile` | FastAPI via uvicorn, connects as `collectai_app` | `depends_on: migrate (completed)`; healthcheck `GET /api/ready`; env from `.env` |
+| `grants` | `postgres:16` (one-shot, `psql`) | Applies `deploy/db/init-roles.sql` again as `collectai_owner` (`ON_ERROR_STOP`), now that the tables exist, so `collectai_app` and `collectai_readonly` receive their table privileges; no superuser; idempotent | `depends_on: migrate (completed)`; re-runnable with `docker compose run --rm grants` |
+| `api` | `backend/Dockerfile` | FastAPI via uvicorn, connects as `collectai_app` | `depends_on: grants (completed)`; healthcheck `GET /api/ready`; env from `.env` |
 | `web` | `frontend/Dockerfile` (multi-stage: build, then nginx) | Serves the SPA and proxies `/api` to `api:8000` | Same-origin, so no CORS; security headers set |
 | (test override) | `docker-compose.test.yml` | CI and E2E: MOCK, `DEMO_CONTROLS_ENABLED=true`, seeded database | Playwright runs from the host or CI runner against `web` |
 
@@ -61,7 +62,7 @@ No cloud infrastructure exists, so no Terraform or Pulumi is introduced (avoidin
 - **Migrations**: Alembic, applied by the `migrate` service as `collectai_owner`; the running app never holds owner rights. Migrations are forward-only in normal use and follow expand-then-contract for column changes. Downgrades exist for development but the audit table migration is never downgraded destructively.
 - **Backups**: not needed for synthetic data; recreation is `docker compose down -v && docker compose up`. If an audit-preserving reset is wanted, `pg_dump -t audit_event` before `down -v` (documented in the README).
 - **Reseed**: `python -m collectai.bootstrap seed` (idempotent upsert) or the flag-gated demo reseed endpoint (deletes business tables, keeps `audit_event`, deterministic ids).
-- **Readiness contract** (`GET /api/ready`): database reachable, migrations at head, exactly one valid ACTIVE policy version, audit grants intact (INSERT/SELECT only). The API refuses to start if settings or the active policy are invalid, or if the app role can UPDATE or DELETE `audit_event`.
+- **Readiness contract** (`GET /api/ready`): database reachable, migrations at head, exactly one valid ACTIVE policy version, audit grants intact (INSERT/SELECT only), and the application role's privileges on every public table intact (`app_role_grants`: SELECT and INSERT everywhere, UPDATE except on the insert-only tables, never DELETE). The API refuses to start if settings or the active policy are invalid, or if the app role can UPDATE or DELETE `audit_event`.
 
 ## 6. Rollback and recovery
 | Change | Rollback |
@@ -80,7 +81,7 @@ Structured JSON logs to stdout (collected by `docker compose logs`), correlation
 | Symptom | Likely cause | Action |
 |---|---|---|
 | API exits at startup naming a parameter | Invalid `.env` value or policy file | Fix the named key or policy parameter (contract ranges in data-models 5 and 5.1) |
-| API exits "audit role can mutate" | Grants changed manually | Re-run `deploy/db/init-roles.sql` and the audit-grant migration as owner |
+| API exits "audit role can mutate" | Grants changed manually | Re-run the grants as owner (`docker compose run --rm grants`) and the audit-grant migration |
 | Chat replies "AI unavailable" | LIVE mode without a valid key/model or provider timeout | Check `/api/meta` `llm_mode`; switch to MOCK; "Talk to a human" still works |
 | Every recommendation is HUMAN_REVIEW_ONLY | Account has an open escalation/hardship/dispute | Expected behaviour; decide the case in the review queue |
 | 503 POLICY_UNAVAILABLE | No valid ACTIVE policy row | Activate a valid version via the CLI |

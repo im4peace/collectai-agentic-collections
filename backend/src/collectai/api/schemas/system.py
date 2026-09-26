@@ -16,7 +16,7 @@ class HealthStatus(BaseModel):
 
 class ReadyCheck(BaseModel):
     """One readiness check (database, migrations, policy_ruleset,
-    audit_role_grants)."""
+    audit_role_grants, app_role_grants)."""
 
     model_config = ConfigDict(frozen=True)
 

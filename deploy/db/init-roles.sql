@@ -23,6 +23,20 @@
 -- Idempotent: safe to re-run against a database where the roles already
 -- exist (matches migrations' own "applies cleanly, re-runs without error"
 -- requirement, AC5).
+--
+-- Two phases, one file (docker-compose.yml runs it twice):
+--   1. At database initialisation, before any table exists (mounted into the
+--      postgres image's /docker-entrypoint-initdb.d): creates the three
+--      roles. The table grants below are skipped, because
+--      `alembic_version` does not exist yet, and a GRANT on a missing table
+--      would abort the whole initialisation.
+--   2. After the migrations, as `collectai_owner` (the `grants` service, run
+--      with ON_ERROR_STOP): `alembic_version` now exists, so every GRANT below
+--      runs as a plain statement. A table that is missing or was renamed then
+--      fails loudly; nothing is skipped silently.
+-- The application role must not be used before phase 2 has succeeded: the
+-- `api` service waits for the `grants` service, and GET /api/ready verifies
+-- the resulting privileges (readiness check `app_role_grants`).
 
 DO
 $$
@@ -40,6 +54,16 @@ BEGIN
     END IF;
 END
 $$;
+
+-- Phase 2 only: every statement below needs the migrated schema. The marker is
+-- `alembic_version`, created by the first migration (in the same transaction as the tables).
+DO
+$grants$
+BEGIN
+    IF to_regclass('public.alembic_version') IS NULL THEN
+        RAISE NOTICE 'init-roles: migrations not applied yet; roles ensured, table grants deferred';
+        RETURN;
+    END IF;
 
 -- Ordinary business tables: collectai_app may INSERT, SELECT and UPDATE.
 -- (audit_event is deliberately absent from every list below: it does not
@@ -107,3 +131,5 @@ TO collectai_readonly;
 -- idempotency_record.idempotency_id, audit_event.sequence once E1-S4 adds
 -- it) need USAGE for collectai_app to insert; readonly needs none.
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO collectai_app;
+END
+$grants$;

@@ -36,6 +36,24 @@ services:
       db:
         condition: service_healthy
 
+  # Startup order: db initialises (roles only, no tables yet) -> migrate creates
+  # the tables and seeds, as collectai_owner -> grants gives collectai_app and
+  # collectai_readonly their privileges on those tables -> api starts as
+  # collectai_app. The table grants cannot run at db initialisation because the
+  # tables do not exist yet, so the same deploy/db/init-roles.sql is applied
+  # again here, after migrate. The owner owns the tables, so no superuser is needed.
+  grants:
+    image: postgres:16
+    environment:
+      PGPASSWORD: ${COLLECTAI_OWNER_PASSWORD:-change-me}
+    volumes:
+      - ./deploy/db/init-roles.sql:/sql/init-roles.sql:ro
+    command:
+      ["psql", "-v", "ON_ERROR_STOP=1", "-h", "db", "-U", "collectai_owner", "-d", "collectai", "-f", "/sql/init-roles.sql"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     build:
       context: ./backend
@@ -48,7 +66,7 @@ services:
       timeout: 5s
       retries: 10
     depends_on:
-      migrate:
+      grants:
         condition: service_completed_successfully
 
   web:

@@ -1004,7 +1004,7 @@ One readiness check.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `name` | string | yes | database, migrations, policy_ruleset, audit_role_grants |
+| `name` | string | yes | database, migrations, policy_ruleset, audit_role_grants, app_role_grants |
 | `ok` | boolean | yes | Check result |
 | `detail` | string or null | yes | Safe detail |
 

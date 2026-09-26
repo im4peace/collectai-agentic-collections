@@ -183,3 +183,55 @@ jobs:
         run: npm run e2e
       - if: always()
         run: docker compose -f docker-compose.yml -f docker-compose.test.yml down -v
+
+  docker-smoke:
+    # The compose startup order and the database grants, on a real PostgreSQL:
+    # db initialises (roles only) -> migrate -> grants -> api. Covers the
+    # fresh-volume start, `/api/ready` (including `app_role_grants`), what
+    # `collectai_app` and `collectai_readonly` can and cannot do
+    # (`deploy/db/verify-app-grants.sh`), and a restart on the existing volume.
+    # MOCK only: `docker-compose.test.yml` forces it, and no API key is set.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: .
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.test.yml
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - name: Compose files are valid
+        run: docker compose config -q
+      - name: Start on a fresh volume (db, migrate, grants, api)
+        run: docker compose up --build -d db migrate grants api
+      - name: Wait for the API to report ready
+        run: |
+          timeout 180 bash -c \n            'until curl -sf http://localhost:8000/api/ready > /dev/null; do sleep 3; done'
+      - name: Health and readiness
+        run: |
+          curl -sf http://localhost:8000/api/health
+          curl -sf http://localhost:8000/api/ready | tee ready.json
+          python3 - <<'PY'
+          import json
+          body = json.load(open("ready.json"))
+          checks = {c["name"]: c["ok"] for c in body["checks"]}
+          assert body["status"] == "ready", body
+          assert checks.get("app_role_grants") is True, body
+          assert all(checks.values()), body
+          PY
+      - name: Grants work as designed (allowed and intentionally denied)
+        run: docker compose exec -T db bash -s < deploy/db/verify-app-grants.sh
+      - name: Restart on the existing volume
+        run: |
+          docker compose down
+          docker compose up -d db migrate grants api
+          timeout 180 bash -c \n            'until curl -sf http://localhost:8000/api/ready > /dev/null; do sleep 3; done'
+          curl -sf http://localhost:8000/api/ready -o ready.json
+          grep -Eq '"status": ?"ready"' ready.json
+      - name: Grants still hold after the restart
+        run: docker compose exec -T db bash -s < deploy/db/verify-app-grants.sh
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v

@@ -7176,7 +7176,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "description": "database, migrations, policy_ruleset, audit_role_grants"
+            "description": "database, migrations, policy_ruleset, audit_role_grants, app_role_grants"
           },
           "ok": {
             "type": "boolean",
