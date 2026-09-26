@@ -6,28 +6,34 @@ Reading rules (BRD 4.4, 4.6): MOCK and LIVE are always reported separately. MOCK
 
 ## Dataset provenance
 
-- **Dataset version:** `eval-ds-v1`
-- **Labelled cases:** 60
-- **Authorship method:** Hand-authored phrasing templates, assembled programmatically by collectai_eval/datasets/_build_eval_ds_v1.py -- no LLM-generated or real customer content.
+- **Dataset version:** `eval-ds-v2`
+- **Labelled cases:** 264
+- **Authorship method:** Cases ev-001 to ev-060 are inherited unchanged from eval-ds-v1 (hand-authored phrasing templates, assembled programmatically). Cases ev-061 to ev-264 (204 cases) are AI-assisted: drafted by Claude (an LLM) against the written labelling rubric in datasets/EVAL_DS_V2_LABELLING_RUBRIC.md and assembled by collectai_eval/datasets/_build_eval_ds_v2.py. No real customer content was used.
+- **Change summary:** Adds 204 cases (60 to 264) so that each of FINANCIAL_HARDSHIP, DISPUTE, REQUEST_HUMAN, POLICY_EXCEPTION, POLICY_SETTLEMENT and VULNERABLE_CUSTOMER has 30 cases and every other category has 4 to 14. eval-ds-v1 is unchanged and remains the historical artifact. Existing case ids, messages and intent labels are unchanged; only the label corrections listed below differ.
+- **Human review status:** NOT REVIEWED - PENDING. No human has reviewed these labels. Plan: every case in the six sensitive categories plus a fixed sample of the others (datasets/EVAL_DS_V2_REVIEW_SHEET.md). A MOCK run does not validate labels: the MOCK provider is scripted with each case's own expected answer.
+- **Known limitations:** Category POLICY_SETTLEMENT is not the name in reporting_rules.MANDATORY_ESCALATION_CATEGORIES (SETTLEMENT_REQUEST), so reports show it as not mandatory-escalation; EXCEPTIONAL_ARRANGEMENT has no cases because it cannot be decided from one message. AMBIGUOUS_VALIDATION cases are documentation-only (state-dependent) and count as escalation false negatives in the escalation metrics. The inherited v1 cases ev-053 and ev-054 have arguable intent labels and are unchanged pending review. Single-message classification only; no held-out split; results describe this dataset only.
+- **Label corrections:** 13 expected_escalation_reason values changed from null: ev-019 to ev-024 -> FINANCIAL_HARDSHIP; ev-025 to ev-030 -> DISPUTE; ev-049 -> DISPUTE. Reason: the runner's safety precedence predicts these reasons for every hardship or dispute intent, so null overstated over-escalation (ev-019, ev-020, ev-021, ev-022, ev-023, ev-024, ev-025, ev-026, ev-027, ev-028, ev-029, ev-030, ev-049). No other v1 field was changed.
+- **Labelling rubric:** datasets/EVAL_DS_V2_LABELLING_RUBRIC.md
+- **Parent version:** eval-ds-v1
 - **Synthetic statement:** Every case is synthetic. No real customer data, PII, card numbers, or government identifiers appear anywhere in this dataset.
 
 | Category | Cases |
 |---|---|
-| ADVERSARIAL | 4 |
-| AMBIGUOUS_VALIDATION | 2 |
-| DISPUTE | 6 |
-| EDGE | 4 |
-| FINANCIAL_HARDSHIP | 6 |
-| PAYMENT_PLAN | 6 |
-| PAY_NOW | 6 |
-| POLICY_EXCEPTION | 2 |
-| POLICY_SETTLEMENT | 2 |
-| PROMISE_TO_PAY | 6 |
-| REQUEST_HUMAN | 6 |
-| UNKNOWN | 6 |
-| VULNERABLE_CUSTOMER | 4 |
+| ADVERSARIAL | 14 |
+| AMBIGUOUS_VALIDATION | 4 |
+| DISPUTE | 30 |
+| EDGE | 12 |
+| FINANCIAL_HARDSHIP | 30 |
+| PAYMENT_PLAN | 14 |
+| PAY_NOW | 14 |
+| POLICY_EXCEPTION | 30 |
+| POLICY_SETTLEMENT | 30 |
+| PROMISE_TO_PAY | 14 |
+| REQUEST_HUMAN | 30 |
+| UNKNOWN | 12 |
+| VULNERABLE_CUSTOMER | 30 |
 
-**Sample-size limitation.** The dataset is small and self-authored: 60 cases across 13 categories, between 2 and 6 per category. A per-category recall claim needs at least 30 labelled LIVE cases (BRD 4.4, D-025), so with the current dataset **every per-category result is OBSERVATION_ONLY** -- reported as counts, never as a pass or fail. There is no held-out split. Results describe performance on this dataset only.
+**Sample-size limitation.** The dataset is self-authored: 264 cases across 13 categories, between 4 and 30 per category. A per-category recall claim needs at least 30 labelled LIVE cases (BRD 4.4, D-025). 6 categories have at least 30 labelled cases (DISPUTE, FINANCIAL_HARDSHIP, POLICY_EXCEPTION, POLICY_SETTLEMENT, REQUEST_HUMAN, VULNERABLE_CUSTOMER), so they could carry a claim once a LIVE run exists; that is a precondition, not evidence of quality. 7 categories have fewer (ADVERSARIAL (14), AMBIGUOUS_VALIDATION (4), EDGE (12), PAYMENT_PLAN (14), PAY_NOW (14), PROMISE_TO_PAY (14), UNKNOWN (12)) and stay **OBSERVATION_ONLY** even in a LIVE run. No LIVE run has been stored, so **every per-category result is OBSERVATION_ONLY** -- reported as counts, never as a pass or fail. There is no held-out split. Results describe performance on this dataset only.
 
 ## MOCK regression run
 
@@ -36,38 +42,38 @@ Reading rules (BRD 4.4, 4.6): MOCK and LIVE are always reported separately. MOCK
 | Field | Value |
 |---|---|
 | Data label | MOCK |
-| Evaluation date (UTC) | 2026-09-25 |
+| Evaluation date (UTC) | 2026-09-26 |
 | Model | (none - scripted MOCK provider) |
 | Prompt version | intent_v1 |
 | Policy version | policy-v1 |
-| Dataset version | eval-ds-v1 |
-| Cases | 60 |
-| Triggered by | cli |
+| Dataset version | eval-ds-v2 |
+| Cases | 264 |
+| Triggered by | slice4-dataset-closeout |
 
-Overall intent accuracy: 100.00% (60/60) -- claim status **OBSERVATION_ONLY** (MOCK is never compared to a target).
+Overall intent accuracy: 100.00% (264/264) -- claim status **OBSERVATION_ONLY** (MOCK is never compared to a target).
 
 ### Per-category results
 
 | Category | Mandatory escalation | Cases | True positives | False negatives | Recall | Claim status |
 |---|---|---|---|---|---|---|
-| ADVERSARIAL | no | 4 | 4 | 0 | 100.00% | OBSERVATION_ONLY |
-| AMBIGUOUS_VALIDATION | no | 2 | 2 | 0 | 100.00% | OBSERVATION_ONLY |
-| DISPUTE | yes | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| EDGE | no | 4 | 4 | 0 | 100.00% | OBSERVATION_ONLY |
-| FINANCIAL_HARDSHIP | yes | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| PAYMENT_PLAN | no | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| PAY_NOW | no | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| POLICY_EXCEPTION | yes | 2 | 2 | 0 | 100.00% | OBSERVATION_ONLY |
-| POLICY_SETTLEMENT | no | 2 | 2 | 0 | 100.00% | OBSERVATION_ONLY |
-| PROMISE_TO_PAY | no | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| REQUEST_HUMAN | yes | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| UNKNOWN | no | 6 | 6 | 0 | 100.00% | OBSERVATION_ONLY |
-| VULNERABLE_CUSTOMER | no | 4 | 4 | 0 | 100.00% | OBSERVATION_ONLY |
+| ADVERSARIAL | no | 14 | 14 | 0 | 100.00% | OBSERVATION_ONLY |
+| AMBIGUOUS_VALIDATION | no | 4 | 4 | 0 | 100.00% | OBSERVATION_ONLY |
+| DISPUTE | yes | 30 | 30 | 0 | 100.00% | OBSERVATION_ONLY |
+| EDGE | no | 12 | 12 | 0 | 100.00% | OBSERVATION_ONLY |
+| FINANCIAL_HARDSHIP | yes | 30 | 30 | 0 | 100.00% | OBSERVATION_ONLY |
+| PAYMENT_PLAN | no | 14 | 14 | 0 | 100.00% | OBSERVATION_ONLY |
+| PAY_NOW | no | 14 | 14 | 0 | 100.00% | OBSERVATION_ONLY |
+| POLICY_EXCEPTION | yes | 30 | 30 | 0 | 100.00% | OBSERVATION_ONLY |
+| POLICY_SETTLEMENT | no | 30 | 30 | 0 | 100.00% | OBSERVATION_ONLY |
+| PROMISE_TO_PAY | no | 14 | 14 | 0 | 100.00% | OBSERVATION_ONLY |
+| REQUEST_HUMAN | yes | 30 | 30 | 0 | 100.00% | OBSERVATION_ONLY |
+| UNKNOWN | no | 12 | 12 | 0 | 100.00% | OBSERVATION_ONLY |
+| VULNERABLE_CUSTOMER | no | 30 | 30 | 0 | 100.00% | OBSERVATION_ONLY |
 
 ### Escalation and safety
 
-- Escalation precision: 51.85%; recall: 87.50%; over-escalation rate: 29.55%
-- Vulnerable-customer safety set: 4 cases, 0 critical policy violation(s) (missed escalation)
+- Escalation precision: 100.00%; recall: 97.85%; over-escalation rate: 0.00%
+- Vulnerable-customer safety set: 30 cases, 0 critical policy violation(s) (missed escalation)
 - Safety-set pass rate: not published (needs a LIVE run with at least 30 labelled cases)
 
 ## LIVE evaluation run

@@ -1,5 +1,6 @@
-"""E10-S1 AC1, AC5, AC6: the checked-in dataset itself. Pure, DB-free --
-loads `eval_ds_v1.json` straight off disk.
+"""E10-S1 AC1, AC5, AC6: the checked-in default dataset itself. Pure, DB-free --
+loads `eval_ds_v2.json` straight off disk. (v2's own quality checks, and v1's integrity, are in
+`test_eval_ds_v2_quality.py`.)
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ _REQUIRED_CATEGORIES = {
 
 def test_ac1_dataset_has_version_provenance_and_at_least_50_cases() -> None:
     dataset = load_dataset()
-    assert dataset.dataset_version == "eval-ds-v1"
+    assert dataset.dataset_version == "eval-ds-v2"  # the default; v1 stays as the baseline
     assert "authorship_method" in dataset.provenance
     assert "synthetic_statement" in dataset.provenance
     assert "synthetic" in dataset.provenance["synthetic_statement"].lower()

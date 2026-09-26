@@ -35,9 +35,9 @@ _NOW = datetime(2026, 10, 1, 9, 0, 0, tzinfo=UTC)
 
 # A small, fixed 6-case slice covering every required category at least
 # once, keeping the DB-backed MOCK run in this test file fast -- the full
-# 60-case dataset is already validated separately (DB-free) in
-# test_e10_s1_eval_dataset.py; this file's job is proving the *runner*
-# works end to end, not re-running every case.
+# default dataset is already validated separately (DB-free) in
+# test_e10_s1_eval_dataset.py and test_eval_ds_v2_quality.py; this file's
+# job is proving the *runner* works end to end, not re-running every case.
 _SLICE_CASE_IDS = {"ev-001", "ev-007", "ev-019", "ev-025", "ev-031", "ev-037"}
 
 
@@ -223,7 +223,7 @@ async def test_ac4_stored_eval_run_carries_all_required_metadata(
     assert row is not None
     assert row.mode == "MOCK"
     assert row.model_id is None  # CHECK (mode = 'LIVE' OR model_id IS NULL)
-    assert row.dataset_version == "eval-ds-v1"
+    assert row.dataset_version == "eval-ds-v2"
     assert row.prompt_version
     assert row.policy_version == "policy-v1"
     assert row.run_at == _NOW
@@ -255,5 +255,5 @@ async def test_report_renders_a_mock_section_with_the_stored_metrics(
     )
     report = render_report(result)
     assert "MOCK run" in report
-    assert "eval-ds-v1" in report
+    assert "eval-ds-v2" in report
     assert "small-sample result" in report  # fewer than 30 cases in this slice

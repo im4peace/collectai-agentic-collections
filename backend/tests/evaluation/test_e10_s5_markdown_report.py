@@ -15,7 +15,7 @@ from collectai_eval.cli import _build_arg_parser
 from collectai_eval.datasets.loader import load_dataset
 from collectai_eval.metrics import compute_metrics
 from collectai_eval.report_markdown import render_markdown_report
-from collectai_eval.schemas import EvalCaseResult, EvalRunResult, TokenUsage
+from collectai_eval.schemas import EvalCase, EvalCaseResult, EvalDataset, EvalRunResult, TokenUsage
 from collectai_eval.store import load_latest_run, store_eval_run
 
 _RUN_AT = datetime(2026, 9, 25, 10, 0, 0, tzinfo=UTC)
@@ -155,6 +155,67 @@ def test_mock_and_live_are_separate_sections_and_never_merged() -> None:
     assert "claude-test-model" not in mock
     assert "| Data label | MOCK |" not in live
     assert document.index("## MOCK regression run") < document.index("## LIVE evaluation run")
+
+
+def _dataset_with_counts(counts: dict[str, int]) -> EvalDataset:
+    cases = [
+        EvalCase(
+            case_id=f"{category}-{index}",
+            category=category,
+            message=f"message {category} {index}",
+            expected_intent="UNKNOWN",
+            expected_vulnerability_detected=False,
+            expected_vulnerability_category=None,
+            expected_special_request="NONE",
+            expected_escalation_reason=None,
+        )
+        for category, count in counts.items()
+        for index in range(count)
+    ]
+    return EvalDataset(dataset_version="eval-ds-test", provenance={}, cases=cases)
+
+
+def test_sample_size_wording_names_categories_below_and_at_the_30_case_minimum() -> None:
+    dataset = _dataset_with_counts({"DISPUTE": 30, "PAY_NOW": 14})
+
+    provenance = _section(
+        render_markdown_report(dataset=dataset, mock_result=None, live_result=None),
+        "Dataset provenance",
+    )
+
+    assert "1 category has at least 30 labelled cases (DISPUTE)" in provenance
+    assert "1 category has fewer (PAY_NOW (14))" in provenance
+    assert "a precondition, not evidence of quality" in provenance
+    assert "No LIVE run has been stored, so **every per-category result is OBSERVATION_ONLY**" in (
+        provenance
+    )
+    assert "30 labelled LIVE cases" in provenance
+
+
+def test_sample_size_wording_does_not_call_a_big_dataset_small() -> None:
+    dataset = _dataset_with_counts({"DISPUTE": 30, "PAY_NOW": 30})
+
+    provenance = _section(
+        render_markdown_report(dataset=dataset, mock_result=None, live_result=None),
+        "Dataset provenance",
+    )
+
+    assert "is small" not in provenance
+    assert " fewer (" not in provenance  # nothing is below the minimum
+    assert "OBSERVATION_ONLY" in provenance  # still no LIVE run, so still observation only
+
+
+def test_sample_size_wording_changes_when_a_live_run_exists() -> None:
+    dataset = _dataset_with_counts({"DISPUTE": 30, "PAY_NOW": 14})
+
+    provenance = _section(
+        render_markdown_report(dataset=dataset, mock_result=None, live_result=_small_run("LIVE")),
+        "Dataset provenance",
+    )
+
+    assert "No LIVE run has been stored" not in provenance
+    assert "Only categories with at least 30 labelled cases can show PASS or FAIL" in provenance
+    assert "1 category has fewer (PAY_NOW (14)) and stay **OBSERVATION_ONLY**" in provenance
 
 
 def test_report_command_defaults_to_the_p2_path() -> None:

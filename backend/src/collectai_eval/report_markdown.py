@@ -28,7 +28,52 @@ def _optional_percent(value: float | None) -> str:
     return _percent(value) if value is not None else "n/a"
 
 
-def _dataset_section(dataset: EvalDataset) -> list[str]:
+def _have(count: int) -> str:
+    return f"{count} category has" if count == 1 else f"{count} categories have"
+
+
+def _sample_size_paragraph(
+    dataset: EvalDataset, counts: Counter[str], live_result: EvalRunResult | None
+) -> str:
+    """The wording follows the data: which categories reach the 30-case minimum, and whether a
+    LIVE run exists. It never says more than `reporting_rules` allows (D-025)."""
+    smallest = min(counts.values()) if counts else 0
+    largest = max(counts.values()) if counts else 0
+    enough = sorted(category for category, count in counts.items() if count >= _MIN)
+    short = sorted((category, count) for category, count in counts.items() if count < _MIN)
+    parts = [
+        "**Sample-size limitation.** The dataset is self-authored: "
+        f"{len(dataset.cases)} cases across {len(counts)} categories, "
+        f"between {smallest} and {largest} per category. A per-category recall claim "
+        f"needs at least {_MIN} labelled LIVE cases (BRD 4.4, D-025)."
+    ]
+    if enough:
+        parts.append(
+            f"{_have(len(enough))} at least {_MIN} labelled cases ({', '.join(enough)}), so "
+            "they could carry a claim once a LIVE run exists; that is a precondition, not "
+            "evidence of quality."
+        )
+    if short:
+        listed = ", ".join(f"{category} ({count})" for category, count in short)
+        parts.append(
+            f"{_have(len(short))} fewer ({listed}) and stay **OBSERVATION_ONLY** even in a "
+            "LIVE run."
+        )
+    if live_result is None:
+        parts.append(
+            "No LIVE run has been stored, so **every per-category result is OBSERVATION_ONLY** "
+            "-- reported as counts, never as a pass or fail."
+        )
+    else:
+        parts.append(
+            f"Only categories with at least {_MIN} labelled cases can show PASS or FAIL in the "
+            "LIVE section; every other category, and every MOCK result, is OBSERVATION_ONLY."
+        )
+    parts.append("There is no held-out split. Results describe performance on this dataset only.")
+    return " ".join(parts)
+
+
+def _dataset_section(dataset: EvalDataset, live_result: EvalRunResult | None) -> list[str]:
     counts = Counter(case.category for case in dataset.cases)
     lines = [
         "## Dataset provenance",
@@ -38,21 +83,13 @@ def _dataset_section(dataset: EvalDataset) -> list[str]:
     ]
     for key in sorted(dataset.provenance):
         lines.append(f"- **{key.replace('_', ' ').capitalize()}:** {dataset.provenance[key]}")
-    smallest = min(counts.values()) if counts else 0
-    largest = max(counts.values()) if counts else 0
     lines += [
         "",
         "| Category | Cases |",
         "|---|---|",
         *[f"| {category} | {counts[category]} |" for category in sorted(counts)],
         "",
-        "**Sample-size limitation.** The dataset is small and self-authored: "
-        f"{len(dataset.cases)} cases across {len(counts)} categories, "
-        f"between {smallest} and {largest} per category. A per-category recall claim "
-        f"needs at least {_MIN} labelled LIVE cases (BRD 4.4, D-025), so with the "
-        "current dataset **every per-category result is OBSERVATION_ONLY** -- reported "
-        "as counts, never as a pass or fail. There is no held-out split. Results "
-        "describe performance on this dataset only.",
+        _sample_size_paragraph(dataset, counts, live_result),
         "",
     ]
     return lines
@@ -170,7 +207,7 @@ def render_markdown_report(
         "MOCK is regression-only. Intent-accuracy and recall claims come only from LIVE "
         f"runs, and a per-category recall claim needs at least {_MIN} labelled LIVE cases.",
         "",
-        *_dataset_section(dataset),
+        *_dataset_section(dataset, live_result),
         *_run_section("MOCK regression run", mock_result, mode="MOCK"),
         *_run_section("LIVE evaluation run", live_result, mode="LIVE"),
     ]
