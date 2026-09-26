@@ -152,6 +152,13 @@ jobs:
     # service is intentionally not started: the dev server is the one this
     # suite's own `playwright.config.ts` already points at.
     runs-on: ubuntu-latest
+    # The workflow default is `backend/`. This job's `cp .env.example .env` and
+    # `docker compose` steps belong at the repository root, where `.env.example`
+    # and the compose files are, so it overrides the default; its frontend steps
+    # set `working-directory: frontend` themselves.
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env
