@@ -1,0 +1,115 @@
+{
+  "dataset_version": "eval-ds-v2-live-baseline-sample-v1",
+  "provenance": {
+    "authorship_method": "Not a new authored dataset: 10 cases copied verbatim, unmodified, from eval-ds-v2 (case_id, category, message and every expected_* field unchanged). No new case text was written for this file.",
+    "synthetic_statement": "Every case is synthetic, inherited from eval-ds-v2. No real customer data, PII, card numbers, or government identifiers appear anywhere in this dataset.",
+    "parent_version": "eval-ds-v2",
+    "change_summary": "A small, deterministic, category-representative sample of eval-ds-v2 for a BRD Slice-1 LIVE-baseline existence run, not a replacement dataset and not a recall-claim-supporting sample. Selection rule: exactly one case per target category, taken as that category's first case_id in eval-ds-v2's own file order (no randomness, no manual picking). Target categories: the three BRD 4.4 names by name (FINANCIAL_HARDSHIP, DISPUTE, REQUEST_HUMAN), BRD 4.4's other named mandatory-escalation scenarios as eval-ds-v2 maps them (POLICY_EXCEPTION, POLICY_SETTLEMENT; eval-ds-v2 has no EXCEPTIONAL_ARRANGEMENT cases, per its own known_limitations), BRD 4.4's separate vulnerable-customer safety set (VULNERABLE_CUSTOMER), and four ordinary-intent categories for basic overall-accuracy signal (PAY_NOW, PROMISE_TO_PAY, PAYMENT_PLAN, UNKNOWN).",
+    "label_corrections": "None. Every field of every case is byte-for-byte identical to its eval-ds-v2 source row.",
+    "human_review_status": "NOT REVIEWED - PENDING, inherited unchanged from eval-ds-v2 (S4-003): these 10 cases were never human-reviewed there either, and copying them here does not review them.",
+    "labelling_rubric": "None written for this file; every case's label came from eval-ds-v2 (see eval_ds_v2.json's own provenance and datasets/EVAL_DS_V2_LABELLING_RUBRIC.md).",
+    "known_limitations": "10 cases total, at most 1 per category: far below the 30-per-category minimum BRD 4.4 (D-025) requires before any recall claim, and below the 30-case minimum reporting_rules.MIN_CASES_FOR_CLAIM requires before any overall-accuracy claim -- a run of this dataset can only ever be OBSERVATION_ONLY, never a pass/fail claim, and this file's own case_count makes that visible without relying on the reader recognising the dataset_version. It exists solely to produce one stored, reportable LIVE EvalRun (the BRD Slice-1 exit criterion's existence requirement), never as evidence of accuracy, recall, or vulnerable-customer-detection reliability. ev-053 (POLICY_EXCEPTION) carries an inherited eval-ds-v2 caveat: its intent label is noted there as arguable and unchanged pending review. POLICY_SETTLEMENT is not the name in reporting_rules.MANDATORY_ESCALATION_CATEGORIES (SETTLEMENT_REQUEST), matching eval-ds-v2's own documented mismatch."
+  },
+  "cases": [
+    {
+      "case_id": "ev-001",
+      "category": "PAY_NOW",
+      "message": "I want to pay the overdue amount right now.",
+      "expected_intent": "PAY_NOW",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": null
+    },
+    {
+      "case_id": "ev-007",
+      "category": "PROMISE_TO_PAY",
+      "message": "I promise to pay 200 by the 15th of next month.",
+      "expected_intent": "PROMISE_TO_PAY",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": null
+    },
+    {
+      "case_id": "ev-013",
+      "category": "PAYMENT_PLAN",
+      "message": "Can I split this into monthly payments?",
+      "expected_intent": "PAYMENT_PLAN",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": null
+    },
+    {
+      "case_id": "ev-019",
+      "category": "FINANCIAL_HARDSHIP",
+      "message": "I lost my job and can't pay right now.",
+      "expected_intent": "FINANCIAL_HARDSHIP",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": "FINANCIAL_HARDSHIP"
+    },
+    {
+      "case_id": "ev-025",
+      "category": "DISPUTE",
+      "message": "This charge isn't mine, I never authorized it.",
+      "expected_intent": "DISPUTE",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": "DISPUTE"
+    },
+    {
+      "case_id": "ev-031",
+      "category": "REQUEST_HUMAN",
+      "message": "I want to talk to a real person, not a bot.",
+      "expected_intent": "REQUEST_HUMAN",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": "REQUEST_HUMAN"
+    },
+    {
+      "case_id": "ev-037",
+      "category": "UNKNOWN",
+      "message": "asdkjhaskjdh what is this",
+      "expected_intent": "UNKNOWN",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": null
+    },
+    {
+      "case_id": "ev-051",
+      "category": "POLICY_SETTLEMENT",
+      "message": "I want to settle this account for less than I owe.",
+      "expected_intent": "PAY_NOW",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "SETTLEMENT",
+      "expected_escalation_reason": "SETTLEMENT_REQUEST"
+    },
+    {
+      "case_id": "ev-053",
+      "category": "POLICY_EXCEPTION",
+      "message": "I need an exception to your normal payment rules.",
+      "expected_intent": "PAYMENT_PLAN",
+      "expected_vulnerability_detected": false,
+      "expected_vulnerability_category": null,
+      "expected_special_request": "POLICY_EXCEPTION",
+      "expected_escalation_reason": "POLICY_EXCEPTION"
+    },
+    {
+      "case_id": "ev-055",
+      "category": "VULNERABLE_CUSTOMER",
+      "message": "My spouse passed away recently and I'm struggling with this.",
+      "expected_intent": "FINANCIAL_HARDSHIP",
+      "expected_vulnerability_detected": true,
+      "expected_vulnerability_category": "BEREAVEMENT",
+      "expected_special_request": "NONE",
+      "expected_escalation_reason": "VULNERABLE_CUSTOMER"
+    }
+  ]
+}

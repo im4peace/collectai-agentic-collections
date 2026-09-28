@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+import collectai_eval.runner as runner_module
 from collectai.config.policy.loader import load_seed_policy_v1
 from collectai.config.policy.provider import PolicyProvider
 from collectai.persistence.orm.eval_case_result import EvalCaseResultOrm
@@ -23,6 +24,7 @@ from collectai_eval.runner import (
     LiveEvalCiRefusedError,
     LiveEvalMissingApiKeyError,
     LiveEvalNotConfirmedError,
+    LiveEvalTooManyCasesError,
     RunConfig,
     run_eval,
 )
@@ -257,3 +259,147 @@ async def test_report_renders_a_mock_section_with_the_stored_metrics(
     assert "MOCK run" in report
     assert "eval-ds-v2" in report
     assert "small-sample result" in report  # fewer than 30 cases in this slice
+
+
+async def test_max_cases_refuses_before_provider_construction_or_any_case(
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    policy_rule_set_row: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`--max-cases` is checked before `_build_provider` is even called, not just before the
+    case loop: this uses a LIVE config (a fake key, `live_confirmed=True`, no `CI` env var --
+    the configuration that would otherwise reach `AnthropicProvider(...)`), and patches both
+    `_build_provider` and `_run_one_case` to fail the test if either is ever called. Proves the
+    ceiling refuses before a real provider is constructed, not merely before it is used."""
+
+    def _fail_if_build_provider_called(*args: object, **kwargs: object) -> None:
+        raise AssertionError("_build_provider was called after max_cases should have refused")
+
+    async def _fail_if_run_one_case_called(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a case was attempted after max_cases should have refused the run")
+
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setattr(runner_module, "_build_provider", _fail_if_build_provider_called)
+    monkeypatch.setattr(runner_module, "_run_one_case", _fail_if_run_one_case_called)
+    clock = SimulatedClock(_NOW)
+    dataset = _small_dataset()
+    with pytest.raises(LiveEvalTooManyCasesError) as exc_info:
+        await run_eval(
+            session,
+            session_factory=session_factory,
+            dataset=dataset,
+            config=RunConfig(
+                mode=ProviderMode.LIVE,
+                triggered_by="test",
+                live_confirmed=True,
+                anthropic_api_key="sk-ant-fake",
+                anthropic_model="claude-fake",
+                max_cases=len(dataset.cases) - 1,
+            ),
+            clock=clock,
+            policy_provider=_policy_provider(clock),
+        )
+    assert exc_info.value.resolved_case_count == len(dataset.cases)
+    assert exc_info.value.max_cases == len(dataset.cases) - 1
+
+
+async def test_max_cases_at_the_resolved_count_does_not_refuse(
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    policy_rule_set_row: None,
+) -> None:
+    """The ceiling is `>`, not `>=`: a `--max-cases` equal to the resolved count is not a
+    refusal -- it is the exact case count the operator asked to allow."""
+    clock = SimulatedClock(_NOW)
+    dataset = _small_dataset()
+    result = await run_eval(
+        session,
+        session_factory=session_factory,
+        dataset=dataset,
+        config=RunConfig(mode=ProviderMode.MOCK, triggered_by="test", max_cases=len(dataset.cases)),
+        clock=clock,
+        policy_provider=_policy_provider(clock),
+    )
+    assert result.case_count == len(dataset.cases)
+
+
+async def test_omitting_max_cases_changes_nothing(
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    policy_rule_set_row: None,
+) -> None:
+    """`max_cases=None` (the default) is exactly today's behaviour: no ceiling, every case in
+    the resolved dataset runs, regardless of size."""
+    clock = SimulatedClock(_NOW)
+    dataset = _small_dataset()
+    result = await run_eval(
+        session,
+        session_factory=session_factory,
+        dataset=dataset,
+        config=RunConfig(mode=ProviderMode.MOCK, triggered_by="test"),
+        clock=clock,
+        policy_provider=_policy_provider(clock),
+    )
+    assert result.case_count == len(dataset.cases)
+
+
+async def test_resolved_dataset_and_case_count_are_logged_before_any_case_runs(
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    policy_rule_set_row: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The operator-facing safety print from the LIVE-baseline design: mode, dataset_version,
+    case_count and max_cases (when supplied) are all logged before the run can do anything,
+    MOCK included, so the same log line is exercised here without any real provider call. Spies
+    on the module's own `logger.info` directly (rather than `caplog`) so this is independent of
+    any interaction between pytest's log-capture handler and this project's async/embedded-
+    postgres fixture chain."""
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        runner_module.logger, "info", lambda *args, **kwargs: calls.append(args)
+    )
+    clock = SimulatedClock(_NOW)
+    dataset = _small_dataset()
+    await run_eval(
+        session,
+        session_factory=session_factory,
+        dataset=dataset,
+        config=RunConfig(
+            mode=ProviderMode.MOCK, triggered_by="test", max_cases=len(dataset.cases) + 5
+        ),
+        clock=clock,
+        policy_provider=_policy_provider(clock),
+    )
+    assert calls, "logger.info was never called"
+    logged = calls[0]
+    assert ProviderMode.MOCK.value in logged
+    assert dataset.dataset_version in logged
+    assert len(dataset.cases) in logged  # case_count
+    assert len(dataset.cases) + 5 in logged  # max_cases, a distinct value from case_count
+
+
+async def test_the_preflight_log_names_no_max_cases_when_it_was_omitted(
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    policy_rule_set_row: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`max_cases` omitted (the default) must not be logged as if a ceiling were set."""
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        runner_module.logger, "info", lambda *args, **kwargs: calls.append(args)
+    )
+    clock = SimulatedClock(_NOW)
+    dataset = _small_dataset()
+    await run_eval(
+        session,
+        session_factory=session_factory,
+        dataset=dataset,
+        config=RunConfig(mode=ProviderMode.MOCK, triggered_by="test"),
+        clock=clock,
+        policy_provider=_policy_provider(clock),
+    )
+    assert calls, "logger.info was never called"
+    assert calls[0][-1] == "(none)"

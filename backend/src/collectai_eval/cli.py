@@ -38,6 +38,31 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Required (with --mode live) to actually call the real Anthropic API.",
     )
     run_parser.add_argument("--triggered-by", default="cli")
+    run_parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=None,
+        help=(
+            "Path to a dataset JSON file (same shape as eval_ds_v2.json). Defaults to "
+            "collectai_eval's own default dataset (eval-ds-v2, 264 cases) when omitted -- "
+            "this flag only ever narrows what runs; omitting it never changes today's "
+            "behaviour. See datasets/eval_ds_v2_live_baseline_sample.json for a small, "
+            "category-representative sample suited to a BRD Slice-1 LIVE-baseline existence "
+            "run (10 cases, far below the 30-per-category minimum a recall claim needs)."
+        ),
+    )
+    run_parser.add_argument(
+        "--max-cases",
+        type=int,
+        default=None,
+        help=(
+            "Refuse to run (before any provider call, so no request or cost is incurred) if "
+            "the resolved dataset has more than this many cases. Bounds cases attempted, not "
+            "raw provider requests: a bounded retry (see the orchestrator's own retry_bound) "
+            "can still call the provider more than once per case. Opt-in; omitted, no ceiling "
+            "applies and today's behaviour is unchanged."
+        ),
+    )
     report_parser = subparsers.add_parser(
         "report",
         help="Write the P2 markdown report from the latest stored MOCK and LIVE runs.",
@@ -57,7 +82,7 @@ async def _run(args: argparse.Namespace) -> int:
 
     engine = create_async_engine(settings.database_url, future=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    dataset = load_dataset()
+    dataset = load_dataset(args.dataset) if args.dataset is not None else load_dataset()
     mode = ProviderMode.LIVE if args.mode == "live" else ProviderMode.MOCK
     config = RunConfig(
         mode=mode,
@@ -67,6 +92,7 @@ async def _run(args: argparse.Namespace) -> int:
             settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
         ),
         anthropic_model=settings.anthropic_model,
+        max_cases=args.max_cases,
     )
 
     try:

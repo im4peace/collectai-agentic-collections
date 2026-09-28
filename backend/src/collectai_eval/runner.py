@@ -28,6 +28,7 @@ opt-in and a real API key; it always refuses under CI (AC3)."""
 from __future__ import annotations
 
 import json
+import logging
 import os
 import uuid
 from dataclasses import dataclass
@@ -52,6 +53,8 @@ from collectai.types.clock import Clock
 from collectai.types.enums import EscalationReason, Intent, Persona, ProviderMode
 from collectai.types.ids import EntityPrefix, generate_id
 from collectai_eval.schemas import EvalCase, EvalCaseResult, EvalDataset, EvalRunResult, TokenUsage
+
+logger = logging.getLogger(__name__)
 
 _CAPABILITY = "EVAL_INTENT_CLASSIFICATION"
 # A fixed, valid-shaped (real ULID-suffixed) customer/account id pair used
@@ -85,6 +88,21 @@ class LiveEvalMissingApiKeyError(LiveEvalRefusedError):
         super().__init__("LIVE evaluation requires a real ANTHROPIC_API_KEY.")
 
 
+class LiveEvalTooManyCasesError(LiveEvalRefusedError):
+    """`RunConfig.max_cases` (an explicit, opt-in ceiling -- omitted, it never fires and never
+    changes today's behaviour) named fewer cases than the resolved dataset actually has. Raised
+    before any provider call, so no request or cost was incurred."""
+
+    def __init__(self, resolved_case_count: int, max_cases: int) -> None:
+        self.resolved_case_count = resolved_case_count
+        self.max_cases = max_cases
+        super().__init__(
+            f"Resolved dataset has {resolved_case_count} case(s), which exceeds "
+            f"--max-cases {max_cases}. Refused before any provider call; no request was made. "
+            "Pass a smaller dataset (--dataset) or raise --max-cases."
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class RunConfig:
     mode: ProviderMode
@@ -92,6 +110,10 @@ class RunConfig:
     live_confirmed: bool = False
     anthropic_api_key: str | None = None
     anthropic_model: str | None = None
+    max_cases: int | None = None
+    """Opt-in ceiling on cases attempted (not raw provider requests -- see the module docstring
+    of the CLI's --max-cases help text), checked once before any provider call. `None` (the
+    default) disables the check entirely, so omitting it never changes existing behaviour."""
 
 
 def _build_mock_provider(dataset: EvalDataset) -> MockProvider:
@@ -288,8 +310,24 @@ async def run_eval(
     transaction, mirroring production's own "non-state-changing AI
     activity" pattern -- see `audit/service.py`'s module docstring);
     `session` is used only to read those now-committed audit rows back for
-    token-usage accounting, and by the caller afterward to store the run."""
+    token-usage accounting, and by the caller afterward to store the run.
+
+    Order matters for safety (LIVE-baseline design): the resolved case count is known and
+    logged, and `max_cases` is enforced, *before* `_build_provider` ever constructs a real
+    `AnthropicProvider` -- a refused run never even holds a live client, let alone calls one."""
+    resolved_case_count = len(dataset.cases)
+    logger.info(
+        "Resolved eval run: mode=%s dataset_version=%s case_count=%d max_cases=%s",
+        config.mode.value,
+        dataset.dataset_version,
+        resolved_case_count,
+        config.max_cases if config.max_cases is not None else "(none)",
+    )
+    if config.max_cases is not None and resolved_case_count > config.max_cases:
+        raise LiveEvalTooManyCasesError(resolved_case_count, config.max_cases)
+
     provider, model_id = _build_provider(config, dataset)
+
     audit_service = AuditService(clock, session_factory)
 
     case_results: list[EvalCaseResult] = []
