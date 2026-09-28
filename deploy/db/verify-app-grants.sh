@@ -46,6 +46,7 @@ expect_allowed collectai_app "SELECT on customer" "SELECT count(*) FROM customer
 expect_allowed collectai_app "UPDATE on customer" "UPDATE customer SET customer_id = customer_id WHERE false"
 expect_allowed collectai_app "INSERT on payment_event" "INSERT INTO payment_event SELECT * FROM payment_event WHERE false"
 expect_allowed collectai_app "SELECT on audit_event" "SELECT count(*) FROM audit_event"
+expect_allowed collectai_app "SELECT on alembic_version" "SELECT version_num FROM alembic_version"
 
 expect_denied collectai_app "DELETE on customer" "DELETE FROM customer WHERE false"
 expect_denied collectai_app "UPDATE on payment_event" "UPDATE payment_event SET amount = amount WHERE false"
@@ -53,6 +54,9 @@ expect_denied collectai_app "DELETE on payment_event" "DELETE FROM payment_event
 expect_denied collectai_app "UPDATE on audit_event" "UPDATE audit_event SET event_type = event_type WHERE false"
 expect_denied collectai_app "DELETE on audit_event" "DELETE FROM audit_event WHERE false"
 expect_denied collectai_app "DROP TABLE customer" "DROP TABLE customer"
+expect_denied collectai_app "UPDATE on alembic_version" "UPDATE alembic_version SET version_num = version_num WHERE false"
+expect_denied collectai_app "DELETE on alembic_version" "DELETE FROM alembic_version WHERE false"
+expect_denied collectai_app "INSERT on alembic_version" "INSERT INTO alembic_version SELECT * FROM alembic_version WHERE false"
 
 # --- collectai_readonly: reporting role -------------------------------------------------------
 expect_allowed collectai_readonly "SELECT on customer" "SELECT count(*) FROM customer"

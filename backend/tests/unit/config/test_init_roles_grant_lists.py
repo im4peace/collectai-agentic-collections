@@ -32,3 +32,15 @@ def test_no_table_is_both_updatable_and_insert_only_in_the_file() -> None:
     updatable = _table_list("INSERT, SELECT, UPDATE", "collectai_app")
 
     assert updatable.isdisjoint(_INSERT_ONLY_TABLES)
+
+
+def test_alembic_version_is_select_only_and_outside_the_business_table_scan() -> None:
+    """`app_role_grants` (readiness_service.py) deliberately scans every public table except
+    `alembic_version` -- migration state, not a business table (its own SQL says
+    `tablename <> 'alembic_version'`). This file grants collectai_app SELECT only on it, via
+    neither the ordinary nor the insert-only business-table list above, so it must stay out of
+    `_INSERT_ONLY_TABLES` (that set feeds `app_role_grants`'s per-business-table checks)."""
+    alembic_grant = _table_list("SELECT", "collectai_app")
+
+    assert alembic_grant == {"alembic_version"}
+    assert "alembic_version" not in _INSERT_ONLY_TABLES

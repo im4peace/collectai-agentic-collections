@@ -131,5 +131,12 @@ TO collectai_readonly;
 -- idempotency_record.idempotency_id, audit_event.sequence once E1-S4 adds
 -- it) need USAGE for collectai_app to insert; readonly needs none.
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO collectai_app;
+
+-- Migration metadata: collectai_app needs SELECT to read its own current revision
+-- (readiness check `migrations`, api/routers/system.py's `/api/ready`); it never writes
+-- alembic_version -- only collectai_owner does, via Alembic. Not in the ordinary business-
+-- table list above and not a `collectai_readonly` concern: this is migration state, not
+-- business data.
+GRANT SELECT ON TABLE alembic_version TO collectai_app;
 END
 $grants$;

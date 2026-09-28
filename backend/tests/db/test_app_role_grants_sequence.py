@@ -163,15 +163,24 @@ def granted_db(databases: _Databases) -> str:
     return name
 
 
-async def _app_role_grants(databases: _Databases, database: str) -> tuple[bool, str | None]:
-    engine = create_async_engine(databases.async_url(database, "collectai_app"))
+async def _readiness_check(
+    databases: _Databases, database: str, name: str, *, role: str = "collectai_app"
+) -> tuple[bool, str | None]:
+    """Run every readiness check with a session authenticated as `role` (the API's own role by
+    default -- it is never the superuser this file's other helpers connect as) and return the
+    named one's result."""
+    engine = create_async_engine(databases.async_url(database, role))
     try:
         async with async_sessionmaker(engine, expire_on_commit=False)() as session:
             result = await check_readiness(session)
     finally:
         await engine.dispose()
-    check = next(c for c in result.checks if c.name == "app_role_grants")
+    check = next(c for c in result.checks if c.name == name)
     return check.ok, check.detail
+
+
+async def _app_role_grants(databases: _Databases, database: str) -> tuple[bool, str | None]:
+    return await _readiness_check(databases, database, "app_role_grants")
 
 
 # ---- the URI helpers (no server needed) -----------------------------------------------------
@@ -289,15 +298,21 @@ def test_the_grants_step_gives_exactly_the_least_privilege_the_design_names(
     app = _privileges(dsn, "collectai_app")
     readonly = _privileges(dsn, "collectai_readonly")
 
-    assert set(app) == tables, "the app role must have a grant on every application table"
+    # `_tables()` deliberately excludes alembic_version (it is migration state, not a business
+    # table -- see the comment on `_INSERT_ONLY`), so it is checked separately below.
+    assert set(app) == tables | {"alembic_version"}, "the app role must have a grant on every " \
+        "application table, plus SELECT on alembic_version for the `migrations` readiness check"
     for table in tables:
         if table in _INSERT_ONLY:
             assert app[table] == {"INSERT", "SELECT"}, table
         else:
             assert app[table] == {"INSERT", "SELECT", "UPDATE"}, table
+    assert app["alembic_version"] == {"SELECT"}, "collectai_app must never write its own " \
+        "migration state -- only collectai_owner does, via Alembic"
     for table, privileges in readonly.items():
         assert privileges == {"SELECT"}, table
     assert set(readonly) == tables - {"audit_event"}
+    assert "alembic_version" not in readonly, "migration state is not a reporting concern"
 
 
 def test_the_grants_step_is_idempotent(databases: _Databases, granted_db: str) -> None:
@@ -333,9 +348,24 @@ def test_the_application_role_can_use_the_tables_and_is_denied_what_it_should_be
         "DELETE FROM payment_event",
         "DELETE FROM customer",
         "DROP TABLE customer",
+        "UPDATE alembic_version SET version_num = version_num",
+        "DELETE FROM alembic_version",
+        "INSERT INTO alembic_version (version_num) VALUES ('x')",
     ):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             _run(app, denied)
+
+
+def test_the_application_role_can_read_its_own_migration_revision(
+    databases: _Databases, granted_db: str
+) -> None:
+    """What the readiness check `migrations` needs: proof that `collectai_app`'s SELECT on
+    `alembic_version` actually works over a real connection, not just as a metadata grant."""
+    app = databases.dsn(granted_db, "collectai_app")
+
+    revision = _one(app, "SELECT version_num FROM alembic_version")
+
+    assert revision == readiness_service._head_revision()
 
 
 def test_the_read_only_role_can_read_but_not_write(
@@ -373,6 +403,37 @@ async def test_readiness_passes_after_the_grants_step(
     databases: _Databases, granted_db: str
 ) -> None:
     assert await _app_role_grants(databases, granted_db) == (True, None)
+
+
+@pytest.mark.asyncio
+async def test_readiness_migrations_check_fails_before_the_grants_step(
+    databases: _Databases,
+) -> None:
+    """Documents the bug this file's alembic_version grant fixes: migrated but not yet granted,
+    `collectai_app` cannot read `alembic_version` (PostgreSQL's default "no privilege" for a
+    non-owner role), and `_check_migrations`'s broad `except SQLAlchemyError` reports that
+    permission error as "migrations not applied" even though migrations did run."""
+    name = databases.clone()
+
+    ok, detail = await _readiness_check(databases, name, "migrations")
+
+    assert ok is False
+    assert detail == "migrations not applied"
+
+
+@pytest.mark.asyncio
+async def test_readiness_migrations_check_passes_for_the_application_role(
+    databases: _Databases, granted_db: str
+) -> None:
+    """The regression this guards against: CI's evidence was database/policy_ruleset/
+    audit_role_grants/app_role_grants all ok with only migrations failing, which is exactly
+    what an ungranted alembic_version produces (see the test above) -- not a real migration
+    problem. This is the same check, run the same way (as collectai_app, the API's own role),
+    against a database that has had the grants step applied."""
+    ok, detail = await _readiness_check(databases, granted_db, "migrations")
+
+    assert ok is True
+    assert detail is None
 
 
 @pytest.mark.asyncio

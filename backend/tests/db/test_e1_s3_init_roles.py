@@ -74,6 +74,37 @@ def test_collectai_app_can_insert_and_select_but_not_update_payment_event(
     assert "UPDATE" not in granted
 
 
+def test_collectai_app_can_select_but_not_write_alembic_version(migrated_schema: str) -> None:
+    """The application connects as `collectai_app` (deployment.md: "the running app never holds
+    owner rights") and the readiness check `migrations` reads `alembic_version` on that same
+    connection. Without this grant, PostgreSQL's default "no privilege" for a non-owner role
+    made that SELECT fail with a permission error, which the check reported as "migrations not
+    applied" even though migrations had run (CI evidence: db/policy_ruleset/audit_role_grants/
+    app_role_grants all ok, only migrations failed). collectai_app never writes this table --
+    only collectai_owner does, via Alembic -- so SELECT is the only grant."""
+    sql = _INIT_ROLES_SQL_PATH.read_text(encoding="utf-8")
+    with psycopg.connect(_sync_dsn(migrated_schema), autocommit=True) as conn:
+        conn.execute(sql)
+        rows = conn.execute(
+            "SELECT privilege_type FROM information_schema.role_table_grants "
+            "WHERE grantee = 'collectai_app' AND table_name = 'alembic_version'"
+        ).fetchall()
+    assert {row[0] for row in rows} == {"SELECT"}
+
+
+def test_collectai_readonly_has_no_grant_on_alembic_version(migrated_schema: str) -> None:
+    """Migration state is not a reporting/evaluation concern; only `collectai_app` needs it,
+    to answer its own readiness check."""
+    sql = _INIT_ROLES_SQL_PATH.read_text(encoding="utf-8")
+    with psycopg.connect(_sync_dsn(migrated_schema), autocommit=True) as conn:
+        conn.execute(sql)
+        rows = conn.execute(
+            "SELECT privilege_type FROM information_schema.role_table_grants "
+            "WHERE grantee = 'collectai_readonly' AND table_name = 'alembic_version'"
+        ).fetchall()
+    assert rows == []
+
+
 def test_collectai_readonly_has_select_only_on_account(migrated_schema: str) -> None:
     sql = _INIT_ROLES_SQL_PATH.read_text(encoding="utf-8")
     with psycopg.connect(_sync_dsn(migrated_schema), autocommit=True) as conn:
