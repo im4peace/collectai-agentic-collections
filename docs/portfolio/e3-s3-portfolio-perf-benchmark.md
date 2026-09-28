@@ -2,6 +2,27 @@
 
 Generated: 2026-09-23T16:46:47.396Z
 
+## Status summary
+
+| | |
+|---|---|
+| Numerical target (p95 < 2,000 ms) | **FAIL** (p95 = 17496 ms) |
+| BRD 10.6 Docker Compose environment requirement | **NOT VERIFIED** |
+| Overall E3-S3 AC5 | **NOT MET by this measurement** |
+
+BRD 10.6 (`specs/brd/brd.md`) requires this measurement to be "Measured
+locally on Docker Compose". This run's own caveat below (backend API,
+PostgreSQL and the Vite dev server sharing one host) describes the
+repository's documented non-Docker stack, not `docker compose up`; this run
+was not run or labelled as Docker Compose at the time, so that requirement
+is recorded here as **NOT VERIFIED** rather than assumed either way. This
+remains valid observational evidence for the environment it was actually
+captured on, but it does not establish performance on the BRD-prescribed
+Docker Compose environment, and it must not be read as an inference that the
+application cannot meet the target once measured there. Docker Compose
+remeasurement remains required for environment-conformant verification (see
+decision `PERF-001`, `decision-log.md`).
+
 ## Method
 30 scripted Playwright loads of `/portfolio` (via the persona switcher,
 COLLECTIONS_OFFICER) after one discarded warm-up run, against a database
@@ -63,3 +84,5 @@ the note in the report's summary.
 | max | 19071 |
 
 **AC5 target: p95 < 2000 ms -- FAIL**
+**BRD 10.6 Docker Compose environment requirement: NOT VERIFIED**
+**Overall E3-S3 AC5: NOT MET by this measurement**
