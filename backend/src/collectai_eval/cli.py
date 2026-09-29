@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -35,7 +36,19 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--live-confirm",
         action="store_true",
-        help="Required (with --mode live) to actually call the real Anthropic API.",
+        help="Required (with --mode live) to actually call the real provider API.",
+    )
+    run_parser.add_argument(
+        "--provider",
+        choices=["anthropic", "openrouter"],
+        default="anthropic",
+        help=(
+            "Which LIVE provider to call (--mode live only; ignored in --mode mock). Defaults "
+            "to anthropic, so omitting this flag never changes existing behaviour. "
+            "--provider openrouter reads OPENROUTER_API_KEY and OPENROUTER_MODEL from the "
+            "environment; OPENROUTER_MODEL must be set explicitly and must end in ':free' -- "
+            "there is no dynamic/auto-router default and no bypass flag."
+        ),
     )
     run_parser.add_argument("--triggered-by", default="cli")
     run_parser.add_argument(
@@ -88,10 +101,16 @@ async def _run(args: argparse.Namespace) -> int:
         mode=mode,
         triggered_by=args.triggered_by,
         live_confirmed=args.live_confirm,
+        provider=args.provider,
         anthropic_api_key=(
             settings.anthropic_api_key.get_secret_value() if settings.anthropic_api_key else None
         ),
         anthropic_model=settings.anthropic_model,
+        # Deliberately read directly from the environment, not through
+        # collectai.config.settings.Settings: OpenRouter is scoped to this eval CLI only, never
+        # the server-side provider factory/application LLM runtime, so it gets no Settings field.
+        openrouter_api_key=os.environ.get("OPENROUTER_API_KEY") or None,
+        openrouter_model=os.environ.get("OPENROUTER_MODEL") or None,
         max_cases=args.max_cases,
     )
 

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from collectai_eval.cli import _build_arg_parser
 
 
@@ -47,3 +49,27 @@ def test_mock_mode_also_accepts_both_new_flags() -> None:
 
     assert args.dataset == Path("some/sample.json")
     assert args.max_cases == 10
+
+
+def test_provider_defaults_to_anthropic_so_omitting_it_changes_nothing() -> None:
+    """A: the strong preference this design was built around, same as --dataset/--max-cases --
+    a command with no --provider flag must resolve to exactly today's (Anthropic) behaviour."""
+    args = _build_arg_parser().parse_args(["run", "--mode", "live", "--live-confirm"])
+
+    assert args.provider == "anthropic"
+
+
+def test_provider_openrouter_is_accepted() -> None:
+    """B."""
+    args = _build_arg_parser().parse_args(
+        ["run", "--mode", "live", "--live-confirm", "--provider", "openrouter"]
+    )
+
+    assert args.provider == "openrouter"
+
+
+def test_provider_rejects_an_unknown_value() -> None:
+    with pytest.raises(SystemExit):
+        _build_arg_parser().parse_args(
+            ["run", "--mode", "live", "--live-confirm", "--provider", "openai"]
+        )

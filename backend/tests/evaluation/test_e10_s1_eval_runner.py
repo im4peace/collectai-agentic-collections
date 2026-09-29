@@ -123,11 +123,12 @@ async def test_ac2_mock_run_uses_the_mock_provider_not_a_real_one(
     from collectai.llm_provider.mock import MockProvider
     from collectai_eval.runner import _build_provider
 
-    provider, model_id = _build_provider(
+    provider, model_id, provider_name = _build_provider(
         RunConfig(mode=ProviderMode.MOCK, triggered_by="test"), _small_dataset()
     )
     assert isinstance(provider, MockProvider)
     assert model_id is None
+    assert provider_name == "mock"
 
     clock = SimulatedClock(_NOW)
     result = await run_eval(

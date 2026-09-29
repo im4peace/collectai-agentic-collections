@@ -49,6 +49,7 @@ from collectai.config.policy.provider import PolicyProvider
 from collectai.llm_provider.anthropic_live import AnthropicProvider
 from collectai.llm_provider.base import LlmProvider, ProviderResult
 from collectai.llm_provider.mock import MockProvider
+from collectai.llm_provider.openrouter_live import OpenRouterProvider
 from collectai.types.clock import Clock
 from collectai.types.enums import EscalationReason, Intent, Persona, ProviderMode
 from collectai.types.ids import EntityPrefix, generate_id
@@ -88,6 +89,37 @@ class LiveEvalMissingApiKeyError(LiveEvalRefusedError):
         super().__init__("LIVE evaluation requires a real ANTHROPIC_API_KEY.")
 
 
+class LiveEvalMissingOpenRouterApiKeyError(LiveEvalRefusedError):
+    def __init__(self) -> None:
+        super().__init__(
+            "LIVE evaluation with --provider openrouter requires a real OPENROUTER_API_KEY."
+        )
+
+
+class LiveEvalMissingOpenRouterModelError(LiveEvalRefusedError):
+    def __init__(self) -> None:
+        super().__init__(
+            "LIVE evaluation with --provider openrouter requires OPENROUTER_MODEL to be set "
+            "explicitly. There is no dynamic/auto-router default (e.g. 'openrouter/auto') -- a "
+            "reproducible baseline requires naming one specific model."
+        )
+
+
+class LiveEvalOpenRouterModelNotFreeError(LiveEvalRefusedError):
+    """Safety guard: refuse any OpenRouter model id that does not end in ':free', to prevent
+    accidentally incurring paid-model spend on this demo/portfolio project. No override flag is
+    provided by design -- switching to a paid model requires a deliberate code change, not a
+    CLI flag."""
+
+    def __init__(self, model: str) -> None:
+        self.model = model
+        super().__init__(
+            f"OPENROUTER_MODEL={model!r} does not end with ':free'. Refused before any provider "
+            "call or network access, to prevent accidental paid-model usage. Configure a model "
+            "id that ends in ':free'."
+        )
+
+
 class LiveEvalTooManyCasesError(LiveEvalRefusedError):
     """`RunConfig.max_cases` (an explicit, opt-in ceiling -- omitted, it never fires and never
     changes today's behaviour) named fewer cases than the resolved dataset actually has. Raised
@@ -108,8 +140,16 @@ class RunConfig:
     mode: ProviderMode
     triggered_by: str
     live_confirmed: bool = False
+    provider: str = "anthropic"
+    """Which LIVE provider to build (`"anthropic"` or `"openrouter"`); ignored in MOCK mode.
+    Defaults to `"anthropic"`, so omitting it never changes existing behaviour."""
     anthropic_api_key: str | None = None
     anthropic_model: str | None = None
+    openrouter_api_key: str | None = None
+    openrouter_model: str | None = None
+    """Must end in ':free' (`LiveEvalOpenRouterModelNotFreeError` otherwise) -- no dynamic/
+    auto-router default is supported, matching `--dataset`/`--max-cases`'s own opt-in-only,
+    fail-closed design."""
     max_cases: int | None = None
     """Opt-in ceiling on cases attempted (not raw provider requests -- see the module docstring
     of the CLI's --max-cases help text), checked once before any provider call. `None` (the
@@ -149,18 +189,32 @@ def _expected_intent_response(case: EvalCase) -> ProviderResult:
     )
 
 
+_OPENROUTER_FREE_SUFFIX = ":free"
+
+
 def _build_provider(
     config: RunConfig, dataset: EvalDataset
-) -> tuple[LlmProvider, str | None]:
-    """Returns `(provider, model_id)`. `model_id` is `None` for MOCK (the
-    `eval_run.model_id` column's own CHECK constraint: `mode = 'LIVE' OR
-    model_id IS NULL`)."""
+) -> tuple[LlmProvider, str | None, str]:
+    """Returns `(provider, model_id, provider_name)`. `model_id` is `None` for MOCK (the
+    `eval_run.model_id` column's own CHECK constraint: `mode = 'LIVE' OR model_id IS NULL`).
+    `provider_name` feeds the audit trail's `AiCallContext.provider_name` (see `_run_one_case`)
+    so a LIVE OpenRouter run is never mislabelled as `"anthropic"`.
+
+    The CI/`--live-confirm` checks below are provider-agnostic and run before any
+    provider-specific branch, so they refuse an OpenRouter run exactly as they already refuse
+    an Anthropic one -- before any provider-specific credential check, let alone a network call."""
     if config.mode is ProviderMode.MOCK:
-        return _build_mock_provider(dataset), None
+        return _build_mock_provider(dataset), None, "mock"
     if os.environ.get("CI"):
         raise LiveEvalCiRefusedError
     if not config.live_confirmed:
         raise LiveEvalNotConfirmedError
+    if config.provider == "openrouter":
+        return _build_openrouter_provider(config)
+    return _build_anthropic_provider(config)
+
+
+def _build_anthropic_provider(config: RunConfig) -> tuple[LlmProvider, str, str]:
     if not config.anthropic_api_key:
         raise LiveEvalMissingApiKeyError
     model = config.anthropic_model or "claude-REPLACE_ME"
@@ -169,7 +223,22 @@ def _build_provider(
         api_key=SecretStr(config.anthropic_api_key),
         timeout_seconds=20,
     )
-    return provider, model
+    return provider, model, "anthropic"
+
+
+def _build_openrouter_provider(config: RunConfig) -> tuple[LlmProvider, str, str]:
+    if not config.openrouter_api_key:
+        raise LiveEvalMissingOpenRouterApiKeyError
+    if not config.openrouter_model:
+        raise LiveEvalMissingOpenRouterModelError
+    if not config.openrouter_model.endswith(_OPENROUTER_FREE_SUFFIX):
+        raise LiveEvalOpenRouterModelNotFreeError(config.openrouter_model)
+    provider = OpenRouterProvider(
+        model_id=config.openrouter_model,
+        api_key=SecretStr(config.openrouter_api_key),
+        timeout_seconds=20,
+    )
+    return provider, config.openrouter_model, "openrouter"
 
 
 def _predicted_escalation_reason(intent_result: IntentResult) -> str | None:
@@ -187,6 +256,7 @@ async def _run_one_case(
     case: EvalCase,
     provider: LlmProvider,
     provider_mode: ProviderMode,
+    provider_name: str,
     audit_service: AuditService,
 ) -> tuple[EvalCaseResult, dict[str, int] | None]:
     correlation_id = f"eval-{uuid.uuid4().hex}"
@@ -198,7 +268,7 @@ async def _run_one_case(
         correlation_id=correlation_id,
         capability=_CAPABILITY,
         prompt_version=PROMPT_VERSION,
-        provider_name="anthropic" if provider_mode is ProviderMode.LIVE else "mock",
+        provider_name=provider_name,
         provider_mode=provider_mode,
         actor_persona=Persona.CUSTOMER,
         customer_id=_EVAL_CUSTOMER_ID,
@@ -326,7 +396,7 @@ async def run_eval(
     if config.max_cases is not None and resolved_case_count > config.max_cases:
         raise LiveEvalTooManyCasesError(resolved_case_count, config.max_cases)
 
-    provider, model_id = _build_provider(config, dataset)
+    provider, model_id, provider_name = _build_provider(config, dataset)
 
     audit_service = AuditService(clock, session_factory)
 
@@ -340,6 +410,7 @@ async def run_eval(
             case=case,
             provider=provider,
             provider_mode=config.mode,
+            provider_name=provider_name,
             audit_service=audit_service,
         )
         case_results.append(case_result)
